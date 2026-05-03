@@ -24,11 +24,16 @@ BLACKLIST_KEYWORDS = [
     "存託憑證", "受益憑證", "REITs", "不動產"
 ]
 
+# FinMind TaiwanStockInfo type 欄位：只保留上市/上櫃
+# 興櫃(rotc)、公開發行(pub/pubcd)、其他非交易所掛牌者一律排除
+_ALLOWED_TYPES = {"twse", "tpex", "sii", "otc", "上市", "上櫃"}
+_EXCLUDED_TYPES = {"rotc", "pub", "pubcd", "興櫃", "公開發行", "公開"}
+
 
 def is_valid_stock(row: pd.Series) -> bool:
     """
-    保留：上市/上櫃普通股、ETF、特別股（2002A）、可轉債
-    排除：權證
+    保留：上市/上櫃普通股、ETF、特別股（2002A）
+    排除：權證、興櫃、公開發行
     """
     stock_id = str(row.get("stock_id", ""))
     name = str(row.get("stock_name", ""))
@@ -42,6 +47,11 @@ def is_valid_stock(row: pd.Series) -> bool:
     for kw in BLACKLIST_KEYWORDS:
         if kw in name:
             return False
+
+    # type 欄位過濾：有明確非上市/上櫃 type 則排除
+    stock_type = str(row.get("type", "")).strip().lower()
+    if stock_type in {t.lower() for t in _EXCLUDED_TYPES}:
+        return False
 
     # 4 位純數字 → 普通股 / 4 碼 ETF（0050, 0056 等）
     if stock_id.isdigit() and len(stock_id) == 4:
@@ -64,6 +74,11 @@ def filter_stock_list(stock_list_df: pd.DataFrame) -> pd.DataFrame:
     """
     if stock_list_df.empty:
         return stock_list_df
+
+    # 診斷日誌：顯示 type 分布，幫助確認過濾邏輯是否正確
+    if "type" in stock_list_df.columns:
+        type_dist = stock_list_df["type"].value_counts().to_dict()
+        logger.info(f"股票清單 type 分布：{type_dist}")
 
     before = len(stock_list_df)
     mask = stock_list_df.apply(is_valid_stock, axis=1)
@@ -136,8 +151,7 @@ def phase1_filter(today_inst: pd.DataFrame) -> bool:
 
     通過條件：外資 net > 0 OR 投信 net > 0
     ─ 只要外資或投信任一有淨買超即通過；純自營商、純賣超的股票被排除。
-    ─ 比 quick_institutional_check（包含自營商、允許賣超加總 > 0）略嚴，
-      預計將通過股票數從 ~700 降至 ~400-500。
+    ─ 若 name 欄找不到外資/投信匹配（格式問題），降級為整體 diff > 0。
     """
     if today_inst.empty:
         return False
@@ -145,11 +159,17 @@ def phase1_filter(today_inst: pd.DataFrame) -> bool:
     inst = today_inst.copy()
     inst["diff"] = pd.to_numeric(inst.get("diff", 0), errors="coerce").fillna(0)
 
-    foreign_net = inst.loc[
-        inst["name"].str.contains("外資", na=False), "diff"
-    ].sum()
-    trust_net = inst.loc[
-        inst["name"].str.contains("投信", na=False), "diff"
-    ].sum()
+    if "name" not in inst.columns:
+        return bool(inst["diff"].sum() > 0)
+
+    foreign_mask = inst["name"].str.contains("外資|Foreign|foreign", na=False, regex=True)
+    trust_mask   = inst["name"].str.contains("投信|Trust|trust", na=False, regex=True)
+
+    foreign_net = inst.loc[foreign_mask, "diff"].sum()
+    trust_net   = inst.loc[trust_mask,   "diff"].sum()
+
+    if not foreign_mask.any() and not trust_mask.any():
+        # name 欄存在但完全沒有外資/投信匹配：降級為整體 diff > 0
+        return bool(inst["diff"].sum() > 0)
 
     return bool((foreign_net > 0) or (trust_net > 0))

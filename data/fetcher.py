@@ -274,6 +274,14 @@ def fetch_all_institutional_by_date(date: str) -> pd.DataFrame:
     df["stock_id"] = df["stock_id"].astype(str).str.strip()
     df["diff"] = pd.to_numeric(df["buy"], errors="coerce") - \
                  pd.to_numeric(df["sell"], errors="coerce")
+
+    # FinMind 批次 API 有時回傳多日資料，過濾到指定日期
+    if "date" in df.columns:
+        date_vals = df["date"].astype(str).str[:10].unique()
+        logger.info(f"法人批次資料日期範圍：{sorted(date_vals)}")
+        df = df[df["date"].astype(str).str[:10] == date]
+        logger.info(f"過濾後（{date}）：{len(df)} 筆")
+
     return df
 
 

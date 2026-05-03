@@ -250,6 +250,7 @@ def run_scan(scan_date: str = None, quick: bool = False,
     logger.info("Step 3/5：開始評分...")
     results = []
     skip_count = error_count = 0
+    _step3_diag = True  # 只做一次 stock_id 比對診斷
 
     for i, (_, stock_row) in enumerate(valid_stocks.iterrows()):
         stock_id   = str(stock_row.get("stock_id", ""))
@@ -265,6 +266,16 @@ def run_scan(scan_date: str = None, quick: bool = False,
         try:
             # 快速預篩：外資+投信共識 or 單邊大量（phase1_filter 比 min_days=1 嚴格）
             today_inst = cache.institutional_for(stock_id)
+
+            # 一次性診斷：確認 stock_id 比對是否正常
+            if _step3_diag:
+                inst_ids = all_institutional["stock_id"].unique()[:5].tolist() \
+                           if not all_institutional.empty else []
+                logger.info(f"[step3_diag] 首支股票 stock_id={stock_id!r}  "
+                            f"today_inst rows={len(today_inst)}  "
+                            f"institutional sample IDs={inst_ids}")
+                _step3_diag = False
+
             if not phase1_filter(today_inst):
                 skip_count += 1
                 continue
