@@ -1016,6 +1016,163 @@ body::before{
 
 </div>
 
+  <!-- PAGE 5：篩選設定 -->
+  <div class="page" id="p5">
+    <div class="pg">
+      <div class="section-hdr">篩選設定</div>
+
+      <!-- 狀態列 -->
+      <div style="background:rgba(0,207,255,.06);border:1px solid rgba(0,207,255,.2);border-radius:8px;
+                  padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:.65rem;color:var(--t3);">調整後即時套用至排行榜</span>
+        <span id="filterPassCount" style="font-family:'Space Mono',monospace;font-size:.78rem;color:var(--c4);font-weight:700;">尚未掃描</span>
+      </div>
+
+      <!-- 候選門檻 -->
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;">
+        <div style="font-size:.63rem;color:var(--c1);font-weight:700;margin-bottom:8px;letter-spacing:1px;">候選門檻</div>
+        <div style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid rgba(0,200,255,.05);">
+          <span style="font-size:.65rem;color:var(--t2);flex:1;">最低總分</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="range" id="f-minScore" min="0" max="118" step="1" value="77"
+              style="width:110px;accent-color:var(--c1);cursor:pointer;"
+              oninput="updateFilter('minScore',this.value)"/>
+            <span id="fv-minScore" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:36px;text-align:right;">77 <span style="font-size:.55rem;color:var(--t3);">/118</span></span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;padding:8px 0;">
+          <span style="font-size:.65rem;color:var(--t2);flex:1;">最多顯示股數</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="range" id="f-maxDisplay" min="5" max="100" step="5" value="30"
+              style="width:110px;accent-color:var(--c1);cursor:pointer;"
+              oninput="updateFilter('maxDisplay',this.value)"/>
+            <span id="fv-maxDisplay" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:36px;text-align:right;">30 <span style="font-size:.55rem;color:var(--t3);">支</span></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 各面向最低分 -->
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;">
+        <div style="font-size:.63rem;color:var(--c1);font-weight:700;margin-bottom:8px;letter-spacing:1px;">各面向最低分</div>
+        <div style="display:flex;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,200,255,.05);">
+          <span style="font-size:.65rem;color:var(--t2);flex:1;">🌊 A 外資動向</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="range" id="f-minA" min="0" max="20" step="1" value="0"
+              style="width:110px;accent-color:var(--c1);cursor:pointer;"
+              oninput="updateFilter('minA',this.value)"/>
+            <span id="fv-minA" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:36px;text-align:right;">0 <span style="font-size:.55rem;color:var(--t3);">/20</span></span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,200,255,.05);">
+          <span style="font-size:.65rem;color:var(--t2);flex:1;">🏦 B 投信認養</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="range" id="f-minB" min="0" max="20" step="1" value="0"
+              style="width:110px;accent-color:var(--c1);cursor:pointer;"
+              oninput="updateFilter('minB',this.value)"/>
+            <span id="fv-minB" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:36px;text-align:right;">0 <span style="font-size:.55rem;color:var(--t3);">/20</span></span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,200,255,.05);">
+          <span style="font-size:.65rem;color:var(--t2);flex:1;">🎯 C 主力分點</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="range" id="f-minC" min="0" max="20" step="1" value="0"
+              style="width:110px;accent-color:var(--c1);cursor:pointer;"
+              oninput="updateFilter('minC',this.value)"/>
+            <span id="fv-minC" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:36px;text-align:right;">0 <span style="font-size:.55rem;color:var(--t3);">/20</span></span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,200,255,.05);">
+          <span style="font-size:.65rem;color:var(--t2);flex:1;">📈 D 技術面</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="range" id="f-minD" min="0" max="20" step="1" value="0"
+              style="width:110px;accent-color:var(--c1);cursor:pointer;"
+              oninput="updateFilter('minD',this.value)"/>
+            <span id="fv-minD" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:36px;text-align:right;">0 <span style="font-size:.55rem;color:var(--t3);">/20</span></span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;padding:7px 0;">
+          <span style="font-size:.65rem;color:var(--t2);flex:1;">💰 E 基本面</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="range" id="f-minE" min="0" max="20" step="1" value="0"
+              style="width:110px;accent-color:var(--c1);cursor:pointer;"
+              oninput="updateFilter('minE',this.value)"/>
+            <span id="fv-minE" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:36px;text-align:right;">0 <span style="font-size:.55rem;color:var(--t3);">/20</span></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 法人條件 -->
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;">
+        <div style="font-size:.63rem;color:var(--c1);font-weight:700;margin-bottom:8px;letter-spacing:1px;">法人條件</div>
+        <div style="display:flex;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,200,255,.05);">
+          <span style="font-size:.65rem;color:var(--t2);flex:1;">外資最低連買天數</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="range" id="f-minForeignDays" min="0" max="10" step="1" value="0"
+              style="width:110px;accent-color:var(--c1);cursor:pointer;"
+              oninput="updateFilter('minForeignDays',this.value)"/>
+            <span id="fv-minForeignDays" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:36px;text-align:right;">0 <span style="font-size:.55rem;color:var(--t3);">天</span></span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;padding:7px 0;">
+          <span style="font-size:.65rem;color:var(--t2);flex:1;">投信最低連買天數</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="range" id="f-minTrustDays" min="0" max="10" step="1" value="0"
+              style="width:110px;accent-color:var(--c1);cursor:pointer;"
+              oninput="updateFilter('minTrustDays',this.value)"/>
+            <span id="fv-minTrustDays" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:36px;text-align:right;">0 <span style="font-size:.55rem;color:var(--t3);">天</span></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 技術＆籌碼條件 -->
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;">
+        <div style="font-size:.63rem;color:var(--c1);font-weight:700;margin-bottom:8px;letter-spacing:1px;">技術 ＆ 籌碼條件</div>
+        <div style="display:flex;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,200,255,.05);">
+          <span style="font-size:.65rem;color:var(--t2);flex:1;">RSI 最低</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="range" id="f-rsiMin" min="0" max="100" step="1" value="0"
+              style="width:110px;accent-color:var(--c1);cursor:pointer;"
+              oninput="updateFilter('rsiMin',this.value)"/>
+            <span id="fv-rsiMin" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:36px;text-align:right;">0</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,200,255,.05);">
+          <span style="font-size:.65rem;color:var(--t2);flex:1;">RSI 最高</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="range" id="f-rsiMax" min="0" max="100" step="1" value="100"
+              style="width:110px;accent-color:var(--c1);cursor:pointer;"
+              oninput="updateFilter('rsiMax',this.value)"/>
+            <span id="fv-rsiMax" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:36px;text-align:right;">100</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;padding:7px 0;">
+          <span style="font-size:.65rem;color:var(--t2);flex:1;">最高融資率</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="range" id="f-maxMargin" min="0" max="100" step="5" value="60"
+              style="width:110px;accent-color:var(--c1);cursor:pointer;"
+              oninput="updateFilter('maxMargin',this.value)"/>
+            <span id="fv-maxMargin" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:36px;text-align:right;">60 <span style="font-size:.55rem;color:var(--t3);">%</span></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 重置 -->
+      <button onclick="resetSettings()"
+        style="width:100%;background:rgba(255,61,106,.08);border:1px solid rgba(255,61,106,.3);
+               border-radius:8px;padding:11px;color:rgba(255,61,106,.9);
+               font-size:.72rem;font-weight:700;cursor:pointer;letter-spacing:1px;">
+        重置為預設值
+      </button>
+
+      <div style="font-size:.55rem;color:var(--t3);text-align:center;line-height:1.8;padding-bottom:4px;">
+        設定僅調整前端排行榜顯示，不改變後端評分結果<br>
+        設定自動儲存至本機，重開頁面仍會保留
+      </div>
+    </div>
+  </div>
+
+</div>
+
 <!-- TABBAR -->
 <div id="tabbar">
   <button class="tab active" onclick="switchTab(0)">
@@ -1039,6 +1196,10 @@ body::before{
   <button class="tab" onclick="switchTab(4)">
     <div class="tab-ico">⚙️</div>
     <div class="tab-lbl">設定</div>
+  </button>
+  <button class="tab" onclick="switchTab(5)">
+    <div class="tab-ico">🎚</div>
+    <div class="tab-lbl">篩選</div>
   </button>
 </div>
 
@@ -1290,7 +1451,7 @@ function parseCSVLine(line) {
 // ══════════════════════════════════════════
 function switchTab(idx) {
   currentTab = idx;
-  const pageIds = ['p0','p1','p2','p3','p4'];
+  const pageIds = ['p0','p1','p2','p3','p4','p5'];
   pageIds.forEach((id, i) => {
     const el = document.getElementById(id);
     if (el) el.classList.toggle('active', i === idx);
@@ -1336,6 +1497,118 @@ function updateMarketStatus() {
 }
 updateMarketStatus();
 setInterval(updateMarketStatus, 60000);
+
+// ══════════════════════════════════════════
+//  USER SETTINGS（篩選設定，存入 localStorage）
+// ══════════════════════════════════════════
+const SETTINGS_DEFAULTS = {
+  minScore:       77,
+  maxDisplay:     30,
+  minA:           0,
+  minB:           0,
+  minC:           0,
+  minD:           0,
+  minE:           0,
+  minForeignDays: 0,
+  minTrustDays:   0,
+  rsiMin:         0,
+  rsiMax:         100,
+  maxMargin:      60,
+};
+let userSettings = { ...SETTINGS_DEFAULTS };
+
+function loadFilterSettings() {
+  try {
+    const stored = localStorage.getItem('radarSettings');
+    if (stored) userSettings = { ...SETTINGS_DEFAULTS, ...JSON.parse(stored) };
+  } catch (_) {}
+  applySettingsToUI();
+}
+
+function saveFilterSettings() {
+  try { localStorage.setItem('radarSettings', JSON.stringify(userSettings)); } catch (_) {}
+}
+
+function applySettingsToUI() {
+  const fmtMap = {
+    minScore:       v => `${v} <span style="font-size:.55rem;color:var(--t3);">/118</span>`,
+    maxDisplay:     v => `${v} <span style="font-size:.55rem;color:var(--t3);">支</span>`,
+    minA:           v => `${v} <span style="font-size:.55rem;color:var(--t3);">/20</span>`,
+    minB:           v => `${v} <span style="font-size:.55rem;color:var(--t3);">/20</span>`,
+    minC:           v => `${v} <span style="font-size:.55rem;color:var(--t3);">/20</span>`,
+    minD:           v => `${v} <span style="font-size:.55rem;color:var(--t3);">/20</span>`,
+    minE:           v => `${v} <span style="font-size:.55rem;color:var(--t3);">/20</span>`,
+    minForeignDays: v => `${v} <span style="font-size:.55rem;color:var(--t3);">天</span>`,
+    minTrustDays:   v => `${v} <span style="font-size:.55rem;color:var(--t3);">天</span>`,
+    rsiMin:         v => `${v}`,
+    rsiMax:         v => `${v}`,
+    maxMargin:      v => `${v} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
+  };
+  Object.keys(SETTINGS_DEFAULTS).forEach(key => {
+    const slider = document.getElementById('f-' + key);
+    const val    = document.getElementById('fv-' + key);
+    if (slider) slider.value = userSettings[key];
+    if (val)    val.innerHTML = (fmtMap[key] || (v => v))(userSettings[key]);
+  });
+  updateFilterCountDisplay();
+}
+
+function updateFilter(key, rawVal) {
+  userSettings[key] = parseFloat(rawVal);
+  const fmtMap = {
+    minScore:       v => `${v} <span style="font-size:.55rem;color:var(--t3);">/118</span>`,
+    maxDisplay:     v => `${v} <span style="font-size:.55rem;color:var(--t3);">支</span>`,
+    minA:           v => `${v} <span style="font-size:.55rem;color:var(--t3);">/20</span>`,
+    minB:           v => `${v} <span style="font-size:.55rem;color:var(--t3);">/20</span>`,
+    minC:           v => `${v} <span style="font-size:.55rem;color:var(--t3);">/20</span>`,
+    minD:           v => `${v} <span style="font-size:.55rem;color:var(--t3);">/20</span>`,
+    minE:           v => `${v} <span style="font-size:.55rem;color:var(--t3);">/20</span>`,
+    minForeignDays: v => `${v} <span style="font-size:.55rem;color:var(--t3);">天</span>`,
+    minTrustDays:   v => `${v} <span style="font-size:.55rem;color:var(--t3);">天</span>`,
+    rsiMin:         v => `${v}`,
+    rsiMax:         v => `${v}`,
+    maxMargin:      v => `${v} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
+  };
+  const val = document.getElementById('fv-' + key);
+  if (val) val.innerHTML = (fmtMap[key] || (v => v))(userSettings[key]);
+  saveFilterSettings();
+  if (allStockData.length > 0) { recomputeScanResults(); renderRankList(); }
+  updateFilterCountDisplay();
+}
+
+function recomputeScanResults() {
+  const s = userSettings;
+  scanResults = allStockData.filter(x =>
+    x.score        >= s.minScore      &&
+    x.A            >= s.minA          &&
+    x.B            >= s.minB          &&
+    x.C            >= s.minC          &&
+    x.D            >= s.minD          &&
+    x.E            >= s.minE          &&
+    x.foreign_days >= s.minForeignDays &&
+    x.trust_days   >= s.minTrustDays  &&
+    x.rsi          >= s.rsiMin        &&
+    x.rsi          <= s.rsiMax        &&
+    x.margin_ratio <= s.maxMargin
+  ).sort((a, b) => b.score - a.score);
+}
+
+function updateFilterCountDisplay() {
+  const el = document.getElementById('filterPassCount');
+  if (!el) return;
+  el.textContent = allStockData.length === 0
+    ? '尚未掃描'
+    : `${scanResults.length} 支通過篩選`;
+}
+
+function resetSettings() {
+  userSettings = { ...SETTINGS_DEFAULTS };
+  saveFilterSettings();
+  applySettingsToUI();
+  if (allStockData.length > 0) { recomputeScanResults(); renderRankList(); }
+}
+
+loadFilterSettings();
 
 // ══════════════════════════════════════════
 //  UPDATE DATA DATE CHIPS
@@ -1609,9 +1882,8 @@ async function startScan() {
   }
   allStockData = loaded;
 
-  // 候選名單（綜合分 >= 77）
-  scanResults = allStockData.filter(s => s.score >= 77)
-                             .sort((a,b) => b.score - a.score);
+  // 候選名單（依篩選設定 tab 的條件動態計算）
+  recomputeScanResults();
 
   // 掃描時間（日期+時間）
   const now = new Date();
@@ -1650,6 +1922,7 @@ async function startScan() {
   document.getElementById('sumTotal').textContent = allStockData.length.toLocaleString();
   document.getElementById('sumCand').textContent  = scanResults.length;
   document.getElementById('sumStrong').textContent = scanResults.filter(s=>s.score>=95).length;
+  updateFilterCountDisplay();
   document.getElementById('nd0').classList.add('show');
   document.getElementById('nd2').classList.add('show');
   document.getElementById('statusDot').classList.remove('idle');
@@ -1665,7 +1938,7 @@ async function startScan() {
 //  RANK LIST（綜合排行，取候選名單前30）
 // ══════════════════════════════════════════
 function renderRankList() {
-  const display = scanResults.slice(0,30);
+  const display = scanResults.slice(0, userSettings.maxDisplay);
   const total   = allStockData.length;
   const cand    = scanResults.length;
 
@@ -1678,7 +1951,7 @@ function renderRankList() {
 
   document.getElementById('rankList').innerHTML =
     sampleBar + display.map((s,i) => buildStockCard(s, i+1)).join('') +
-    (cand > 30 ? `<div style="text-align:center;padding:12px;font-size:.65rem;color:var(--t3)">顯示前 30 支，共 ${cand} 支候選股</div>` : '');
+    (cand > userSettings.maxDisplay ? `<div style="text-align:center;padding:12px;font-size:.65rem;color:var(--t3)">顯示前 ${userSettings.maxDisplay} 支，共 ${cand} 支候選股</div>` : '');
 }
 
 function buildStockCard(s, rank) {
