@@ -1,0 +1,70 @@
+name: 台股雷達掃描
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: '掃描模式 (full / no-broker / quick)'
+        required: true
+        default: 'no-broker'
+  schedule:
+    - cron: '30 13 * * 1-5'  # 每週一到週五 21:30 台灣時間（UTC 13:30）自動執行
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350  # Sponsor 完整掃描含分點約 5~6 小時；no-broker 約 30 分鐘
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Create logs directory
+        run: mkdir -p logs
+
+      - name: Run scanner
+        env:
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+        run: |
+          MODE="${{ github.event.inputs.mode || 'no-broker' }}"
+          echo "掃描模式：$MODE"
+          if [ "$MODE" = "full" ]; then
+            python scanner.py
+          elif [ "$MODE" = "no-broker" ]; then
+            python scanner.py --no-broker
+          elif [ "$MODE" = "quick" ]; then
+            python scanner.py --quick --no-broker
+          fi
+
+      - name: Copy CSV to root
+        run: |
+          if [ -f output/scan_app.csv ]; then
+            cp output/scan_app.csv ./scan_app.csv
+            echo "✅ scan_app.csv 複製完成（$(wc -l < scan_app.csv) 行）"
+          else
+            echo "⚠️ scan_app.csv 不存在（無候選股或休市），跳過"
+          fi
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add scan_app.csv
+          if git diff --staged --quiet; then
+            echo "資料無變更，跳過 commit"
+          else
+            git commit -m "scan update $(date -u '+%Y-%m-%d %H:%M') UTC"
+            git push
+          fi
