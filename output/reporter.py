@@ -207,6 +207,16 @@ def save_app_csv(results: list, scan_date: str):
         trust_d3   = int(cumulative * 0.65)
         trust_d1   = int(cumulative * 0.35)
 
+        # A/B/D/E 子參數
+        turnover_pct      = round(a_det.get("turnover_pct", 0) * 100, 1)
+        holding_rising    = int(a_det.get("holding_rising", False))
+        trust_holding_pct = round(b_det.get("holding_pct", 0) * 100, 2)
+        trust_pullback    = int(b_det.get("pullback_buy", False))
+        volume_ratio      = round(r["D_technical"].get("detail", {}).get("volume_ratio", 0), 2)
+        revenue_months    = e_det.get("revenue_growth_months", 0)
+        eps_growth        = round(e_det.get("eps_avg_growth", 0) * 100, 1)
+        gpm_improving     = int(e_det.get("gpm_improving", False))
+
         # 分點資料（broker_names JSON）
         broker_names_val = json.dumps(
             broker.get("broker_names", {}),
@@ -250,6 +260,14 @@ def save_app_csv(results: list, scan_date: str):
             "trust_d3":     trust_d3,
             "trust_d5":     trust_d5,
             "broker_names": broker_names_val,
+            "turnover_pct":      turnover_pct,
+            "holding_rising":    holding_rising,
+            "trust_holding_pct": trust_holding_pct,
+            "trust_pullback":    trust_pullback,
+            "volume_ratio":      volume_ratio,
+            "revenue_months":    revenue_months,
+            "eps_growth":        eps_growth,
+            "gpm_improving":     gpm_improving,
             "tags":         tags,
             "signal":       signal,
             "signal_desc":  signal_desc,

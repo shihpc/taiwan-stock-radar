@@ -1192,6 +1192,91 @@ body::before{
         </div>
       </div>
 
+      <!-- A/B/D/E 子參數篩選 -->
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;">
+        <div style="font-size:.63rem;color:var(--c1);font-weight:700;margin-bottom:8px;letter-spacing:1px;">各面向子參數篩選</div>
+
+        <div style="font-size:.58rem;color:var(--t3);padding:3px 0 4px;letter-spacing:.5px;">── 🌊 A 外資 ──</div>
+        <div style="display:flex;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,200,255,.05);">
+          <span style="font-size:.65rem;color:var(--t2);flex:1;">買超佔成交比最低</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="range" id="f-minTurnoverPct" min="0" max="80" step="5" value="0"
+              style="width:110px;accent-color:var(--c1);cursor:pointer;"
+              oninput="updateFilter('minTurnoverPct',this.value)"/>
+            <span id="fv-minTurnoverPct" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:40px;text-align:right;">0 <span style="font-size:.55rem;color:var(--t3);">%</span></span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,200,255,.05);">
+          <span style="font-size:.65rem;color:var(--t2);flex:1;">外資持股趨勢上升</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="range" id="f-reqHoldingRising" min="0" max="1" step="1" value="0"
+              style="width:110px;accent-color:var(--c1);cursor:pointer;"
+              oninput="updateFilter('reqHoldingRising',this.value)"/>
+            <span id="fv-reqHoldingRising" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:40px;text-align:right;">不限</span>
+          </div>
+        </div>
+
+        <div style="font-size:.58rem;color:var(--t3);padding:6px 0 4px;letter-spacing:.5px;">── 🏦 B 投信 ──</div>
+        <div style="display:flex;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,200,255,.05);">
+          <span style="font-size:.65rem;color:var(--t2);flex:1;">投信持股佔流通最低</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="range" id="f-minTrustHoldPct" min="0" max="25" step="1" value="0"
+              style="width:110px;accent-color:var(--c1);cursor:pointer;"
+              oninput="updateFilter('minTrustHoldPct',this.value)"/>
+            <span id="fv-minTrustHoldPct" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:40px;text-align:right;">0 <span style="font-size:.55rem;color:var(--t3);">%</span></span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,200,255,.05);">
+          <span style="font-size:.65rem;color:var(--t2);flex:1;">投信拉回護盤</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="range" id="f-reqTrustPullback" min="0" max="1" step="1" value="0"
+              style="width:110px;accent-color:var(--c1);cursor:pointer;"
+              oninput="updateFilter('reqTrustPullback',this.value)"/>
+            <span id="fv-reqTrustPullback" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:40px;text-align:right;">不限</span>
+          </div>
+        </div>
+
+        <div style="font-size:.58rem;color:var(--t3);padding:6px 0 4px;letter-spacing:.5px;">── 📈 D 技術 ──</div>
+        <div style="display:flex;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,200,255,.05);">
+          <span style="font-size:.65rem;color:var(--t2);flex:1;">量比最低</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="range" id="f-minVolumeRatio" min="0" max="5" step="0.5" value="0"
+              style="width:110px;accent-color:var(--c1);cursor:pointer;"
+              oninput="updateFilter('minVolumeRatio',this.value)"/>
+            <span id="fv-minVolumeRatio" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:40px;text-align:right;">0.0<span style="font-size:.55rem;color:var(--t3);">x</span></span>
+          </div>
+        </div>
+
+        <div style="font-size:.58rem;color:var(--t3);padding:6px 0 4px;letter-spacing:.5px;">── 💰 E 基本面 ──</div>
+        <div style="display:flex;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,200,255,.05);">
+          <span style="font-size:.65rem;color:var(--t2);flex:1;">月營收連成長月數最低</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="range" id="f-minRevMonths" min="0" max="12" step="1" value="0"
+              style="width:110px;accent-color:var(--c1);cursor:pointer;"
+              oninput="updateFilter('minRevMonths',this.value)"/>
+            <span id="fv-minRevMonths" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:40px;text-align:right;">0 <span style="font-size:.55rem;color:var(--t3);">月</span></span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,200,255,.05);">
+          <span style="font-size:.65rem;color:var(--t2);flex:1;">近兩季 EPS 平均成長最低</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="range" id="f-minEpsGrowth" min="-50" max="100" step="5" value="-50"
+              style="width:110px;accent-color:var(--c1);cursor:pointer;"
+              oninput="updateFilter('minEpsGrowth',this.value)"/>
+            <span id="fv-minEpsGrowth" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:44px;text-align:right;">-50 <span style="font-size:.55rem;color:var(--t3);">%</span></span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;padding:7px 0;">
+          <span style="font-size:.65rem;color:var(--t2);flex:1;">毛利率季度改善</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="range" id="f-reqGpmImproving" min="0" max="1" step="1" value="0"
+              style="width:110px;accent-color:var(--c1);cursor:pointer;"
+              oninput="updateFilter('reqGpmImproving',this.value)"/>
+            <span id="fv-reqGpmImproving" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:40px;text-align:right;">不限</span>
+          </div>
+        </div>
+      </div>
+
       <!-- 重置 -->
       <button onclick="resetSettings()"
         style="width:100%;background:rgba(255,61,106,.08);border:1px solid rgba(255,61,106,.3);
@@ -1432,6 +1517,14 @@ async function loadScanCSV() {
         trust_d1:     parseInt(obj.trust_d1) || 0,
         trust_d3:     parseInt(obj.trust_d3) || 0,
         trust_d5:     parseInt(obj.trust_d5) || 0,
+        turnover_pct:      parseFloat(obj.turnover_pct) || 0,
+        holding_rising:    parseInt(obj.holding_rising) || 0,
+        trust_holding_pct: parseFloat(obj.trust_holding_pct) || 0,
+        trust_pullback:    parseInt(obj.trust_pullback) || 0,
+        volume_ratio:      parseFloat(obj.volume_ratio) || 0,
+        revenue_months:    parseInt(obj.revenue_months) || 0,
+        eps_growth:        parseFloat(obj.eps_growth) || 0,
+        gpm_improving:     parseInt(obj.gpm_improving) || 0,
         tags:         (obj.tags || '').split(' ').filter(Boolean),
         signal:       obj.signal || 'NONE',
         signal_desc:  obj.signal_desc || '',
@@ -1554,6 +1647,14 @@ const SETTINGS_DEFAULTS = {
   rsiMin:         0,
   rsiMax:         100,
   minBigChg:      -5,
+  minTurnoverPct:   0,
+  reqHoldingRising: 0,
+  minTrustHoldPct:  0,
+  reqTrustPullback: 0,
+  minVolumeRatio:   0,
+  minRevMonths:     0,
+  minEpsGrowth:     -50,
+  reqGpmImproving:  0,
 };
 let userSettings = { ...SETTINGS_DEFAULTS };
 
@@ -1587,6 +1688,14 @@ function applySettingsToUI() {
     rsiMin:         v => `${v}`,
     rsiMax:         v => `${v}`,
     minBigChg:      v => `${parseFloat(v)>0?'+':''}${parseFloat(v).toFixed(1)} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
+    minTurnoverPct:   v => `${v} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
+    reqHoldingRising: v => v == 1 ? '<span style="color:var(--c4);">必須</span>' : '不限',
+    minTrustHoldPct:  v => `${v} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
+    reqTrustPullback: v => v == 1 ? '<span style="color:var(--c4);">必須</span>' : '不限',
+    minVolumeRatio:   v => `${parseFloat(v).toFixed(1)}<span style="font-size:.55rem;color:var(--t3);">x</span>`,
+    minRevMonths:     v => `${v} <span style="font-size:.55rem;color:var(--t3);">月</span>`,
+    minEpsGrowth:     v => `${parseFloat(v)>0?'+':''}${parseFloat(v).toFixed(0)} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
+    reqGpmImproving:  v => v == 1 ? '<span style="color:var(--c4);">必須</span>' : '不限',
   };
   Object.keys(SETTINGS_DEFAULTS).forEach(key => {
     const slider = document.getElementById('f-' + key);
@@ -1616,6 +1725,14 @@ function updateFilter(key, rawVal) {
     rsiMin:         v => `${v}`,
     rsiMax:         v => `${v}`,
     minBigChg:      v => `${parseFloat(v)>0?'+':''}${parseFloat(v).toFixed(1)} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
+    minTurnoverPct:   v => `${v} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
+    reqHoldingRising: v => v == 1 ? '<span style="color:var(--c4);">必須</span>' : '不限',
+    minTrustHoldPct:  v => `${v} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
+    reqTrustPullback: v => v == 1 ? '<span style="color:var(--c4);">必須</span>' : '不限',
+    minVolumeRatio:   v => `${parseFloat(v).toFixed(1)}<span style="font-size:.55rem;color:var(--t3);">x</span>`,
+    minRevMonths:     v => `${v} <span style="font-size:.55rem;color:var(--t3);">月</span>`,
+    minEpsGrowth:     v => `${parseFloat(v)>0?'+':''}${parseFloat(v).toFixed(0)} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
+    reqGpmImproving:  v => v == 1 ? '<span style="color:var(--c4);">必須</span>' : '不限',
   };
   const val = document.getElementById('fv-' + key);
   if (val) val.innerHTML = (fmtMap[key] || (v => v))(userSettings[key]);
@@ -1641,7 +1758,15 @@ function recomputeScanResults() {
     x.broker_conc  >= s.minBrokerConc  &&
     x.rsi          >= s.rsiMin         &&
     x.rsi          <= s.rsiMax         &&
-    x.big_chg      >= s.minBigChg
+    x.big_chg      >= s.minBigChg      &&
+    x.turnover_pct      >= s.minTurnoverPct  &&
+    (s.reqHoldingRising ? x.holding_rising === 1 : true) &&
+    x.trust_holding_pct >= s.minTrustHoldPct &&
+    (s.reqTrustPullback ? x.trust_pullback === 1 : true) &&
+    x.volume_ratio      >= s.minVolumeRatio  &&
+    x.revenue_months    >= s.minRevMonths    &&
+    x.eps_growth        >= s.minEpsGrowth    &&
+    (s.reqGpmImproving  ? x.gpm_improving === 1 : true)
   ).sort((a, b) => b.score - a.score);
 }
 
