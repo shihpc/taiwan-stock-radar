@@ -244,12 +244,7 @@ def run_scan(scan_date: str = None, quick: bool = False,
                     break
             check -= timedelta(days=1)
 
-    # 分點快取（Sponsor 限定）
-    # 使用 SecIdAgg 彙總版：一次 API 呼叫取得全市場，不再逐支呼叫
-    if use_broker:
-        logger.info("預載全市場分點彙總資料（SecIdAgg）...")
-        _ = cache.get_broker_agg()  # 預先載入並快取
-        logger.info("分點彙總預載完成")
+    # full mode：分點資料在候選股確定後才逐支補抓（Step 3.5）
 
     # ── Step 3：逐支評分 ──────────────────────────────────────
     logger.info("Step 3/5：開始評分...")
@@ -297,10 +292,7 @@ def run_scan(scan_date: str = None, quick: bool = False,
             holding_df  = fetch_holding_distribution(stock_id, days_back=35)
             margin_hist = fetch_margin(stock_id, days_back=30)
 
-            # Sprint 3：分點資料（選用）— 從批次快取篩選，不逐支呼叫 API
-            broker_df = pd.DataFrame()
-            if use_broker:
-                broker_df = cache.broker_agg_for(stock_id)
+            broker_df = pd.DataFrame()  # full mode 在 Step 3.5 補抓
 
             # 完整評分
             result = score_stock(
@@ -325,10 +317,37 @@ def run_scan(scan_date: str = None, quick: bool = False,
             error_count += 1
             logger.debug(f"  {stock_id} 失敗：{e}")
 
+    # ── Step 3.5：full mode — 對候選股補抓分點資料並重算 C 分 ────
+    sprint3_threshold = 77
+    if use_broker:
+        pre_candidates = [r for r in results
+                          if r["total_score"] >= sprint3_threshold]
+        logger.info(f"Step 3.5：補抓分點資料（{len(pre_candidates)} 支候選股）...")
+        lookback = 10  # 近 10 交易日
+        trading_dates = fetch_trading_dates(days_back=30)
+        recent_dates  = sorted(trading_dates)[-lookback:] if trading_dates else []
+
+        for r in pre_candidates:
+            sid = r["stock_id"]
+            frames = []
+            for d in recent_dates:
+                df_b = fetch_broker_data(sid, d)
+                if not df_b.empty:
+                    frames.append(df_b)
+            if not frames:
+                continue
+            broker_df = pd.concat(frames, ignore_index=True)
+            from engine.scorer import score_broker
+            c_result = score_broker(broker_df, r.get("_price_df", pd.DataFrame()))
+            old_c = r["C_broker"]["score"]
+            r["C_broker"] = c_result
+            r["total_score"] = r["total_score"] - old_c + c_result["score"]
+            r["pct"] = round(r["total_score"] / r["max_score"], 4)
+
+        logger.info("分點補抓完成")
+
     # ── Step 4：篩選候選 ──────────────────────────────────────
     logger.info("Step 4/5：篩選候選名單...")
-    # Sprint 3 滿分 118，候選門檻 77（65%）
-    sprint3_threshold = 77
     candidates = [r for r in results
                   if r["total_score"] >= sprint3_threshold]
     logger.info(f"評分 {len(results)} 支｜跳過 {skip_count}｜"

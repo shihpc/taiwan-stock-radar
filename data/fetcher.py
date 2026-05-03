@@ -114,11 +114,15 @@ def _get(dataset: str, params: dict, retry: int = 2) -> pd.DataFrame:
         except requests.exceptions.Timeout:
             logger.warning(f"[{dataset}] 請求逾時，第 {attempt+1} 次重試...")
             time.sleep(2 ** attempt)
+        except requests.exceptions.HTTPError as e:
+            # 4xx 是請求本身有問題，retry 無效，直接放棄
+            logger.warning(f"[{dataset}] HTTP {e.response.status_code}，不重試：{e}")
+            return pd.DataFrame()
         except requests.exceptions.RequestException as e:
-            logger.error(f"[{dataset}] 請求失敗：{e}")
+            logger.warning(f"[{dataset}] 請求失敗（第 {attempt+1} 次）：{e}")
             time.sleep(2 ** attempt)
 
-    logger.error(f"[{dataset}] 已重試 {retry} 次，放棄")
+    logger.warning(f"[{dataset}] 已重試 {retry} 次，放棄")
     return pd.DataFrame()
 
 
@@ -425,39 +429,12 @@ def fetch_broker_data(stock_id: str, date: str) -> pd.DataFrame:
 
 def fetch_all_broker_agg(date: str) -> pd.DataFrame:
     """
-    取得全市場單日分點彙總（Sponsor 限定）。
-    使用 TaiwanStockTradingDailyReportSecIdAgg，
-    一次 API 呼叫取得所有個股的券商買賣彙總，大幅減少 API 呼叫次數。
-
-    欄位：
-        securities_trader     券商名稱
-        securities_trader_id  券商代碼
-        stock_id              股票代碼
-        date                  日期
-        buy_volume            買超張數
-        sell_volume           賣超張數
-        buy_price             平均買入價
-        sell_price            平均賣出價
+    FinMind 無全市場分點批次 API，回傳空 DataFrame。
+    分點資料需逐支呼叫 fetch_broker_data()。
+    scanner.py 的 full mode 會在候選股確定後再逐支補抓。
     """
-    logger.info(f"取得全市場分點彙總 {date}（SecIdAgg）...")
-    df = _get("TaiwanStockTradingDailyReportSecIdAgg", {
-        "start_date": date,
-        "end_date":   date,
-    })
-    if df.empty:
-        logger.warning(f"分點彙總資料為空：{date}")
-        return df
-    for col in ["buy_volume", "sell_volume"]:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
-    # 欄位正規化：SecIdAgg 用 buy_volume/sell_volume（單位：張），
-    # broker_analysis.aggregate_broker_by_trader 期待 buy/sell（單位：股）
-    # → 乘以 1000 轉換後重新命名，下游不需改動
-    if "buy_volume" in df.columns:
-        df["buy"]  = df["buy_volume"]  * 1000
-        df["sell"] = df["sell_volume"] * 1000
-    logger.info(f"分點彙總：{len(df)} 筆，涵蓋 {df['stock_id'].nunique() if 'stock_id' in df.columns else '?'} 支股票")
-    return df
+    logger.info("全市場分點批次 API 不支援，候選股將於評分後逐支補抓")
+    return pd.DataFrame()
 
 
 # ── 批次資料快取（減少重複 API 呼叫）────────────────────────────
