@@ -869,11 +869,38 @@ body::before{
 
   <!-- PAGE 1：個股詳情 -->
   <div class="page" id="p1">
-    <div class="pg" id="detailContent">
-      <div class="empty">
-        <div class="empty-icon">🎯</div>
-        <div class="empty-title">點選個股</div>
-        <div class="empty-sub">從排行榜點擊任一股票<br>查看詳細評分分析</div>
+    <div class="pg">
+      <!-- 代碼搜尋輸入框 -->
+      <div style="display:flex;gap:6px;align-items:center;">
+        <div style="flex:1;position:relative;">
+          <input id="detailCodeInput" type="text" inputmode="numeric"
+            placeholder="輸入股票代碼，如 2330"
+            style="width:100%;background:var(--bg3);border:1px solid var(--border2);
+                   border-radius:8px;padding:8px 12px;color:var(--t1);
+                   font-size:.72rem;font-family:'Space Mono',monospace;
+                   outline:none;-webkit-appearance:none;"
+            onkeydown="if(event.key==='Enter')detailSearch()"
+            oninput="detailCodeHint(this.value)"/>
+          <div id="detailHintList" style="display:none;position:absolute;top:100%;left:0;right:0;
+               background:var(--bg3);border:1px solid var(--border2);border-top:none;
+               border-radius:0 0 8px 8px;z-index:200;max-height:160px;overflow-y:auto;">
+          </div>
+        </div>
+        <button onclick="detailSearch()"
+          style="background:linear-gradient(135deg,rgba(0,207,255,.15),rgba(0,207,255,.05));
+                 border:1px solid var(--border3);border-radius:8px;padding:8px 14px;
+                 color:var(--c1);font-size:.72rem;font-weight:700;cursor:pointer;
+                 white-space:nowrap;flex-shrink:0;">
+          查詢
+        </button>
+      </div>
+      <!-- 詳情內容 -->
+      <div id="detailContent">
+        <div class="empty">
+          <div class="empty-icon">🎯</div>
+          <div class="empty-title">點選個股</div>
+          <div class="empty-sub">從排行榜點擊任一股票<br>或輸入代碼查詢</div>
+        </div>
       </div>
     </div>
   </div>
@@ -2084,7 +2111,71 @@ document.addEventListener('click', e => {
     const h = document.getElementById('chartHintList');
     if (h) h.style.display = 'none';
   }
+  if (!e.target.closest('#detailCodeInput') && !e.target.closest('#detailHintList')) {
+    const h = document.getElementById('detailHintList');
+    if (h) h.style.display = 'none';
+  }
 });
+
+// 個股詳情頁搜尋
+function detailSearch() {
+  const inp = document.getElementById('detailCodeInput');
+  if (!inp) return;
+  const code = inp.value.trim().replace(/\D/g, '');
+  if (!code) return;
+
+  const hint = document.getElementById('detailHintList');
+  if (hint) hint.style.display = 'none';
+
+  const s = allStockData.find(x => x.code === code) ||
+            scanResults.find(x => x.code === code);
+
+  if (s) {
+    selectedStock = s;
+    renderDetail(s);
+  } else {
+    document.getElementById('detailContent').innerHTML = `
+      <div class="empty">
+        <div class="empty-icon">🔍</div>
+        <div class="empty-title">查無資料：${code}</div>
+        <div class="empty-sub">此代碼不在本次掃描結果中<br>請先執行掃描，或確認代碼是否正確</div>
+      </div>`;
+  }
+}
+
+function detailCodeHint(val) {
+  const hint = document.getElementById('detailHintList');
+  if (!hint) return;
+  const q = val.trim();
+  if (!q || allStockData.length === 0) { hint.style.display = 'none'; return; }
+
+  const matched = allStockData
+    .filter(s => s.code.startsWith(q) || s.name.includes(q))
+    .slice(0, 6);
+
+  if (!matched.length) { hint.style.display = 'none'; return; }
+
+  hint.innerHTML = matched.map(s => `
+    <div onclick="pickDetailHint('${s.code}')"
+      style="padding:7px 12px;font-size:.7rem;cursor:pointer;
+             display:flex;justify-content:space-between;align-items:center;
+             border-bottom:1px solid var(--border);">
+      <span>
+        <span style="font-family:'Space Mono',monospace;color:var(--c1);margin-right:6px;">${s.code}</span>
+        <span style="color:var(--t1);">${s.name}</span>
+      </span>
+      <span style="font-size:.6rem;color:var(--t3);">${s.market || ''}</span>
+    </div>`).join('');
+  hint.style.display = 'block';
+}
+
+function pickDetailHint(code) {
+  const inp = document.getElementById('detailCodeInput');
+  if (inp) inp.value = code;
+  const hint = document.getElementById('detailHintList');
+  if (hint) hint.style.display = 'none';
+  detailSearch();
+}
 
 function renderDetail(s) {
   const isUp = s.chg >= 0;
