@@ -1692,6 +1692,8 @@ const SETTINGS_DEFAULTS = {
   reqGpmImproving:  0,
 };
 let userSettings = { ...SETTINGS_DEFAULTS };
+let allStockData = [];
+let scanResults  = [];
 
 function loadFilterSettings() {
   try {
@@ -1857,9 +1859,6 @@ function updateDataDates(dataDates) {
 //  MOCK DATA — 模擬全市場 (上市+上櫃+ETF，不含權證)
 //  實際使用時替換為 scanner.py 輸出的 CSV 資料
 // ══════════════════════════════════════════
-
-let allStockData = [];
-let scanResults  = [];
 
 // 先定義函式，再呼叫（避免 hoisting 問題）
 function generateMarketPool() {
