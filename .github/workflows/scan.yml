@@ -7,6 +7,10 @@ on:
         description: '掃描模式 (full / no-broker / quick)'
         required: true
         default: 'full'
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+→ Commit changes → Commit changes 確認
 
 jobs:
   scan:
