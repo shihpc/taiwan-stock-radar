@@ -7,6 +7,8 @@ on:
         description: '掃描模式 (full / no-broker / quick)'
         required: true
         default: 'full'
+  schedule:
+    - cron: '30 13 * * 1-5'
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
