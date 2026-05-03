@@ -272,7 +272,11 @@ def generate_report(results: list, scan_date: str,
     主輸出入口：產生所有輸出格式。
     """
     df = build_summary_df(results)
-
+    
+    if df.empty:
+        logger.warning("候選名單為空（休市或資料未更新），跳過報告")
+        return df
+        
     print_console_report(df, scan_date, total_scanned, elapsed)
 
     if OUTPUT_CSV:
