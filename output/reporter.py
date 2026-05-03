@@ -217,7 +217,10 @@ def save_app_csv(results: list, scan_date: str):
         holding_rising    = int(a_det.get("holding_rising", False))
         trust_holding_pct = round(b_det.get("holding_pct", 0) * 100, 2)
         trust_pullback    = int(b_det.get("pullback_buy", False))
-        volume_ratio      = round(r["D_technical"].get("detail", {}).get("volume_ratio", 0), 2)
+        d_det             = r["D_technical"].get("detail", {})
+        volume_ratio      = round(d_det.get("volume_ratio", 0), 2)
+        ma_score          = d_det.get("breakdown", {}).get("均線多頭", 0)
+        ma_trend          = 2 if ma_score >= 6 else (1 if ma_score >= 3 else 0)
         revenue_months    = e_det.get("revenue_growth_months", 0)
         eps_growth        = round(e_det.get("eps_avg_growth", 0) * 100, 1)
         gpm_improving     = int(e_det.get("gpm_improving", False))
@@ -272,6 +275,7 @@ def save_app_csv(results: list, scan_date: str):
             "trust_holding_pct": trust_holding_pct,
             "trust_pullback":    trust_pullback,
             "volume_ratio":      volume_ratio,
+            "ma_trend":          ma_trend,
             "revenue_months":    revenue_months,
             "eps_growth":        eps_growth,
             "gpm_improving":     gpm_improving,

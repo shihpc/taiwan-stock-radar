@@ -1266,6 +1266,15 @@ body::before{
             <span id="fv-minVolumeRatio" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:40px;text-align:right;">0.0<span style="font-size:.55rem;color:var(--t3);">x</span></span>
           </div>
         </div>
+        <div style="display:flex;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,200,255,.05);">
+          <span style="font-size:.65rem;color:var(--t2);flex:1;">均線多頭排列</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="range" id="f-minMaTrend" min="0" max="2" step="1" value="0"
+              style="width:110px;accent-color:var(--c1);cursor:pointer;"
+              oninput="updateFilter('minMaTrend',this.value)"/>
+            <span id="fv-minMaTrend" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:50px;text-align:right;">不限</span>
+          </div>
+        </div>
 
         <div style="font-size:.58rem;color:var(--t3);padding:6px 0 4px;letter-spacing:.5px;">── 💰 E 基本面 ──</div>
         <div style="display:flex;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,200,255,.05);">
@@ -1544,6 +1553,7 @@ async function loadScanCSV() {
         trust_holding_pct: parseFloat(obj.trust_holding_pct) || 0,
         trust_pullback:    parseInt(obj.trust_pullback) || 0,
         volume_ratio:      parseFloat(obj.volume_ratio) || 0,
+        ma_trend:          parseInt(obj.ma_trend) || 0,
         revenue_months:    parseInt(obj.revenue_months) || 0,
         eps_growth:        parseFloat(obj.eps_growth) || 0,
         gpm_improving:     parseInt(obj.gpm_improving) || 0,
@@ -1676,6 +1686,7 @@ const SETTINGS_DEFAULTS = {
   minTrustHoldPct:  0,
   reqTrustPullback: 0,
   minVolumeRatio:   0,
+  minMaTrend:       0,
   minRevMonths:     0,
   minEpsGrowth:     -50,
   reqGpmImproving:  0,
@@ -1719,6 +1730,7 @@ function applySettingsToUI() {
     minTrustHoldPct:  v => `${v} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
     reqTrustPullback: v => v == 1 ? '<span style="color:var(--c4);">必須</span>' : '不限',
     minVolumeRatio:   v => `${parseFloat(v).toFixed(1)}<span style="font-size:.55rem;color:var(--t3);">x</span>`,
+    minMaTrend:       v => ['不限','部分多頭','完全多頭'][parseInt(v)] || '不限',
     minRevMonths:     v => `${v} <span style="font-size:.55rem;color:var(--t3);">月</span>`,
     minEpsGrowth:     v => `${parseFloat(v)>0?'+':''}${parseFloat(v).toFixed(0)} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
     reqGpmImproving:  v => v == 1 ? '<span style="color:var(--c4);">必須</span>' : '不限',
@@ -1758,6 +1770,7 @@ function updateFilter(key, rawVal) {
     minTrustHoldPct:  v => `${v} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
     reqTrustPullback: v => v == 1 ? '<span style="color:var(--c4);">必須</span>' : '不限',
     minVolumeRatio:   v => `${parseFloat(v).toFixed(1)}<span style="font-size:.55rem;color:var(--t3);">x</span>`,
+    minMaTrend:       v => ['不限','部分多頭','完全多頭'][parseInt(v)] || '不限',
     minRevMonths:     v => `${v} <span style="font-size:.55rem;color:var(--t3);">月</span>`,
     minEpsGrowth:     v => `${parseFloat(v)>0?'+':''}${parseFloat(v).toFixed(0)} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
     reqGpmImproving:  v => v == 1 ? '<span style="color:var(--c4);">必須</span>' : '不限',
@@ -1794,6 +1807,7 @@ function recomputeScanResults() {
     x.trust_holding_pct >= s.minTrustHoldPct &&
     (s.reqTrustPullback ? x.trust_pullback === 1 : true) &&
     x.volume_ratio      >= s.minVolumeRatio  &&
+    x.ma_trend          >= s.minMaTrend      &&
     x.revenue_months    >= s.minRevMonths    &&
     x.eps_growth        >= s.minEpsGrowth    &&
     (s.reqGpmImproving  ? x.gpm_improving === 1 : true)
