@@ -45,6 +45,9 @@ from data.fetcher import (
     fetch_holding_distribution,
     fetch_margin,
     DailyDataCache,
+
+    fetch_trading_dates,
+    get_last_trading_date,
 )
 from engine.scorer import score_stock
 from engine.filters import (
@@ -55,41 +58,17 @@ from engine.filters import (
 from output.reporter import generate_report
 
 
-def get_last_trading_day() -> str:
+def resolve_scan_date() -> str:
     """
-    回傳最近一個交易日（週一到週五）的日期字串。
-    週六 → 回傳週五；週日 → 回傳週五；其他 → 回傳今日。
-    """
-    today = datetime.today()
-    weekday = today.weekday()  # 0=週一 … 6=週日
-    if weekday == 5:           # 週六
-        delta = 1
-    elif weekday == 6:         # 週日
-        delta = 2
-    else:
-        delta = 0
-    return (today - timedelta(days=delta)).strftime("%Y-%m-%d")
-
-
-def find_latest_data_date(start_date: str, max_days_back: int = 10) -> str:
-    """
-    從 start_date 往前找，直到找到有法人資料的交易日。
+    利用 FinMind TaiwanStockTradingDate 精確判斷最近交易日。
     涵蓋週末、國定假日、連假等所有休市情況。
-    最多往前找 max_days_back 個日曆日（約 2 週）。
+    若 API 無法取得交易日清單，自動 fallback 到週一到週五推算。
     """
-    from data.fetcher import fetch_all_institutional_by_date
-    check_date = datetime.strptime(start_date, "%Y-%m-%d")
-    for _ in range(max_days_back):
-        date_str = check_date.strftime("%Y-%m-%d")
-        if check_date.weekday() < 5:  # 只查週一到週五
-            df = fetch_all_institutional_by_date(date_str)
-            if not df.empty:
-                logger.info(f"找到有效資料日期：{date_str}")
-                return date_str
-            logger.info(f"{date_str} 無資料（休市或延遲），往前一天...")
-        check_date -= timedelta(days=1)
-    logger.warning(f"往前 {max_days_back} 天都無資料，使用 {start_date}")
-    return start_date
+    logger.info("查詢 FinMind 交易日清單...")
+    trading_dates = fetch_trading_dates(days_back=60)
+    date = get_last_trading_date(trading_dates)
+    logger.info(f"確定掃描日期：{date}")
+    return date
 
 # ── 日誌設定 ──────────────────────────────────────────────────
 logging.basicConfig(
@@ -214,7 +193,7 @@ def run_scan(scan_date: str = None, quick: bool = False,
     use_broker ：True 啟用分點資料（需 Sponsor，較慢）
     """
     if not scan_date:
-        scan_date = get_last_trading_day()
+        scan_date = resolve_scan_date()
 
     start_time = time.time()
     logger.info(f"{'='*55}")
@@ -242,16 +221,27 @@ def run_scan(scan_date: str = None, quick: bool = False,
     logger.info(f"法人：{len(all_institutional)} 筆｜"
                 f"融資券：{len(all_margin_today)} 筆")
 
-    # 若當日無資料（休市、資料延遲），自動往前找最近有資料的交易日
+    # 若當日無資料（FinMind 資料延遲），往前多找一天
     if all_institutional.empty:
-        logger.info("當日法人資料為空，自動往前尋找最近有效交易日...")
-        scan_date = find_latest_data_date(scan_date)
-        cache = DailyDataCache(scan_date)
-        all_institutional = cache.get_institutional()
-        all_margin_today  = cache.get_margin()
-        logger.info(f"使用日期 {scan_date}｜"
-                    f"法人：{len(all_institutional)} 筆｜"
-                    f"融資券：{len(all_margin_today)} 筆")
+        logger.info("當日法人資料為空，往前查前一交易日...")
+        trading_dates = fetch_trading_dates(days_back=60)
+        # 從 scan_date 前一天開始往前找
+        check = datetime.strptime(scan_date, "%Y-%m-%d") - timedelta(days=1)
+        for _ in range(10):
+            candidate = check.strftime("%Y-%m-%d")
+            if not trading_dates or candidate in trading_dates:
+                cache2 = DailyDataCache(candidate)
+                df2 = cache2.get_institutional()
+                if not df2.empty:
+                    scan_date = candidate
+                    cache = cache2
+                    all_institutional = df2
+                    all_margin_today  = cache.get_margin()
+                    logger.info(f"改用日期 {scan_date}｜"
+                                f"法人：{len(all_institutional)} 筆｜"
+                                f"融資券：{len(all_margin_today)} 筆")
+                    break
+            check -= timedelta(days=1)
 
     # 分點快取（Sponsor 限定）
     broker_cache = None
