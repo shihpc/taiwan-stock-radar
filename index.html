@@ -1181,15 +1181,6 @@ body::before{
             <span id="fv-rsiMax" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:36px;text-align:right;">100</span>
           </div>
         </div>
-        <div style="display:flex;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,200,255,.05);">
-          <span style="font-size:.65rem;color:var(--t2);flex:1;">最高融資率</span>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <input type="range" id="f-maxMargin" min="0" max="100" step="5" value="60"
-              style="width:110px;accent-color:var(--c1);cursor:pointer;"
-              oninput="updateFilter('maxMargin',this.value)"/>
-            <span id="fv-maxMargin" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:36px;text-align:right;">60 <span style="font-size:.55rem;color:var(--t3);">%</span></span>
-          </div>
-        </div>
         <div style="display:flex;align-items:center;padding:7px 0;">
           <span style="font-size:.65rem;color:var(--t2);flex:1;">大戶4週持股變化最低</span>
           <div style="display:flex;align-items:center;gap:8px;">
@@ -1562,7 +1553,6 @@ const SETTINGS_DEFAULTS = {
   minBrokerConc:  0,
   rsiMin:         0,
   rsiMax:         100,
-  maxMargin:      60,
   minBigChg:      -5,
 };
 let userSettings = { ...SETTINGS_DEFAULTS };
@@ -1596,7 +1586,6 @@ function applySettingsToUI() {
     minBrokerConc:  v => `${v} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
     rsiMin:         v => `${v}`,
     rsiMax:         v => `${v}`,
-    maxMargin:      v => `${v} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
     minBigChg:      v => `${parseFloat(v)>0?'+':''}${parseFloat(v).toFixed(1)} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
   };
   Object.keys(SETTINGS_DEFAULTS).forEach(key => {
@@ -1626,7 +1615,6 @@ function updateFilter(key, rawVal) {
     minBrokerConc:  v => `${v} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
     rsiMin:         v => `${v}`,
     rsiMax:         v => `${v}`,
-    maxMargin:      v => `${v} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
     minBigChg:      v => `${parseFloat(v)>0?'+':''}${parseFloat(v).toFixed(1)} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
   };
   const val = document.getElementById('fv-' + key);
@@ -1653,7 +1641,6 @@ function recomputeScanResults() {
     x.broker_conc  >= s.minBrokerConc  &&
     x.rsi          >= s.rsiMin         &&
     x.rsi          <= s.rsiMax         &&
-    x.margin_ratio <= s.maxMargin      &&
     x.big_chg      >= s.minBigChg
   ).sort((a, b) => b.score - a.score);
 }
