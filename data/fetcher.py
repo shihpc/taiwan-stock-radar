@@ -87,7 +87,7 @@ def _save_cache(dataset: str, stock_id: str, df: pd.DataFrame) -> None:
 
 # ── 基礎請求函式 ──────────────────────────────────────────────
 
-def _get(dataset: str, params: dict, retry: int = 3) -> pd.DataFrame:
+def _get(dataset: str, params: dict, retry: int = 2) -> pd.DataFrame:
     """
     統一的 FinMind GET 請求，含重試與錯誤處理。
     """
@@ -98,7 +98,7 @@ def _get(dataset: str, params: dict, retry: int = 3) -> pd.DataFrame:
     }
     for attempt in range(retry):
         try:
-            resp = requests.get(FINMIND_BASE_URL, params=payload, timeout=30)
+            resp = requests.get(FINMIND_BASE_URL, params=payload, timeout=15)
             resp.raise_for_status()
             data = resp.json()
 
