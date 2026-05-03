@@ -187,7 +187,7 @@ def run_scan(scan_date: str = None, quick: bool = False,
     use_broker ：True 啟用分點資料（需 Sponsor，較慢）
     """
     if not scan_date:
-        scan_date = datetime.today().strftime("%Y-%m-%d")
+        scan_date = get_last_trading_day()
 
     start_time = time.time()
     logger.info(f"{'='*55}")
