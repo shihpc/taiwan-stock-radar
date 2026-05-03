@@ -150,8 +150,13 @@ def phase1_filter(today_inst: pd.DataFrame) -> bool:
     第一階段篩選，使用 DailyDataCache 當日批次資料（零額外 API 呼叫）。
 
     通過條件：外資 net > 0 OR 投信 net > 0
-    ─ 只要外資或投信任一有淨買超即通過；純自營商、純賣超的股票被排除。
-    ─ 若 name 欄找不到外資/投信匹配（格式問題），降級為整體 diff > 0。
+
+    FinMind name 欄對應（批次 API 回傳英文）：
+      Foreign_Investor   → 外資及陸資（主力外資）
+      Foreign_Dealer_Self→ 外資自營商
+      Investment_Trust   → 投信
+      Dealer_self        → 自營商自行買賣
+      Dealer_Hedging     → 自營商避險
     """
     if today_inst.empty:
         return False
