@@ -1216,6 +1216,26 @@ body::before{
           </div>
         </div>
 
+        <div style="font-size:.58rem;color:var(--t3);padding:6px 0 4px;letter-spacing:.5px;">── 🎯 C 主力分點 ──</div>
+        <div style="display:flex;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,200,255,.05);">
+          <span style="font-size:.65rem;color:var(--t2);flex:1;">低調吃貨天數最低</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="range" id="f-minBrokerSilent" min="0" max="10" step="1" value="0"
+              style="width:110px;accent-color:var(--c1);cursor:pointer;"
+              oninput="updateFilter('minBrokerSilent',this.value)"/>
+            <span id="fv-minBrokerSilent" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:40px;text-align:right;">0 <span style="font-size:.55rem;color:var(--t3);">天</span></span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,200,255,.05);">
+          <span style="font-size:.65rem;color:var(--t2);flex:1;">主力慣用分點現身</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="range" id="f-reqBrokerKnown" min="0" max="1" step="1" value="0"
+              style="width:110px;accent-color:var(--c1);cursor:pointer;"
+              oninput="updateFilter('reqBrokerKnown',this.value)"/>
+            <span id="fv-reqBrokerKnown" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:40px;text-align:right;">不限</span>
+          </div>
+        </div>
+
         <div style="font-size:.58rem;color:var(--t3);padding:6px 0 4px;letter-spacing:.5px;">── 🏦 B 投信 ──</div>
         <div style="display:flex;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,200,255,.05);">
           <span style="font-size:.65rem;color:var(--t2);flex:1;">投信持股佔流通最低</span>
@@ -1517,6 +1537,8 @@ async function loadScanCSV() {
         trust_d1:     parseInt(obj.trust_d1) || 0,
         trust_d3:     parseInt(obj.trust_d3) || 0,
         trust_d5:     parseInt(obj.trust_d5) || 0,
+        broker_silent:     parseInt(obj.broker_silent) || 0,
+        broker_known:      parseInt(obj.broker_known) || 0,
         turnover_pct:      parseFloat(obj.turnover_pct) || 0,
         holding_rising:    parseInt(obj.holding_rising) || 0,
         trust_holding_pct: parseFloat(obj.trust_holding_pct) || 0,
@@ -1647,6 +1669,8 @@ const SETTINGS_DEFAULTS = {
   rsiMin:         0,
   rsiMax:         100,
   minBigChg:      -5,
+  minBrokerSilent:  0,
+  reqBrokerKnown:   0,
   minTurnoverPct:   0,
   reqHoldingRising: 0,
   minTrustHoldPct:  0,
@@ -1688,6 +1712,8 @@ function applySettingsToUI() {
     rsiMin:         v => `${v}`,
     rsiMax:         v => `${v}`,
     minBigChg:      v => `${parseFloat(v)>0?'+':''}${parseFloat(v).toFixed(1)} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
+    minBrokerSilent:  v => `${v} <span style="font-size:.55rem;color:var(--t3);">天</span>`,
+    reqBrokerKnown:   v => v == 1 ? '<span style="color:var(--c4);">必須</span>' : '不限',
     minTurnoverPct:   v => `${v} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
     reqHoldingRising: v => v == 1 ? '<span style="color:var(--c4);">必須</span>' : '不限',
     minTrustHoldPct:  v => `${v} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
@@ -1725,6 +1751,8 @@ function updateFilter(key, rawVal) {
     rsiMin:         v => `${v}`,
     rsiMax:         v => `${v}`,
     minBigChg:      v => `${parseFloat(v)>0?'+':''}${parseFloat(v).toFixed(1)} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
+    minBrokerSilent:  v => `${v} <span style="font-size:.55rem;color:var(--t3);">天</span>`,
+    reqBrokerKnown:   v => v == 1 ? '<span style="color:var(--c4);">必須</span>' : '不限',
     minTurnoverPct:   v => `${v} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
     reqHoldingRising: v => v == 1 ? '<span style="color:var(--c4);">必須</span>' : '不限',
     minTrustHoldPct:  v => `${v} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
@@ -1759,6 +1787,8 @@ function recomputeScanResults() {
     x.rsi          >= s.rsiMin         &&
     x.rsi          <= s.rsiMax         &&
     x.big_chg      >= s.minBigChg      &&
+    x.broker_silent     >= s.minBrokerSilent &&
+    (s.reqBrokerKnown   ? x.broker_known === 1 : true) &&
     x.turnover_pct      >= s.minTurnoverPct  &&
     (s.reqHoldingRising ? x.holding_rising === 1 : true) &&
     x.trust_holding_pct >= s.minTrustHoldPct &&

@@ -207,6 +207,11 @@ def save_app_csv(results: list, scan_date: str):
         trust_d3   = int(cumulative * 0.65)
         trust_d1   = int(cumulative * 0.35)
 
+        # C 子參數
+        c_det        = r["C_broker"].get("detail", {})
+        broker_silent = broker.get("silent_accum_days", 0)
+        broker_known  = int(len(c_det.get("known_brokers", [])) > 0)
+
         # A/B/D/E 子參數
         turnover_pct      = round(a_det.get("turnover_pct", 0) * 100, 1)
         holding_rising    = int(a_det.get("holding_rising", False))
@@ -259,7 +264,9 @@ def save_app_csv(results: list, scan_date: str):
             "trust_d1":     trust_d1,
             "trust_d3":     trust_d3,
             "trust_d5":     trust_d5,
-            "broker_names": broker_names_val,
+            "broker_names":    broker_names_val,
+            "broker_silent":   broker_silent,
+            "broker_known":    broker_known,
             "turnover_pct":      turnover_pct,
             "holding_rising":    holding_rising,
             "trust_holding_pct": trust_holding_pct,
