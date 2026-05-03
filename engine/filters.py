@@ -156,8 +156,4 @@ def phase1_filter(today_inst: pd.DataFrame) -> bool:
         inst["name"].str.contains("投信", na=False), "diff"
     ].sum()
 
-    # 股票今天沒有法人進出（不在批次資料）→ 視為未知，讓歷史資料決定
-    if (foreign_net == 0) and (trust_net == 0):
-        return True
-
     return bool((foreign_net > 0) or (trust_net > 0))

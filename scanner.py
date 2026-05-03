@@ -294,7 +294,7 @@ def run_scan(scan_date: str = None, quick: bool = False,
             share_df    = fetch_shareholding(stock_id)
 
             # Sprint 2：股權分散 + 融資券歷史
-            holding_df  = fetch_holding_distribution(stock_id, days_back=90)
+            holding_df  = fetch_holding_distribution(stock_id, days_back=35)
             margin_hist = fetch_margin(stock_id, days_back=30)
 
             # Sprint 3：分點資料（選用）— 從批次快取篩選，不逐支呼叫 API
