@@ -38,7 +38,13 @@ jobs:
         run: python scanner.py
 
       - name: Copy CSV to root
-        run: cp output/scan_app.csv ./scan_app.csv
+        run: |
+          if [ -f output/scan_app.csv ]; then
+            cp output/scan_app.csv ./scan_app.csv
+            echo "✅ scan_app.csv 複製完成"
+          else
+            echo "⚠️ 休市日或無候選股，跳過"
+          fi
 
       - name: Commit and push
         run: |
