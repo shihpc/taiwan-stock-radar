@@ -31,8 +31,16 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Create logs directory
-        run: mkdir -p logs
+      - name: Create directories
+        run: mkdir -p logs cache
+
+      - name: Restore Finmind cache
+        uses: actions/cache@v4
+        with:
+          path: cache/
+          key: finmind-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: |
+            finmind-${{ runner.os }}-
 
       - name: Run scanner
         env:
