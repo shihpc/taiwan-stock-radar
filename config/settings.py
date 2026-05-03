@@ -13,8 +13,8 @@ FINMIND_BROKER_URL = "https://api.finmindtrade.com/api/v4/taiwan_stock_trading_d
 # API 每小時請求上限（Sponsor: 不限；Backer: 1500/hr；免費: 600/hr）
 API_RATE_LIMIT = 1500
 # 每次請求間隔（秒），避免觸發封鎖
-# 6000/hr = 1.67/s，設 0.5s 保留緩衝避免 rate limit 觸發重試
-API_SLEEP_SECONDS = 0.5
+# Sponsor 無請求上限，0.1s 僅為防突發性連線問題留的最小緩衝
+API_SLEEP_SECONDS = 0.1
 
 # 磁碟快取目錄
 CACHE_DIR = "cache"
