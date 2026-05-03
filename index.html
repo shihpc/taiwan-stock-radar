@@ -1090,13 +1090,31 @@ body::before{
             <span id="fv-minD" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:36px;text-align:right;">0 <span style="font-size:.55rem;color:var(--t3);">/20</span></span>
           </div>
         </div>
-        <div style="display:flex;align-items:center;padding:7px 0;">
+        <div style="display:flex;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,200,255,.05);">
           <span style="font-size:.65rem;color:var(--t2);flex:1;">💰 E 基本面</span>
           <div style="display:flex;align-items:center;gap:8px;">
             <input type="range" id="f-minE" min="0" max="20" step="1" value="0"
               style="width:110px;accent-color:var(--c1);cursor:pointer;"
               oninput="updateFilter('minE',this.value)"/>
             <span id="fv-minE" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:36px;text-align:right;">0 <span style="font-size:.55rem;color:var(--t3);">/20</span></span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,200,255,.05);">
+          <span style="font-size:.65rem;color:var(--t2);flex:1;">🏛 股權分散</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="range" id="f-minS2h" min="0" max="10" step="1" value="0"
+              style="width:110px;accent-color:var(--c1);cursor:pointer;"
+              oninput="updateFilter('minS2h',this.value)"/>
+            <span id="fv-minS2h" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:36px;text-align:right;">0 <span style="font-size:.55rem;color:var(--t3);">/10</span></span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;padding:7px 0;">
+          <span style="font-size:.65rem;color:var(--t2);flex:1;">⚡ 融資券</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="range" id="f-minS2m" min="0" max="8" step="1" value="0"
+              style="width:110px;accent-color:var(--c1);cursor:pointer;"
+              oninput="updateFilter('minS2m',this.value)"/>
+            <span id="fv-minS2m" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:36px;text-align:right;">0 <span style="font-size:.55rem;color:var(--t3);">/8</span></span>
           </div>
         </div>
       </div>
@@ -1113,13 +1131,31 @@ body::before{
             <span id="fv-minForeignDays" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:36px;text-align:right;">0 <span style="font-size:.55rem;color:var(--t3);">天</span></span>
           </div>
         </div>
-        <div style="display:flex;align-items:center;padding:7px 0;">
+        <div style="display:flex;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,200,255,.05);">
           <span style="font-size:.65rem;color:var(--t2);flex:1;">投信最低連買天數</span>
           <div style="display:flex;align-items:center;gap:8px;">
             <input type="range" id="f-minTrustDays" min="0" max="10" step="1" value="0"
               style="width:110px;accent-color:var(--c1);cursor:pointer;"
               oninput="updateFilter('minTrustDays',this.value)"/>
             <span id="fv-minTrustDays" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:36px;text-align:right;">0 <span style="font-size:.55rem;color:var(--t3);">天</span></span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,200,255,.05);">
+          <span style="font-size:.65rem;color:var(--t2);flex:1;">主力最低連買天數</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="range" id="f-minBrokerDays" min="0" max="10" step="1" value="0"
+              style="width:110px;accent-color:var(--c1);cursor:pointer;"
+              oninput="updateFilter('minBrokerDays',this.value)"/>
+            <span id="fv-minBrokerDays" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:36px;text-align:right;">0 <span style="font-size:.55rem;color:var(--t3);">天</span></span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;padding:7px 0;">
+          <span style="font-size:.65rem;color:var(--t2);flex:1;">分點集中度最低</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="range" id="f-minBrokerConc" min="0" max="100" step="5" value="0"
+              style="width:110px;accent-color:var(--c1);cursor:pointer;"
+              oninput="updateFilter('minBrokerConc',this.value)"/>
+            <span id="fv-minBrokerConc" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:36px;text-align:right;">0 <span style="font-size:.55rem;color:var(--t3);">%</span></span>
           </div>
         </div>
       </div>
@@ -1145,13 +1181,22 @@ body::before{
             <span id="fv-rsiMax" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:36px;text-align:right;">100</span>
           </div>
         </div>
-        <div style="display:flex;align-items:center;padding:7px 0;">
+        <div style="display:flex;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,200,255,.05);">
           <span style="font-size:.65rem;color:var(--t2);flex:1;">最高融資率</span>
           <div style="display:flex;align-items:center;gap:8px;">
             <input type="range" id="f-maxMargin" min="0" max="100" step="5" value="60"
               style="width:110px;accent-color:var(--c1);cursor:pointer;"
               oninput="updateFilter('maxMargin',this.value)"/>
             <span id="fv-maxMargin" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:36px;text-align:right;">60 <span style="font-size:.55rem;color:var(--t3);">%</span></span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;padding:7px 0;">
+          <span style="font-size:.65rem;color:var(--t2);flex:1;">大戶4週持股變化最低</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="range" id="f-minBigChg" min="-5" max="5" step="0.5" value="-5"
+              style="width:110px;accent-color:var(--c1);cursor:pointer;"
+              oninput="updateFilter('minBigChg',this.value)"/>
+            <span id="fv-minBigChg" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:40px;text-align:right;">-5.0 <span style="font-size:.55rem;color:var(--t3);">%</span></span>
           </div>
         </div>
       </div>
@@ -1509,11 +1554,16 @@ const SETTINGS_DEFAULTS = {
   minC:           0,
   minD:           0,
   minE:           0,
+  minS2h:         0,
+  minS2m:         0,
   minForeignDays: 0,
   minTrustDays:   0,
+  minBrokerDays:  0,
+  minBrokerConc:  0,
   rsiMin:         0,
   rsiMax:         100,
   maxMargin:      60,
+  minBigChg:      -5,
 };
 let userSettings = { ...SETTINGS_DEFAULTS };
 
@@ -1538,11 +1588,16 @@ function applySettingsToUI() {
     minC:           v => `${v} <span style="font-size:.55rem;color:var(--t3);">/20</span>`,
     minD:           v => `${v} <span style="font-size:.55rem;color:var(--t3);">/20</span>`,
     minE:           v => `${v} <span style="font-size:.55rem;color:var(--t3);">/20</span>`,
+    minS2h:         v => `${v} <span style="font-size:.55rem;color:var(--t3);">/10</span>`,
+    minS2m:         v => `${v} <span style="font-size:.55rem;color:var(--t3);">/8</span>`,
     minForeignDays: v => `${v} <span style="font-size:.55rem;color:var(--t3);">天</span>`,
     minTrustDays:   v => `${v} <span style="font-size:.55rem;color:var(--t3);">天</span>`,
+    minBrokerDays:  v => `${v} <span style="font-size:.55rem;color:var(--t3);">天</span>`,
+    minBrokerConc:  v => `${v} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
     rsiMin:         v => `${v}`,
     rsiMax:         v => `${v}`,
     maxMargin:      v => `${v} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
+    minBigChg:      v => `${parseFloat(v)>0?'+':''}${parseFloat(v).toFixed(1)} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
   };
   Object.keys(SETTINGS_DEFAULTS).forEach(key => {
     const slider = document.getElementById('f-' + key);
@@ -1563,11 +1618,16 @@ function updateFilter(key, rawVal) {
     minC:           v => `${v} <span style="font-size:.55rem;color:var(--t3);">/20</span>`,
     minD:           v => `${v} <span style="font-size:.55rem;color:var(--t3);">/20</span>`,
     minE:           v => `${v} <span style="font-size:.55rem;color:var(--t3);">/20</span>`,
+    minS2h:         v => `${v} <span style="font-size:.55rem;color:var(--t3);">/10</span>`,
+    minS2m:         v => `${v} <span style="font-size:.55rem;color:var(--t3);">/8</span>`,
     minForeignDays: v => `${v} <span style="font-size:.55rem;color:var(--t3);">天</span>`,
     minTrustDays:   v => `${v} <span style="font-size:.55rem;color:var(--t3);">天</span>`,
+    minBrokerDays:  v => `${v} <span style="font-size:.55rem;color:var(--t3);">天</span>`,
+    minBrokerConc:  v => `${v} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
     rsiMin:         v => `${v}`,
     rsiMax:         v => `${v}`,
     maxMargin:      v => `${v} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
+    minBigChg:      v => `${parseFloat(v)>0?'+':''}${parseFloat(v).toFixed(1)} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
   };
   const val = document.getElementById('fv-' + key);
   if (val) val.innerHTML = (fmtMap[key] || (v => v))(userSettings[key]);
@@ -1579,17 +1639,22 @@ function updateFilter(key, rawVal) {
 function recomputeScanResults() {
   const s = userSettings;
   scanResults = allStockData.filter(x =>
-    x.score        >= s.minScore      &&
-    x.A            >= s.minA          &&
-    x.B            >= s.minB          &&
-    x.C            >= s.minC          &&
-    x.D            >= s.minD          &&
-    x.E            >= s.minE          &&
+    x.score        >= s.minScore       &&
+    x.A            >= s.minA           &&
+    x.B            >= s.minB           &&
+    x.C            >= s.minC           &&
+    x.D            >= s.minD           &&
+    x.E            >= s.minE           &&
+    x.S2h          >= s.minS2h         &&
+    x.S2m          >= s.minS2m         &&
     x.foreign_days >= s.minForeignDays &&
-    x.trust_days   >= s.minTrustDays  &&
-    x.rsi          >= s.rsiMin        &&
-    x.rsi          <= s.rsiMax        &&
-    x.margin_ratio <= s.maxMargin
+    x.trust_days   >= s.minTrustDays   &&
+    x.broker_days  >= s.minBrokerDays  &&
+    x.broker_conc  >= s.minBrokerConc  &&
+    x.rsi          >= s.rsiMin         &&
+    x.rsi          <= s.rsiMax         &&
+    x.margin_ratio <= s.maxMargin      &&
+    x.big_chg      >= s.minBigChg
   ).sort((a, b) => b.score - a.score);
 }
 
