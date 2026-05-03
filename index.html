@@ -2249,7 +2249,16 @@ function renderDetail(s) {
 
     <div class="section-hdr" style="margin-top:4px">個股新聞</div>
     <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;">
-      ${buildNewsLinks(s)}
+      <div style="margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:.65rem;color:var(--t2);font-weight:700;letter-spacing:1px;">最近新聞</span>
+        <a href="https://www.cnyes.com/twstock/${s.code}/news/stock" target="_blank" rel="noopener"
+           style="font-size:.58rem;color:var(--c1);text-decoration:none;">鉅亨網更多新聞 →</a>
+      </div>
+      <div id="newsItems"><div style="text-align:center;padding:10px 0;font-size:.65rem;color:var(--t3);">新聞載入中…</div></div>
+      <div style="margin-top:6px;">
+        <a href="https://www.cnyes.com/twstock/${s.code}/company/profile" target="_blank" rel="noopener"
+           style="font-size:.6rem;color:var(--t3);text-decoration:none;">🔗 鉅亨網 ${s.name} 公司簡介</a>
+      </div>
     </div>
 
     <div class="section-hdr">評分明細</div>
@@ -2446,6 +2455,7 @@ function renderDetail(s) {
 
     </div>
   `;
+  fetchStockNews(s);
 }
 
 // 自動產生個股簡介（串接真實 CSV 時，scanner.py 輸出 intro 欄位取代此函式）
@@ -2483,68 +2493,52 @@ function generateStockIntro(s) {
   return `${s.name}（${s.code}）為${mkt}，${base}。${chip ? ' ' + chip : ''}`;
 }
 
-// 產生鉅亨網新聞連結列表
-// 實際新聞需由後端爬取；前端直接生成鉅亨網個股新聞頁連結供使用者點擊
-function buildNewsLinks(s) {
-  const code = s.code;
-  // 鉅亨網個股新聞 URL 格式
-  const newsUrl    = `https://www.cnyes.com/twstock/${code}/news/stock`;
-  const profileUrl = `https://www.cnyes.com/twstock/${code}/company/profile`;
+// 非同步抓取 Google News RSS 真實新聞（透過 rss2json 解決 CORS 問題）
+async function fetchStockNews(s) {
+  const el = document.getElementById('newsItems');
+  if (!el) return;
 
-  // Mock 新聞（實際上線時由 scanner.py 爬取後存入 CSV 的 news 欄位）
-  // 格式：[{title, date, url}]
-  const mockNews = s.news || generateMockNews(s);
+  const query = encodeURIComponent(`${s.name} ${s.code}`);
+  const rssUrl = encodeURIComponent(
+    `https://news.google.com/rss/search?q=${query}&hl=zh-TW&gl=TW&ceid=TW:zh-Hant`
+  );
+  const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${rssUrl}&count=5`;
 
-  const newsItems = mockNews.slice(0,5).map(n => `
-    <a href="${n.url}" target="_blank" rel="noopener"
-       style="display:flex;align-items:flex-start;gap:8px;padding:7px 0;
-              border-bottom:1px solid rgba(0,200,255,.06);text-decoration:none;">
-      <span style="font-size:.55rem;color:var(--t3);font-family:'Space Mono',monospace;
-                   white-space:nowrap;padding-top:2px;flex-shrink:0;">${n.date}</span>
-      <span style="font-size:.7rem;color:var(--t1);line-height:1.5;
-                   overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;
-                   -webkit-box-orient:vertical;">${n.title}</span>
-    </a>`).join('');
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
 
-  return `
-    <div style="margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;">
-      <span style="font-size:.65rem;color:var(--t2);font-weight:700;letter-spacing:1px;">最近新聞</span>
-      <a href="${newsUrl}" target="_blank" rel="noopener"
-         style="font-size:.58rem;color:var(--c1);text-decoration:none;">
-        鉅亨網更多新聞 →
+  try {
+    const res  = await fetch(apiUrl, { signal: controller.signal });
+    clearTimeout(timer);
+    const data = await res.json();
+
+    if (data.status !== 'ok' || !data.items?.length) throw new Error('empty');
+
+    el.innerHTML = data.items.map(n => {
+      const date  = new Date(n.pubDate).toLocaleDateString('zh-TW', {month:'2-digit', day:'2-digit'});
+      const title = n.title.replace(/ - [^-]+$/, '');   // 去掉來源後綴
+      return `
+        <a href="${n.link}" target="_blank" rel="noopener"
+           style="display:flex;align-items:flex-start;gap:8px;padding:7px 0;
+                  border-bottom:1px solid rgba(0,200,255,.06);text-decoration:none;">
+          <span style="font-size:.55rem;color:var(--t3);font-family:'Space Mono',monospace;
+                       white-space:nowrap;padding-top:2px;flex-shrink:0;">${date}</span>
+          <span style="font-size:.7rem;color:var(--t1);line-height:1.5;overflow:hidden;
+                       display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">${title}</span>
+        </a>`;
+    }).join('');
+  } catch (_) {
+    clearTimeout(timer);
+    el.innerHTML = `
+      <a href="https://www.cnyes.com/twstock/${s.code}/news/stock" target="_blank" rel="noopener"
+         style="display:flex;align-items:center;gap:6px;padding:8px 0;text-decoration:none;">
+        <span style="font-size:.7rem;color:var(--c1);">📰 鉅亨網 ${s.name} 新聞</span>
       </a>
-    </div>
-    ${newsItems}
-    <div style="margin-top:6px;">
-      <a href="${profileUrl}" target="_blank" rel="noopener"
-         style="font-size:.6rem;color:var(--t3);text-decoration:none;">
-        🔗 鉅亨網 ${s.name} 公司簡介
-      </a>
-    </div>`;
-}
-
-// Mock 新聞產生器（上線時由 scanner.py 的 news 欄位取代）
-function generateMockNews(s) {
-  const now = new Date();
-  const fmtDate = (d) => {
-    const dt = new Date(now); dt.setDate(dt.getDate() - d);
-    return dt.toLocaleDateString('zh-TW',{month:'2-digit',day:'2-digit'}).replace('/','/');
-  };
-  const baseUrl = `https://www.cnyes.com/twstock/${s.code}/news/stock`;
-  const templates = [
-    `${s.name}法說會：Q${Math.floor(Math.random()*4)+1}財報優於預期，展望樂觀`,
-    `外資連${s.foreign_days}日買超 ${s.name}，籌碼持續集中`,
-    `${s.name}月營收創新高，年增率達${Math.floor(Math.random()*30+5)}%`,
-    `投信認養${s.name} 連${s.trust_days}日加碼，目標價上看${Math.floor(s.price*1.2)}`,
-    `${s.industry}族群回溫，${s.name}技術面突破關鍵壓力`,
-    `${s.name}董事會通過股利配發，殖利率達${(Math.random()*4+1).toFixed(1)}%`,
-    `${s.name}第三季EPS超預期，分析師調升評等`,
-  ];
-  return templates.slice(0,5).map((title, i) => ({
-    title,
-    date: fmtDate(i),
-    url: baseUrl,
-  }));
+      <a href="https://tw.stock.yahoo.com/quote/${s.code}.TW/news" target="_blank" rel="noopener"
+         style="display:flex;align-items:center;gap:6px;padding:6px 0;text-decoration:none;">
+        <span style="font-size:.7rem;color:var(--c1);">📰 Yahoo 股市 ${s.name} 新聞</span>
+      </a>`;
+  }
 }
 
 // ══════════════════════════════════════════
