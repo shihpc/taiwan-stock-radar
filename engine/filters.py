@@ -68,7 +68,7 @@ def filter_stock_list(stock_list_df: pd.DataFrame) -> pd.DataFrame:
 
     before = len(stock_list_df)
     mask = stock_list_df.apply(is_valid_stock, axis=1)
-    result = stock_list_df[mask].reset_index(drop=True)
+    result = stock_list_df[mask].sort_values("stock_id").reset_index(drop=True)
     after = len(result)
     logger.info(f"股票過濾：{before} → {after} 支（移除 {before - after} 支）")
     return result
@@ -152,5 +152,9 @@ def phase1_filter(today_inst: pd.DataFrame) -> bool:
     trust_net = inst.loc[
         inst["name"].str.contains("投信", na=False), "diff"
     ].sum()
+
+    # 股票今天沒有法人進出（不在批次資料）→ 視為未知，讓歷史資料決定
+    if (foreign_net == 0) and (trust_net == 0):
+        return True
 
     return bool((foreign_net > 0) or (trust_net > 0))

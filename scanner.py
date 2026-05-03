@@ -221,14 +221,6 @@ def run_scan(scan_date: str = None, quick: bool = False,
     all_margin_today  = cache.get_margin()
     logger.info(f"法人：{len(all_institutional)} 筆｜"
                 f"融資券：{len(all_margin_today)} 筆")
-    if not all_institutional.empty:
-        sid_col = all_institutional["stock_id"]
-        logger.info(f"[DEBUG] 法人batch stock_id dtype={sid_col.dtype}, "
-                    f"前5筆={sid_col.head(5).tolist()}")
-    if not valid_stocks.empty:
-        vs_col = valid_stocks["stock_id"]
-        logger.info(f"[DEBUG] valid_stocks stock_id dtype={vs_col.dtype}, "
-                    f"前5筆={vs_col.head(5).tolist()}")
 
     # 若當日無資料（FinMind 資料延遲），往前多找一天
     if all_institutional.empty:
@@ -278,10 +270,6 @@ def run_scan(scan_date: str = None, quick: bool = False,
         try:
             # 快速預篩：外資+投信共識 or 單邊大量（phase1_filter 比 min_days=1 嚴格）
             today_inst = cache.institutional_for(stock_id)
-            if i == 0:
-                logger.info(f"[DEBUG] stock_id={stock_id!r}, "
-                            f"today_inst.shape={today_inst.shape}, "
-                            f"empty={today_inst.empty}")
             if not phase1_filter(today_inst):
                 skip_count += 1
                 continue
