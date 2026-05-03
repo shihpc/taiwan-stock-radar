@@ -19,7 +19,7 @@ permissions:
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 350  # Sponsor 完整掃描含分點約 5~6 小時；no-broker 約 30 分鐘
+    timeout-minutes: 350  # 首次冷啟動（無快取）約 4 小時；第二次起：full≈40min, no-broker≈30min
 
     steps:
       - name: Checkout

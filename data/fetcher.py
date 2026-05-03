@@ -450,6 +450,12 @@ def fetch_all_broker_agg(date: str) -> pd.DataFrame:
     for col in ["buy_volume", "sell_volume"]:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+    # 欄位正規化：SecIdAgg 用 buy_volume/sell_volume（單位：張），
+    # broker_analysis.aggregate_broker_by_trader 期待 buy/sell（單位：股）
+    # → 乘以 1000 轉換後重新命名，下游不需改動
+    if "buy_volume" in df.columns:
+        df["buy"]  = df["buy_volume"]  * 1000
+        df["sell"] = df["sell_volume"] * 1000
     logger.info(f"分點彙總：{len(df)} 筆，涵蓋 {df['stock_id'].nunique() if 'stock_id' in df.columns else '?'} 支股票")
     return df
 
