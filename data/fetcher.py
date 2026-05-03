@@ -87,7 +87,8 @@ def _save_cache(dataset: str, stock_id: str, df: pd.DataFrame) -> None:
 
 # ── 基礎請求函式 ──────────────────────────────────────────────
 
-def _get(dataset: str, params: dict, retry: int = 2) -> pd.DataFrame:
+def _get(dataset: str, params: dict, retry: int = 2,
+         timeout: int = 15) -> pd.DataFrame:
     """
     統一的 FinMind GET 請求，含重試與錯誤處理。
     """
@@ -98,7 +99,7 @@ def _get(dataset: str, params: dict, retry: int = 2) -> pd.DataFrame:
     }
     for attempt in range(retry):
         try:
-            resp = requests.get(FINMIND_BASE_URL, params=payload, timeout=15)
+            resp = requests.get(FINMIND_BASE_URL, params=payload, timeout=timeout)
             resp.raise_for_status()
             data = resp.json()
 
@@ -342,7 +343,9 @@ def fetch_holding_distribution(stock_id: str, days_back: int = 60) -> pd.DataFra
     if cached is not None:
         return cached
     start, end = _date_range(days_back)
-    df = _get(dataset, {"data_id": stock_id, "start_date": start, "end_date": end})
+    # 股權分散為非核心資料，逾時直接略過，不重試浪費時間
+    df = _get(dataset, {"data_id": stock_id, "start_date": start, "end_date": end},
+              retry=1, timeout=8)
     _save_cache(dataset, stock_id, df)
     return df
 
