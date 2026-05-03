@@ -53,6 +53,16 @@ from engine.filters import (
     quick_institutional_check,
 )
 from output.reporter import generate_report
+def get_last_trading_day() -> str:
+    today = datetime.today()
+    weekday = today.weekday()
+    if weekday == 5:
+        delta = 1
+    elif weekday == 6:
+        delta = 2
+    else:
+        delta = 0
+    return (today - timedelta(days=delta)).strftime("%Y-%m-%d")
 
 # ── 日誌設定 ──────────────────────────────────────────────────
 logging.basicConfig(
