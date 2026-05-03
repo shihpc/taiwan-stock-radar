@@ -90,8 +90,8 @@ EPS_GROWTH_HIGH = 0.20            # EPS 季增 20%
 # ── 過濾條件（黑名單）────────────────────────────────────────
 MIN_MARKET_CAP_BILLION = 20       # 最低市值（億元），排除過小公司
 MAX_MARGIN_RATIO = 0.60           # 最高融資使用率，超過視為散戶過度介入
-EXCLUDE_ETFS = True               # 排除 ETF（代碼通常為 0 開頭）
-EXCLUDE_WARRANTS = True           # 排除權證
+EXCLUDE_ETFS = False              # 保留 ETF
+EXCLUDE_WARRANTS = True           # 排除權證（由 filters.py 名稱關鍵字判斷）
 
 # ── Sprint 2：股權分散表參數 ─────────────────────────────────
 HOLDING_LOOKBACK_WEEKS = 4        # 大戶持股觀察週數

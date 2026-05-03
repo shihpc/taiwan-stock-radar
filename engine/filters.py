@@ -16,47 +16,50 @@ from config.settings import (
 
 logger = logging.getLogger(__name__)
 
-# 固定排除清單（可依需求擴充）
-BLACKLIST_KEYWORDS = [
-    "存託憑證", "受益憑證", "債", "REITs", "不動產"
-]
+# 權證辨識關鍵字（名稱含任一 → 排除）
+WARRANT_KEYWORDS = ["認購", "認售", "牛證", "熊證"]
 
-# ETF 代碼前綴
-ETF_PREFIXES = ("0050", "0051", "0052", "0053", "0054", "0055",
-                "0056", "006", "00")
+# 固定排除清單
+BLACKLIST_KEYWORDS = [
+    "存託憑證", "受益憑證", "REITs", "不動產"
+]
 
 
 def is_valid_stock(row: pd.Series) -> bool:
     """
-    判斷股票是否通過基本過濾條件。
-    row：TaiwanStockInfo 的一筆資料
+    保留：上市/上櫃普通股、ETF、特別股（2002A）、可轉債
+    排除：權證
     """
     stock_id = str(row.get("stock_id", ""))
     name = str(row.get("stock_name", ""))
-    type_ = str(row.get("type", ""))
 
-    # 排除 ETF
-    if EXCLUDE_ETFS:
-        if stock_id.startswith(ETF_PREFIXES):
-            return False
-        if "ETF" in name.upper() or type_ in ("ETF", "etf"):
+    # 排除權證（名稱關鍵字優先判斷）
+    for kw in WARRANT_KEYWORDS:
+        if kw in name:
             return False
 
-    # 排除權證
-    if EXCLUDE_WARRANTS:
-        if len(stock_id) > 4:   # 權證代碼通常 6 位
-            return False
-
-    # 排除特定關鍵字
+    # 排除其他黑名單
     for kw in BLACKLIST_KEYWORDS:
         if kw in name:
             return False
 
-    # 只保留 4 位數字代碼
-    if not stock_id.isdigit() or len(stock_id) != 4:
-        return False
+    # 4 位純數字 → 普通股 / 4 碼 ETF（0050, 0056 等）
+    if stock_id.isdigit() and len(stock_id) == 4:
+        return True
 
-    return True
+    # 4 位數字 + 1 大寫字母 → 特別股（2002A, 2880A）
+    if len(stock_id) == 5 and stock_id[:4].isdigit() and stock_id[4].isupper():
+        return True
+
+    # 5~6 位且以 "00" 開頭 → 6 碼 ETF（006205, 00878 等）
+    if stock_id.isdigit() and len(stock_id) in (5, 6) and stock_id.startswith("00"):
+        return True
+
+    # 可轉債（名稱含「可轉」或「轉換」）
+    if "可轉" in name or "轉換" in name:
+        return True
+
+    return False
 
 
 def filter_stock_list(stock_list_df: pd.DataFrame) -> pd.DataFrame:
