@@ -28,7 +28,10 @@ jobs:
 
       - name: Install dependencies
         run: pip install -r requirements.txt
-
+        
+      - name: Create logs directory
+        run: mkdir -p logs
+        
       - name: Run scanner
         env:
           FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
