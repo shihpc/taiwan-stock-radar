@@ -129,3 +129,35 @@ def quick_institutional_check(institutional_df: pd.DataFrame,
     recent = institutional_df.tail(min_days * 3)  # 3種法人 × N天
     diff = pd.to_numeric(recent.get("diff", 0), errors="coerce").fillna(0)
     return bool(diff.sum() > 0)
+
+
+def phase1_filter(today_inst: pd.DataFrame) -> bool:
+    """
+    嚴格版第一階段篩選，使用 DailyDataCache 當日批次資料（零額外 API 呼叫）。
+
+    通過條件（滿足任一）：
+      1. 外資 net > 0 AND 投信 net > 0  （法人共識，雙邊認同）
+      2. 外資 net ≥ 5,000 張            （外資大量買超）
+      3. 投信 net ≥ 1,000 張            （投信大量買超）
+
+    相較於 quick_institutional_check(min_days=1) 任何法人小量買超即通過，
+    本函式可將通過股票數從 ~700 降至 ~150-250，大幅減少後續 API 呼叫。
+    """
+    if today_inst.empty:
+        return False
+
+    inst = today_inst.copy()
+    inst["diff"] = pd.to_numeric(inst.get("diff", 0), errors="coerce").fillna(0)
+
+    foreign_net = inst.loc[
+        inst["name"].str.contains("外資", na=False), "diff"
+    ].sum()
+    trust_net = inst.loc[
+        inst["name"].str.contains("投信", na=False), "diff"
+    ].sum()
+
+    both_buying   = (foreign_net > 0) and (trust_net > 0)
+    foreign_large = foreign_net >= 5_000
+    trust_large   = trust_net >= 1_000
+
+    return bool(both_buying or foreign_large or trust_large)

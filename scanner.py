@@ -54,6 +54,7 @@ from engine.filters import (
     filter_stock_list,
     filter_by_margin,
     quick_institutional_check,
+    phase1_filter,
 )
 from output.reporter import generate_report
 
@@ -267,9 +268,9 @@ def run_scan(scan_date: str = None, quick: bool = False,
                         f"{elapsed:.0f}s｜候選 {n_cand} 支")
 
         try:
-            # 快速預篩：今日有法人才繼續
+            # 快速預篩：外資+投信共識 or 單邊大量（phase1_filter 比 min_days=1 嚴格）
             today_inst = cache.institutional_for(stock_id)
-            if not quick_institutional_check(today_inst, min_days=1):
+            if not phase1_filter(today_inst):
                 skip_count += 1
                 continue
 
