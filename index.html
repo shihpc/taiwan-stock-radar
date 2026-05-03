@@ -130,8 +130,8 @@ body::before{
 
 /* 資料更新日期列 */
 .data-dates-row{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
+  display:flex;
+  flex-wrap:wrap;
   gap:4px;
   padding:6px 12px;
   background:rgba(0,0,0,.35);
@@ -139,6 +139,7 @@ body::before{
   flex-shrink:0;
 }
 .dd-chip{
+  flex:1;min-width:calc(25% - 4px);
   background:var(--bg3);border:1px solid var(--border);
   border-radius:5px;padding:4px 6px;
   font-size:.55rem;
@@ -159,8 +160,10 @@ body::before{
   border-top:1px solid var(--border2);
   display:flex;
   padding-bottom:var(--safe-bot);
-  flex-shrink:0;order:99;
-  position:relative;z-index:100;
+  flex-shrink:0;
+  position:fixed;
+  bottom:0;left:0;right:0;
+  z-index:200;
 }
 .tab{
   flex:1;display:flex;flex-direction:column;align-items:center;
@@ -188,7 +191,7 @@ body::before{
 /* ═══════════════════════════════════════════
    PAGES
 ═══════════════════════════════════════════ */
-#pages{flex:1;overflow:hidden;position:relative;min-height:0;}
+#pages{flex:1;overflow:hidden;position:relative;min-height:0;padding-bottom:var(--tab-h);}
 .page{
   position:absolute;inset:0;
   overflow-y:auto;overflow-x:hidden;
@@ -199,7 +202,7 @@ body::before{
 .page.active{display:block;}
 #p0.active{display:flex;flex-direction:column;}
 .page::-webkit-scrollbar{display:none;}
-.pg{padding:12px;display:flex;flex-direction:column;gap:10px;padding-bottom:20px;}
+.pg{padding:12px;display:flex;flex-direction:column;gap:10px;padding-bottom:calc(var(--tab-h) + 20px);}
 
 /* ═══════════════════════════════════════════
    SUMMARY STRIP (Page 1 top)
@@ -631,13 +634,14 @@ body::before{
    SUB-RANK TABS (投信/主力/融資券排行)
 ═══════════════════════════════════════════ */
 .sub-tabs{
-  display:grid;
-  grid-template-columns:repeat(6,1fr);
+  display:flex;
+  flex-wrap:wrap;
   background:var(--bg2);
   border-bottom:1px solid var(--border2);
   flex-shrink:0;
 }
 .sub-tab{
+  flex:1;min-width:33.33%;
   padding:7px 4px;text-align:center;
   font-size:.6rem;font-weight:600;letter-spacing:.3px;
   color:var(--t3);cursor:pointer;
@@ -651,13 +655,6 @@ body::before{
 .sub-tab.active-C{color:var(--c5);border-bottom-color:var(--c5);}
 .sub-tab.active-M{color:var(--c2);border-bottom-color:var(--c2);}
 .sub-tab.active-F{color:var(--c1);border-bottom-color:var(--c1);}
-/* 5個頁籤 3+2 排列：第4個從第2欄、第5個在第3欄（視覺置中） */
-.sub-tabs{grid-template-columns:repeat(6,1fr);}
-.sub-tab:nth-child(1){grid-column:1/3;}
-.sub-tab:nth-child(2){grid-column:3/5;}
-.sub-tab:nth-child(3){grid-column:5/7;}
-.sub-tab:nth-child(4){grid-column:2/4;}
-.sub-tab:nth-child(5){grid-column:4/6;}
 
 .sub-page{display:none;}
 .sub-page.active{display:block;}
@@ -895,17 +892,13 @@ body::before{
         <div style="display:flex;align-items:center;font-size:.62rem;color:var(--t3);white-space:nowrap;">掃描後顯示</div>
       </div>
 
-      <!-- TradingView 圖表區 -->
+      <!-- K 線圖表區 -->
       <div class="tv-wrap">
         <div class="tv-header">
           <div>
             <div class="tv-title" id="tvTitle">— 等待選股 —</div>
             <div class="tv-sub" id="tvSub">掃描後點選候選股，或直接輸入代碼查詢</div>
           </div>
-          <a id="tvLink" href="#" target="_blank" rel="noopener"
-             style="font-size:.58rem;color:var(--c1);text-decoration:none;white-space:nowrap;">
-            TradingView ↗
-          </a>
         </div>
         <!-- 個股數值列 -->
         <div class="tv-info-bar" id="tvInfoBar" style="display:none;">
@@ -914,22 +907,30 @@ body::before{
           <div class="tv-kv"><div class="kl">總評分</div><div class="kv" id="tvScore" style="color:var(--c4)">—</div></div>
           <div class="tv-kv"><div class="kl">訊號</div><div class="kv" id="tvSignal">—</div></div>
         </div>
-        <!-- iframe 容器 -->
-        <div class="tv-iframe-wrap" id="tvIframeWrap">
-          <div class="tv-loading" style="height:320px;">
-            輸入代碼或選擇候選股以載入圖表
-          </div>
-        </div>
+        <!-- 圖表容器 -->
+        <div class="tv-iframe-wrap" id="tvIframeWrap"></div>
       </div>
-      <!-- 說明 -->
-      <div style="font-size:.58rem;color:var(--t3);text-align:center;padding:4px 0;">
-        資料來源：TradingView · 上市 TWSE:XXXX · 上櫃 TPEX:XXXX
-      </div>
-    </div>
   </div>
-  <!-- PAGE 4：通知設定 -->
-  <div class="page" id="p4">
+  <!-- PAGE 4：設定 -->
+  <div class="page" id="p4" style="overflow-y:auto;-webkit-overflow-scrolling:touch;">
     <div class="pg">
+      <div class="section-hdr">資料更新</div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;">
+        <div style="font-size:.7rem;color:var(--t1);font-weight:700;margin-bottom:4px;">手動更新FINMIND資料</div>
+        <div style="font-size:.63rem;color:var(--t3);line-height:1.7;margin-bottom:12px;">
+          點擊下方按鈕前往 GitHub Actions，手動觸發掃描器取得最新資料。<br>
+          掃描完成後回到 App 按「▶ 掃描」即可更新排行榜。
+        </div>
+        <a href="https://github.com/shihpc/taiwan-stock-radar/actions/workflows/scan.yml"
+           target="_blank" rel="noopener"
+           style="display:flex;align-items:center;justify-content:center;gap:8px;
+                  padding:11px;text-decoration:none;
+                  background:rgba(0,207,255,.08);border:1px solid rgba(0,207,255,.3);
+                  border-radius:8px;color:var(--c1);font-size:.72rem;font-weight:700;">
+          ⚙️ 前往 GitHub Actions 手動執行掃描
+        </a>
+      </div>
+
       <div class="section-hdr">推播通知設定</div>
 
       <!-- Telegram（推薦） -->
@@ -1047,7 +1048,7 @@ body::before{
   </button>
   <button class="tab" onclick="switchTab(4)">
     <div class="tab-ico">⚙️</div>
-    <div class="tab-lbl">通知</div>
+    <div class="tab-lbl">設定</div>
   </button>
 </div>
 
@@ -1277,11 +1278,14 @@ function parseCSVLine(line) {
 // ══════════════════════════════════════════
 function switchTab(idx) {
   currentTab = idx;
-  document.querySelectorAll('.page').forEach((p, i) => p.classList.toggle('active', i === idx));
+  const pageIds = ['p0','p1','p2','p3','p4'];
+  pageIds.forEach((id, i) => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('active', i === idx);
+  });
   document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === idx));
   if (idx === 0) document.getElementById('nd0').classList.remove('show');
   if (idx === 2) document.getElementById('nd2').classList.remove('show');
-  // 切換到圖表頁：若有已選個股，自動同步顯示
   if (idx === 3 && selectedStock && currentChartStock?.code !== selectedStock.code) {
     const btn = [...(document.querySelectorAll('.stock-btn')||[])]
       .find(b => b.querySelector('.sb-code')?.textContent === selectedStock.code);
@@ -1577,17 +1581,11 @@ async function startScan() {
     document.getElementById('rankList').innerHTML = `
       <div class="empty" style="padding:40px 20px;text-align:center;">
         <div style="font-size:2.5rem;margin-bottom:12px;">📂</div>
-        <div style="font-size:.85rem;font-weight:700;color:var(--t1);margin-bottom:8px;">尚未執行 scanner.py</div>
+        <div style="font-size:.85rem;font-weight:700;color:var(--t1);margin-bottom:8px;">尚未取得掃描資料</div>
         <div style="font-size:.68rem;color:var(--t3);line-height:1.8;">
-          請先在伺服器或 Colab 執行掃描器：<br>
-          <code style="background:var(--bg3);border:1px solid var(--border);
-            border-radius:4px;padding:2px 8px;font-size:.65rem;color:var(--c4);">
-            python scanner.py
-          </code><br><br>
-          掃描完成後將 <code style="background:var(--bg3);border:1px solid var(--border);
-            border-radius:4px;padding:2px 8px;font-size:.65rem;color:var(--c4);">
-            scan_app.csv
-          </code> 上傳至同目錄，<br>再按「▶ 掃描」重試。
+          scan_app.csv 尚未產生或資料為空，<br>
+          請點右上角「▶ 掃描」重試，<br>
+          或至 GitHub Actions 手動執行掃描。
         </div>
       </div>`;
     return;
@@ -2560,79 +2558,42 @@ function loadTVChart(symbol) {
 
   const parts = symbol.split(':');
   const code  = parts[1] || symbol;
-  const tvUrl = 'https://www.tradingview.com/chart/?symbol=' + encodeURIComponent(symbol);
-  const cnyes = 'https://www.cnyes.com/twstock/' + code;
+  const mkt   = parts[0] || 'TWSE';
+  const yahooSuffix = mkt === 'TPEX' ? '.TWO' : '.TW';
+  const yahooUrl = 'https://finance.yahoo.com/chart/' + code + yahooSuffix + '/';
 
   wrap.innerHTML = '';
-
-  // ── 外層容器（固定高度）
   const box = document.createElement('div');
-  box.style.cssText = 'width:100%;height:360px;display:flex;flex-direction:column;' +
-    'align-items:center;justify-content:center;gap:16px;' +
-    'background:var(--bg3);border-radius:0 0 12px 12px;text-align:center;padding:24px;';
+  box.style.cssText = [
+    'width:100%;height:200px;',
+    'display:flex;flex-direction:column;align-items:center;justify-content:center;',
+    'gap:16px;background:var(--bg3);border-radius:0 0 12px 12px;padding:20px;',
+  ].join('');
 
-  // icon
-  const ico = document.createElement('div');
-  ico.textContent = '📈';
-  ico.style.fontSize = '2.4rem';
-  box.appendChild(ico);
+  const label = document.createElement('div');
+  label.style.cssText = 'font-size:.78rem;color:var(--t2);';
+  label.textContent = code + ' ' + (mkt === 'TPEX' ? '（上櫃）' : '（上市）');
+  box.appendChild(label);
 
-  // symbol
-  const sym = document.createElement('div');
-  sym.textContent = symbol;
-  sym.style.cssText = 'font-size:.95rem;font-weight:700;color:var(--t1);font-family:monospace;';
-  box.appendChild(sym);
-
-  // 說明
-  const txt = document.createElement('div');
-  txt.innerHTML = '點擊下方按鈕，在新分頁開啟<br><strong style="color:var(--c1)">TradingView 真實 K 線</strong>';
-  txt.style.cssText = 'font-size:.7rem;color:var(--t2);line-height:1.8;';
-  box.appendChild(txt);
-
-  // 主按鈕
-  const a1 = document.createElement('a');
-  a1.href = tvUrl;
-  a1.target = '_blank';
-  a1.rel = 'noopener';
-  a1.textContent = '開啟 TradingView K 線 ↗';
-  a1.style.cssText = 'display:inline-block;padding:13px 36px;' +
-    'background:rgba(0,207,255,.15);border:2px solid #00cfff;' +
-    'border-radius:10px;color:#00cfff;font-size:.85rem;' +
-    'font-weight:700;text-decoration:none;letter-spacing:1px;';
-  box.appendChild(a1);
-
-  // 鉅亨網連結
-  const a2 = document.createElement('a');
-  a2.href = cnyes;
-  a2.target = '_blank';
-  a2.rel = 'noopener';
-  a2.textContent = '鉅亨網 ' + code + ' →';
-  a2.style.cssText = 'font-size:.65rem;color:var(--t3);text-decoration:none;';
-  box.appendChild(a2);
+  const btn = document.createElement('a');
+  btn.href = yahooUrl;
+  btn.target = '_blank';
+  btn.rel = 'noopener';
+  btn.style.cssText = [
+    'display:flex;align-items:center;gap:10px;',
+    'padding:14px 36px;text-decoration:none;',
+    'background:rgba(129,140,248,.15);',
+    'border:2px solid rgba(129,140,248,.5);',
+    'border-radius:12px;',
+    'color:#818cf8;font-size:.85rem;font-weight:700;',
+    'letter-spacing:.5px;',
+  ].join('');
+  btn.innerHTML = '📈&nbsp;&nbsp;Yahoo 股市 K 線 ↗';
+  box.appendChild(btn);
 
   wrap.appendChild(box);
-
-  // ── TradingView iframe（Artifact sandbox 會被阻擋；部署到真實瀏覽器後自動生效）
-  const iframe = document.createElement('iframe');
-  const params = [
-    'symbol=' + encodeURIComponent(symbol),
-    'interval=D', 'timezone=Asia%2FTaipei',
-    'theme=dark', 'style=1', 'locale=zh_TW',
-    'toolbar_bg=%23091626', 'hide_top_toolbar=0',
-    'save_image=0', 'hide_side_toolbar=1',
-    'allow_symbol_change=0', 'withdateranges=1', 'range=3M',
-  ].join('&');
-  iframe.src = 'https://s.tradingview.com/widgetembed/?' + params;
-  iframe.style.cssText = 'display:none;width:100%;height:360px;border:0;border-radius:0 0 12px 12px;';
-  iframe.setAttribute('allowfullscreen','');
-  iframe.onload = function() {
-    // TradingView 是跨域，無法讀 contentDocument
-    // onload 觸發即代表 iframe 載入成功，直接切換
-    box.style.display = 'none';
-    iframe.style.display = 'block';
-  };
-  wrap.appendChild(iframe);
 }
+
 
 // ══════════════════════════════════════════
 //  NOTIFICATIONS
