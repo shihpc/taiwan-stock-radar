@@ -1,0 +1,47 @@
+name: 台股雷達掃描
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: '掃描模式 (full / no-broker / quick)'
+        required: true
+        default: 'full'
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run scanner
+        env:
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+        run: python scanner.py
+
+      - name: Copy CSV to root
+        run: cp output/scan_app.csv ./scan_app.csv
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add scan_app.csv
+          if git diff --staged --quiet; then
+            echo "No changes"
+          else
+            git commit -m "scan update $(date -u '+%Y-%m-%d %H:%M') UTC"
+            git push
+          fi
