@@ -1034,7 +1034,7 @@ body::before{
         <div style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid rgba(0,200,255,.05);">
           <span style="font-size:.65rem;color:var(--t2);flex:1;">最低總分</span>
           <div style="display:flex;align-items:center;gap:8px;">
-            <input type="range" id="f-minScore" min="0" max="118" step="1" value="77"
+            <input type="range" id="f-minScore" min="0" max="118" step="1" value="52"
               style="width:110px;accent-color:var(--c1);cursor:pointer;"
               oninput="updateFilter('minScore',this.value)"/>
             <span id="fv-minScore" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:36px;text-align:right;">77 <span style="font-size:.55rem;color:var(--t3);">/118</span></span>
@@ -1663,7 +1663,7 @@ setInterval(updateMarketStatus, 60000);
 //  USER SETTINGS（篩選設定，存入 localStorage）
 // ══════════════════════════════════════════
 const SETTINGS_DEFAULTS = {
-  minScore:       77,
+  minScore:       52,
   maxDisplay:     30,
   minA:           0,
   minB:           0,
