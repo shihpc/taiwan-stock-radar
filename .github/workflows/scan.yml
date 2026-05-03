@@ -6,7 +6,7 @@ on:
       mode:
         description: '掃描模式 (full / no-broker / quick)'
         required: true
-        default: 'no-broker'
+        default: 'full'
   schedule:
     - cron: '30 13 * * 1-5'  # 每週一到週五 21:30 台灣時間（UTC 13:30）自動執行
 
@@ -49,7 +49,7 @@ jobs:
         env:
           FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
         run: |
-          MODE="${{ github.event.inputs.mode || 'no-broker' }}"
+          MODE="${{ github.event.inputs.mode || 'full' }}"
           echo "掃描模式：$MODE"
           if [ "$MODE" = "full" ]; then
             python scanner.py
