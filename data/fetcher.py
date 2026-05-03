@@ -267,6 +267,7 @@ def fetch_all_institutional_by_date(date: str) -> pd.DataFrame:
     })
     if df.empty:
         return df
+    df["stock_id"] = df["stock_id"].astype(str).str.strip()
     df["diff"] = pd.to_numeric(df["buy"], errors="coerce") - \
                  pd.to_numeric(df["sell"], errors="coerce")
     return df
@@ -294,10 +295,13 @@ def fetch_all_margin_by_date(date: str) -> pd.DataFrame:
     取得全市場單日融資融券（Backer/Sponsor 限定）。
     """
     logger.info(f"取得全市場融資券 {date}...")
-    return _get("TaiwanStockMarginPurchaseShortSale", {
+    df = _get("TaiwanStockMarginPurchaseShortSale", {
         "start_date": date,
         "end_date": date,
     })
+    if not df.empty:
+        df["stock_id"] = df["stock_id"].astype(str).str.strip()
+    return df
 
 
 def fetch_shareholding(stock_id: str, days_back: int = 60) -> pd.DataFrame:
