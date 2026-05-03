@@ -2103,52 +2103,56 @@ async function startScan() {
   }
   allStockData = loaded;
 
-  // 候選名單（依篩選設定 tab 的條件動態計算）
-  recomputeScanResults();
+  try {
+    // 候選名單（依篩選設定 tab 的條件動態計算）
+    recomputeScanResults();
 
-  // 掃描時間（日期+時間）
-  const now = new Date();
-  const dateStr = now.toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'});
-  const timeStr = now.toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
-  document.getElementById('lastScanTime').textContent = `最後掃描：${dateStr} ${timeStr}`;
+    // 掃描時間（日期+時間）
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'});
+    const timeStr = now.toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
+    document.getElementById('lastScanTime').textContent = `最後掃描：${dateStr} ${timeStr}`;
 
-  // 各面向資料日期（全市場共用，不從個別股票取）
-  const now2 = new Date();
-  const d0 = now2.toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'});
-  const d1 = new Date(now2); d1.setDate(d1.getDate()-1);
-  const d1s = d1.toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'});
-  const d7 = new Date(now2); d7.setDate(d7.getDate()-7);
-  const d7s = d7.toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'});
-  const d25 = new Date(now2); d25.setDate(d25.getDate()-25);
-  const d25s = d25.toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'});
-  updateDataDates({
-    A: d0,    // 外資：每日更新
-    B: d0,    // 投信：每日更新
-    C: d1s,   // 主力分點：前一交易日（Sponsor資料）
-    D: d0,    // 技術面：每日更新
-    E: d25s,  // 基本面：月營收（每月10日）
-    H: d7s,   // 股權分散：每週更新
-    M: d0,    // 融資券：每日更新
-  });
+    // 各面向資料日期（全市場共用，不從個別股票取）
+    const now2 = new Date();
+    const d0 = now2.toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'});
+    const d1 = new Date(now2); d1.setDate(d1.getDate()-1);
+    const d1s = d1.toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'});
+    const d7 = new Date(now2); d7.setDate(d7.getDate()-7);
+    const d7s = d7.toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'});
+    const d25 = new Date(now2); d25.setDate(d25.getDate()-25);
+    const d25s = d25.toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'});
+    updateDataDates({
+      A: d0,    // 外資：每日更新
+      B: d0,    // 投信：每日更新
+      C: d1s,   // 主力分點：前一交易日（Sponsor資料）
+      D: d0,    // 技術面：每日更新
+      E: d25s,  // 基本面：月營收（每月10日）
+      H: d7s,   // 股權分散：每週更新
+      M: d0,    // 融資券：每日更新
+    });
 
-  // 渲染各排行榜（先渲染再關閉 loading）
-  renderRankList();
-  renderTrustRank();
-  renderBrokerRank();
-  renderMarginRank();
-  renderForeignRank();
-  renderSignals();
+    // 渲染各排行榜（先渲染再關閉 loading）
+    renderRankList();
+    renderTrustRank();
+    renderBrokerRank();
+    renderMarginRank();
+    renderForeignRank();
+    renderSignals();
 
-  // 統計數字
-  document.getElementById('sumTotal').textContent = allStockData.length.toLocaleString();
-  document.getElementById('sumCand').textContent  = scanResults.length;
-  document.getElementById('sumStrong').textContent = scanResults.filter(s=>s.score>=95).length;
-  updateFilterCountDisplay();
-  document.getElementById('nd0').classList.add('show');
-  document.getElementById('nd2').classList.add('show');
-  document.getElementById('statusDot').classList.remove('idle');
+    // 統計數字
+    document.getElementById('sumTotal').textContent = allStockData.length.toLocaleString();
+    document.getElementById('sumCand').textContent  = scanResults.length;
+    document.getElementById('sumStrong').textContent = scanResults.filter(s=>s.score>=95).length;
+    updateFilterCountDisplay();
+    document.getElementById('nd0').classList.add('show');
+    document.getElementById('nd2').classList.add('show');
+    document.getElementById('statusDot').classList.remove('idle');
+  } catch(err) {
+    console.error('startScan render 階段錯誤：', err);
+  }
 
-  // 關閉 loading — 排行榜已渲染完才關
+  // 關閉 loading — 無論是否有錯都要關閉
   hideLoading();
 
   // Chart 延遲初始化（不阻塞排行榜顯示）
