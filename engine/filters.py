@@ -55,10 +55,6 @@ def is_valid_stock(row: pd.Series) -> bool:
     if stock_id.isdigit() and len(stock_id) in (5, 6) and stock_id.startswith("00"):
         return True
 
-    # 可轉債（名稱含「可轉」或「轉換」）
-    if "可轉" in name or "轉換" in name:
-        return True
-
     return False
 
 
