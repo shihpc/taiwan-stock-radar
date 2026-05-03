@@ -77,5 +77,6 @@ jobs:
             echo "資料無變更，跳過 commit"
           else
             git commit -m "scan update $(date -u '+%Y-%m-%d %H:%M') UTC"
+            git pull --rebase
             git push
           fi
