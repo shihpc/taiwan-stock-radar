@@ -64,6 +64,51 @@ def _date_range(days_back: int) -> tuple[str, str]:
     return start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")
 
 
+def fetch_trading_dates(days_back: int = 60) -> set:
+    """
+    從 FinMind TaiwanStockTradingDate 取得交易日清單（Free 方案可用）。
+    回傳 set of 'YYYY-MM-DD' 字串，方便快速查詢某日是否為交易日。
+    days_back：往前取幾天的交易日（預設 60 天，涵蓋約 3 個月）
+    """
+    start, end = _date_range(days_back)
+    df = _get("TaiwanStockTradingDate", {
+        "start_date": start,
+        "end_date":   end,
+    })
+    if df.empty or "date" not in df.columns:
+        logger.warning("TaiwanStockTradingDate 無資料，將以週一到週五代替")
+        return set()
+    dates = set(df["date"].str[:10].tolist())
+    logger.info(f"取得交易日清單：{len(dates)} 天（{start} ~ {end}）")
+    return dates
+
+
+def get_last_trading_date(trading_dates: set = None) -> str:
+    """
+    回傳最近一個交易日的日期字串（YYYY-MM-DD）。
+    優先使用 trading_dates（來自 FinMind），若為空則用週一到週五推算。
+    """
+    from datetime import date as date_type
+    today = datetime.today().date()
+
+    if trading_dates:
+        for delta in range(10):
+            candidate = (today - timedelta(days=delta)).strftime("%Y-%m-%d")
+            if candidate in trading_dates:
+                return candidate
+        logger.warning("交易日清單裡找不到最近交易日，改用週一到週五推算")
+
+    # Fallback：週末往前推到週五
+    weekday = today.weekday()
+    if weekday == 5:    # 週六
+        delta = 1
+    elif weekday == 6:  # 週日
+        delta = 2
+    else:
+        delta = 0
+    return (today - timedelta(days=delta)).strftime("%Y-%m-%d")
+
+
 def _month_range(months_back: int) -> tuple[str, str]:
     """回傳幾個月前到今天的日期範圍"""
     end = datetime.today()
