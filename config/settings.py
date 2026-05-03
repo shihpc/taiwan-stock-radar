@@ -5,7 +5,8 @@
 # ============================================================
 
 # ── FinMind API ─────────────────────────────────────────────
-FINMIND_TOKEN = "你的_FinMind_Token"   # ← 填入你的 Token
+import os
+FINMIND_TOKEN = os.environ.get("FINMIND_TOKEN", "")   # 從環境變數讀取
 FINMIND_BASE_URL = "https://api.finmindtrade.com/api/v4/data"
 FINMIND_BROKER_URL = "https://api.finmindtrade.com/api/v4/taiwan_stock_trading_daily_report"
 
