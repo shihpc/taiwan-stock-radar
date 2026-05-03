@@ -1,0 +1,1359 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>台股主力選股 回測報告</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#050d1a;color:#d0e8ff;font-family:'Noto Sans TC',sans-serif;padding:16px;}
+h1{font-size:1.3rem;color:#00e5ff;margin-bottom:16px;letter-spacing:3px;}
+h2{font-size:.9rem;color:#00b4ff;margin:20px 0 10px;letter-spacing:2px;border-left:3px solid #00b4ff;padding-left:10px;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:20px;}
+.card{background:#0a1e36;border:1px solid #1a4a6e;border-radius:8px;padding:12px;text-align:center;}
+.card .lbl{font-size:.65rem;color:#6a9dbf;margin-bottom:5px;}
+.card .val{font-size:1.3rem;font-weight:700;font-family:monospace;}
+.pos{color:#ff4444;}.neg{color:#00cc66;}.neu{color:#ffd740;}
+.chart-wrap{background:#0a1e36;border:1px solid #1a4a6e;border-radius:8px;padding:14px;margin-bottom:14px;}
+canvas{max-height:260px;}
+table{width:100%;border-collapse:collapse;font-size:.72rem;}
+th{background:#071525;color:#6a9dbf;padding:7px;text-align:center;position:sticky;top:0;}
+td{padding:6px 8px;border-bottom:1px solid #0f3050;text-align:center;}
+tr:hover td{background:rgba(0,180,255,.05);}
+.tbl-wrap{overflow-x:auto;max-height:400px;overflow-y:auto;
+  background:#0a1e36;border:1px solid #1a4a6e;border-radius:8px;}
+.badge{display:inline-block;background:#071525;border:1px solid #1a4a6e;
+  border-radius:4px;padding:2px 6px;font-size:.62rem;margin:1px;}
+footer{text-align:center;color:#2d5a7a;font-size:.65rem;margin-top:20px;}
+</style>
+</head>
+<body>
+<h1>📊 台股主力選股掃描器｜回測績效報告</h1>
+<p style="font-size:.72rem;color:#6a9dbf;margin-bottom:16px">
+  回測期間：2020-01-01 ～ 2024-12-31｜
+  持有：20 交易日｜
+  停損：-8% / 停利：20%
+</p>
+
+<h2>核心績效指標</h2>
+<div class="grid">
+  <div class="card"><div class="lbl">總交易次數</div><div class="val neu">120</div></div>
+  <div class="card"><div class="lbl">勝率</div><div class="val pos">60.0%</div></div>
+  <div class="card"><div class="lbl">平均報酬</div><div class="val pos">+5.45%</div></div>
+  <div class="card"><div class="lbl">獲利因子</div><div class="val pos">3.17</div></div>
+  <div class="card"><div class="lbl">最大回撤</div><div class="val neg">-37.5%</div></div>
+  <div class="card"><div class="lbl">夏普比率</div><div class="val pos">7.71</div></div>
+  <div class="card"><div class="lbl">策略總報酬</div><div class="val pos">+29667.9%</div></div>
+  <div class="card"><div class="lbl">超額報酬 α</div><div class="val pos">+29619.9%</div></div>
+</div>
+
+<h2>資金曲線</h2>
+<div class="chart-wrap">
+  <canvas id="equityChart"></canvas>
+</div>
+
+<h2>月份報酬分布</h2>
+<div class="chart-wrap">
+  <canvas id="monthlyChart"></canvas>
+</div>
+
+<h2>各標記勝率與平均報酬</h2>
+<div class="chart-wrap">
+  <canvas id="tagChart"></canvas>
+</div>
+
+<h2>最近 100 筆交易記錄</h2>
+<div class="tbl-wrap">
+<table>
+  <thead><tr>
+    <th>代碼</th><th>名稱</th><th>進場日</th><th>出場日</th>
+    <th>進場價</th><th>出場價</th><th>損益率</th>
+    <th>評分</th><th>標記</th><th>出場原因</th>
+  </tr></thead>
+  <tbody>
+        <tr>
+          <td>2019</td>
+          <td>測試股19</td>
+          <td>2023-06-04</td>
+          <td>2023-06-28</td>
+          <td>440.7</td>
+          <td>508.3</td>
+          <td style="color:#ff4444;font-weight:700">+15.34%</td>
+          <td>91</td>
+          <td style="font-size:.75rem">★法人共識 ★籌碼集中 ★主力連續進場</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2018</td>
+          <td>測試股18</td>
+          <td>2023-05-25</td>
+          <td>2023-06-17</td>
+          <td>91.5</td>
+          <td>107.5</td>
+          <td style="color:#ff4444;font-weight:700">+17.49%</td>
+          <td>93</td>
+          <td style="font-size:.75rem">★籌碼乾淨 ★軋空潛力</td>
+          <td>take_profit</td>
+        </tr>
+        <tr>
+          <td>2017</td>
+          <td>測試股17</td>
+          <td>2023-05-15</td>
+          <td>2023-06-07</td>
+          <td>210.2</td>
+          <td>188.0</td>
+          <td style="color:#00cc66;font-weight:700">-10.56%</td>
+          <td>103</td>
+          <td style="font-size:.75rem">★主力連續進場 ★主力低調吃貨</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2015</td>
+          <td>測試股15</td>
+          <td>2023-04-25</td>
+          <td>2023-05-22</td>
+          <td>487.9</td>
+          <td>441.4</td>
+          <td style="color:#00cc66;font-weight:700">-9.53%</td>
+          <td>81</td>
+          <td style="font-size:.75rem">★法人共識 ★投信深度認養</td>
+          <td>stop_loss</td>
+        </tr>
+        <tr>
+          <td>2016</td>
+          <td>測試股16</td>
+          <td>2023-05-05</td>
+          <td>2023-05-21</td>
+          <td>175.4</td>
+          <td>180.9</td>
+          <td style="color:#ff4444;font-weight:700">+3.14%</td>
+          <td>81</td>
+          <td style="font-size:.75rem">★籌碼集中 ★大戶接手</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2014</td>
+          <td>測試股14</td>
+          <td>2023-04-15</td>
+          <td>2023-05-07</td>
+          <td>131.0</td>
+          <td>121.2</td>
+          <td style="color:#00cc66;font-weight:700">-7.48%</td>
+          <td>103</td>
+          <td style="font-size:.75rem">★法人共識 ★籌碼集中 ★主力連續進場</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2013</td>
+          <td>測試股13</td>
+          <td>2023-04-05</td>
+          <td>2023-04-22</td>
+          <td>291.8</td>
+          <td>335.7</td>
+          <td style="color:#ff4444;font-weight:700">+15.04%</td>
+          <td>92</td>
+          <td style="font-size:.75rem">★籌碼乾淨 ★軋空潛力</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2012</td>
+          <td>測試股12</td>
+          <td>2023-03-26</td>
+          <td>2023-04-17</td>
+          <td>70.6</td>
+          <td>64.8</td>
+          <td style="color:#00cc66;font-weight:700">-8.22%</td>
+          <td>87</td>
+          <td style="font-size:.75rem">★主力連續進場 ★主力低調吃貨</td>
+          <td>take_profit</td>
+        </tr>
+        <tr>
+          <td>2011</td>
+          <td>測試股11</td>
+          <td>2023-03-16</td>
+          <td>2023-04-04</td>
+          <td>408.4</td>
+          <td>495.0</td>
+          <td style="color:#ff4444;font-weight:700">+21.20%</td>
+          <td>96</td>
+          <td style="font-size:.75rem">★籌碼集中 ★大戶接手</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2010</td>
+          <td>測試股10</td>
+          <td>2023-03-06</td>
+          <td>2023-03-24</td>
+          <td>296.4</td>
+          <td>364.1</td>
+          <td style="color:#ff4444;font-weight:700">+22.84%</td>
+          <td>93</td>
+          <td style="font-size:.75rem">★法人共識 ★投信深度認養</td>
+          <td>take_profit</td>
+        </tr>
+        <tr>
+          <td>2009</td>
+          <td>測試股09</td>
+          <td>2023-02-24</td>
+          <td>2023-03-16</td>
+          <td>323.6</td>
+          <td>304.5</td>
+          <td style="color:#00cc66;font-weight:700">-5.90%</td>
+          <td>110</td>
+          <td style="font-size:.75rem">★法人共識 ★籌碼集中 ★主力連續進場</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2008</td>
+          <td>測試股08</td>
+          <td>2023-02-14</td>
+          <td>2023-03-14</td>
+          <td>366.8</td>
+          <td>382.5</td>
+          <td style="color:#ff4444;font-weight:700">+4.28%</td>
+          <td>110</td>
+          <td style="font-size:.75rem">★籌碼乾淨 ★軋空潛力</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2007</td>
+          <td>測試股07</td>
+          <td>2023-02-04</td>
+          <td>2023-03-01</td>
+          <td>231.6</td>
+          <td>235.5</td>
+          <td style="color:#ff4444;font-weight:700">+1.68%</td>
+          <td>97</td>
+          <td style="font-size:.75rem">★主力連續進場 ★主力低調吃貨</td>
+          <td>stop_loss</td>
+        </tr>
+        <tr>
+          <td>2006</td>
+          <td>測試股06</td>
+          <td>2023-01-25</td>
+          <td>2023-02-19</td>
+          <td>188.5</td>
+          <td>186.0</td>
+          <td style="color:#00cc66;font-weight:700">-1.33%</td>
+          <td>106</td>
+          <td style="font-size:.75rem">★籌碼集中 ★大戶接手</td>
+          <td>take_profit</td>
+        </tr>
+        <tr>
+          <td>2005</td>
+          <td>測試股05</td>
+          <td>2023-01-15</td>
+          <td>2023-02-13</td>
+          <td>101.1</td>
+          <td>94.8</td>
+          <td style="color:#00cc66;font-weight:700">-6.23%</td>
+          <td>79</td>
+          <td style="font-size:.75rem">★法人共識 ★投信深度認養</td>
+          <td>take_profit</td>
+        </tr>
+        <tr>
+          <td>2004</td>
+          <td>測試股04</td>
+          <td>2023-01-05</td>
+          <td>2023-01-22</td>
+          <td>173.6</td>
+          <td>211.9</td>
+          <td style="color:#ff4444;font-weight:700">+22.06%</td>
+          <td>104</td>
+          <td style="font-size:.75rem">★法人共識 ★籌碼集中 ★主力連續進場</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2003</td>
+          <td>測試股03</td>
+          <td>2022-12-26</td>
+          <td>2023-01-19</td>
+          <td>432.3</td>
+          <td>483.4</td>
+          <td style="color:#ff4444;font-weight:700">+11.82%</td>
+          <td>77</td>
+          <td style="font-size:.75rem">★籌碼乾淨 ★軋空潛力</td>
+          <td>take_profit</td>
+        </tr>
+        <tr>
+          <td>2002</td>
+          <td>測試股02</td>
+          <td>2022-12-16</td>
+          <td>2022-12-31</td>
+          <td>290.5</td>
+          <td>284.8</td>
+          <td style="color:#00cc66;font-weight:700">-1.96%</td>
+          <td>113</td>
+          <td style="font-size:.75rem">★主力連續進場 ★主力低調吃貨</td>
+          <td>stop_loss</td>
+        </tr>
+        <tr>
+          <td>2001</td>
+          <td>測試股01</td>
+          <td>2022-12-06</td>
+          <td>2022-12-21</td>
+          <td>260.9</td>
+          <td>280.6</td>
+          <td style="color:#ff4444;font-weight:700">+7.55%</td>
+          <td>104</td>
+          <td style="font-size:.75rem">★籌碼集中 ★大戶接手</td>
+          <td>take_profit</td>
+        </tr>
+        <tr>
+          <td>2000</td>
+          <td>測試股00</td>
+          <td>2022-11-26</td>
+          <td>2022-12-15</td>
+          <td>387.3</td>
+          <td>468.2</td>
+          <td style="color:#ff4444;font-weight:700">+20.89%</td>
+          <td>89</td>
+          <td style="font-size:.75rem">★法人共識 ★投信深度認養</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2049</td>
+          <td>測試股49</td>
+          <td>2022-11-16</td>
+          <td>2022-12-07</td>
+          <td>235.1</td>
+          <td>219.3</td>
+          <td style="color:#00cc66;font-weight:700">-6.72%</td>
+          <td>87</td>
+          <td style="font-size:.75rem">★法人共識 ★籌碼集中 ★主力連續進場</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2048</td>
+          <td>測試股48</td>
+          <td>2022-11-06</td>
+          <td>2022-12-05</td>
+          <td>463.6</td>
+          <td>565.8</td>
+          <td style="color:#ff4444;font-weight:700">+22.04%</td>
+          <td>81</td>
+          <td style="font-size:.75rem">★籌碼乾淨 ★軋空潛力</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2047</td>
+          <td>測試股47</td>
+          <td>2022-10-27</td>
+          <td>2022-11-23</td>
+          <td>109.9</td>
+          <td>135.8</td>
+          <td style="color:#ff4444;font-weight:700">+23.57%</td>
+          <td>81</td>
+          <td style="font-size:.75rem">★主力連續進場 ★主力低調吃貨</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2046</td>
+          <td>測試股46</td>
+          <td>2022-10-17</td>
+          <td>2022-11-06</td>
+          <td>64.5</td>
+          <td>71.5</td>
+          <td style="color:#ff4444;font-weight:700">+10.85%</td>
+          <td>104</td>
+          <td style="font-size:.75rem">★籌碼集中 ★大戶接手</td>
+          <td>stop_loss</td>
+        </tr>
+        <tr>
+          <td>2045</td>
+          <td>測試股45</td>
+          <td>2022-10-07</td>
+          <td>2022-10-31</td>
+          <td>153.2</td>
+          <td>168.0</td>
+          <td style="color:#ff4444;font-weight:700">+9.66%</td>
+          <td>103</td>
+          <td style="font-size:.75rem">★法人共識 ★投信深度認養</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2044</td>
+          <td>測試股44</td>
+          <td>2022-09-27</td>
+          <td>2022-10-19</td>
+          <td>329.1</td>
+          <td>347.2</td>
+          <td style="color:#ff4444;font-weight:700">+5.50%</td>
+          <td>84</td>
+          <td style="font-size:.75rem">★法人共識 ★籌碼集中 ★主力連續進場</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2043</td>
+          <td>測試股43</td>
+          <td>2022-09-17</td>
+          <td>2022-10-08</td>
+          <td>70.5</td>
+          <td>87.3</td>
+          <td style="color:#ff4444;font-weight:700">+23.83%</td>
+          <td>88</td>
+          <td style="font-size:.75rem">★籌碼乾淨 ★軋空潛力</td>
+          <td>take_profit</td>
+        </tr>
+        <tr>
+          <td>2042</td>
+          <td>測試股42</td>
+          <td>2022-09-07</td>
+          <td>2022-09-30</td>
+          <td>285.4</td>
+          <td>273.0</td>
+          <td style="color:#00cc66;font-weight:700">-4.34%</td>
+          <td>79</td>
+          <td style="font-size:.75rem">★主力連續進場 ★主力低調吃貨</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2041</td>
+          <td>測試股41</td>
+          <td>2022-08-28</td>
+          <td>2022-09-17</td>
+          <td>466.1</td>
+          <td>423.1</td>
+          <td style="color:#00cc66;font-weight:700">-9.23%</td>
+          <td>96</td>
+          <td style="font-size:.75rem">★籌碼集中 ★大戶接手</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2040</td>
+          <td>測試股40</td>
+          <td>2022-08-18</td>
+          <td>2022-09-06</td>
+          <td>483.5</td>
+          <td>600.9</td>
+          <td style="color:#ff4444;font-weight:700">+24.28%</td>
+          <td>97</td>
+          <td style="font-size:.75rem">★法人共識 ★投信深度認養</td>
+          <td>stop_loss</td>
+        </tr>
+        <tr>
+          <td>2039</td>
+          <td>測試股39</td>
+          <td>2022-08-08</td>
+          <td>2022-09-03</td>
+          <td>483.0</td>
+          <td>520.9</td>
+          <td style="color:#ff4444;font-weight:700">+7.85%</td>
+          <td>114</td>
+          <td style="font-size:.75rem">★法人共識 ★籌碼集中 ★主力連續進場</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2038</td>
+          <td>測試股38</td>
+          <td>2022-07-29</td>
+          <td>2022-08-24</td>
+          <td>395.2</td>
+          <td>380.1</td>
+          <td style="color:#00cc66;font-weight:700">-3.82%</td>
+          <td>89</td>
+          <td style="font-size:.75rem">★籌碼乾淨 ★軋空潛力</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2037</td>
+          <td>測試股37</td>
+          <td>2022-07-19</td>
+          <td>2022-08-09</td>
+          <td>245.5</td>
+          <td>271.8</td>
+          <td style="color:#ff4444;font-weight:700">+10.71%</td>
+          <td>96</td>
+          <td style="font-size:.75rem">★主力連續進場 ★主力低調吃貨</td>
+          <td>take_profit</td>
+        </tr>
+        <tr>
+          <td>2035</td>
+          <td>測試股35</td>
+          <td>2022-06-29</td>
+          <td>2022-07-28</td>
+          <td>458.5</td>
+          <td>501.6</td>
+          <td style="color:#ff4444;font-weight:700">+9.40%</td>
+          <td>107</td>
+          <td style="font-size:.75rem">★法人共識 ★投信深度認養</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2036</td>
+          <td>測試股36</td>
+          <td>2022-07-09</td>
+          <td>2022-07-26</td>
+          <td>399.7</td>
+          <td>444.4</td>
+          <td style="color:#ff4444;font-weight:700">+11.18%</td>
+          <td>95</td>
+          <td style="font-size:.75rem">★籌碼集中 ★大戶接手</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2034</td>
+          <td>測試股34</td>
+          <td>2022-06-19</td>
+          <td>2022-07-08</td>
+          <td>155.0</td>
+          <td>188.7</td>
+          <td style="color:#ff4444;font-weight:700">+21.74%</td>
+          <td>93</td>
+          <td style="font-size:.75rem">★法人共識 ★籌碼集中 ★主力連續進場</td>
+          <td>take_profit</td>
+        </tr>
+        <tr>
+          <td>2033</td>
+          <td>測試股33</td>
+          <td>2022-06-09</td>
+          <td>2022-07-01</td>
+          <td>82.7</td>
+          <td>79.2</td>
+          <td style="color:#00cc66;font-weight:700">-4.23%</td>
+          <td>105</td>
+          <td style="font-size:.75rem">★籌碼乾淨 ★軋空潛力</td>
+          <td>stop_loss</td>
+        </tr>
+        <tr>
+          <td>2032</td>
+          <td>測試股32</td>
+          <td>2022-05-30</td>
+          <td>2022-06-22</td>
+          <td>392.7</td>
+          <td>349.9</td>
+          <td style="color:#00cc66;font-weight:700">-10.90%</td>
+          <td>89</td>
+          <td style="font-size:.75rem">★主力連續進場 ★主力低調吃貨</td>
+          <td>take_profit</td>
+        </tr>
+        <tr>
+          <td>2031</td>
+          <td>測試股31</td>
+          <td>2022-05-20</td>
+          <td>2022-06-13</td>
+          <td>248.7</td>
+          <td>228.5</td>
+          <td style="color:#00cc66;font-weight:700">-8.12%</td>
+          <td>88</td>
+          <td style="font-size:.75rem">★籌碼集中 ★大戶接手</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2030</td>
+          <td>測試股30</td>
+          <td>2022-05-10</td>
+          <td>2022-06-02</td>
+          <td>101.1</td>
+          <td>99.8</td>
+          <td style="color:#00cc66;font-weight:700">-1.29%</td>
+          <td>107</td>
+          <td style="font-size:.75rem">★法人共識 ★投信深度認養</td>
+          <td>take_profit</td>
+        </tr>
+        <tr>
+          <td>2029</td>
+          <td>測試股29</td>
+          <td>2022-04-30</td>
+          <td>2022-05-17</td>
+          <td>321.1</td>
+          <td>340.7</td>
+          <td style="color:#ff4444;font-weight:700">+6.10%</td>
+          <td>99</td>
+          <td style="font-size:.75rem">★法人共識 ★籌碼集中 ★主力連續進場</td>
+          <td>stop_loss</td>
+        </tr>
+        <tr>
+          <td>2028</td>
+          <td>測試股28</td>
+          <td>2022-04-20</td>
+          <td>2022-05-16</td>
+          <td>477.5</td>
+          <td>450.3</td>
+          <td style="color:#00cc66;font-weight:700">-5.70%</td>
+          <td>81</td>
+          <td style="font-size:.75rem">★籌碼乾淨 ★軋空潛力</td>
+          <td>stop_loss</td>
+        </tr>
+        <tr>
+          <td>2027</td>
+          <td>測試股27</td>
+          <td>2022-04-10</td>
+          <td>2022-04-25</td>
+          <td>74.1</td>
+          <td>72.1</td>
+          <td style="color:#00cc66;font-weight:700">-2.70%</td>
+          <td>83</td>
+          <td style="font-size:.75rem">★主力連續進場 ★主力低調吃貨</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2026</td>
+          <td>測試股26</td>
+          <td>2022-03-31</td>
+          <td>2022-04-15</td>
+          <td>277.4</td>
+          <td>253.9</td>
+          <td style="color:#00cc66;font-weight:700">-8.47%</td>
+          <td>95</td>
+          <td style="font-size:.75rem">★籌碼集中 ★大戶接手</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2025</td>
+          <td>測試股25</td>
+          <td>2022-03-21</td>
+          <td>2022-04-05</td>
+          <td>355.9</td>
+          <td>322.5</td>
+          <td style="color:#00cc66;font-weight:700">-9.38%</td>
+          <td>93</td>
+          <td style="font-size:.75rem">★法人共識 ★投信深度認養</td>
+          <td>take_profit</td>
+        </tr>
+        <tr>
+          <td>2024</td>
+          <td>測試股24</td>
+          <td>2022-03-11</td>
+          <td>2022-03-26</td>
+          <td>399.4</td>
+          <td>492.6</td>
+          <td style="color:#ff4444;font-weight:700">+23.34%</td>
+          <td>88</td>
+          <td style="font-size:.75rem">★法人共識 ★籌碼集中 ★主力連續進場</td>
+          <td>stop_loss</td>
+        </tr>
+        <tr>
+          <td>2023</td>
+          <td>測試股23</td>
+          <td>2022-03-01</td>
+          <td>2022-03-20</td>
+          <td>387.8</td>
+          <td>383.5</td>
+          <td style="color:#00cc66;font-weight:700">-1.11%</td>
+          <td>94</td>
+          <td style="font-size:.75rem">★籌碼乾淨 ★軋空潛力</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2022</td>
+          <td>測試股22</td>
+          <td>2022-02-19</td>
+          <td>2022-03-18</td>
+          <td>67.6</td>
+          <td>84.0</td>
+          <td style="color:#ff4444;font-weight:700">+24.26%</td>
+          <td>86</td>
+          <td style="font-size:.75rem">★主力連續進場 ★主力低調吃貨</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2021</td>
+          <td>測試股21</td>
+          <td>2022-02-09</td>
+          <td>2022-02-26</td>
+          <td>176.8</td>
+          <td>208.1</td>
+          <td style="color:#ff4444;font-weight:700">+17.70%</td>
+          <td>87</td>
+          <td style="font-size:.75rem">★籌碼集中 ★大戶接手</td>
+          <td>stop_loss</td>
+        </tr>
+        <tr>
+          <td>2020</td>
+          <td>測試股20</td>
+          <td>2022-01-30</td>
+          <td>2022-02-20</td>
+          <td>82.0</td>
+          <td>99.4</td>
+          <td style="color:#ff4444;font-weight:700">+21.22%</td>
+          <td>110</td>
+          <td style="font-size:.75rem">★法人共識 ★投信深度認養</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2019</td>
+          <td>測試股19</td>
+          <td>2022-01-20</td>
+          <td>2022-02-14</td>
+          <td>138.1</td>
+          <td>142.8</td>
+          <td style="color:#ff4444;font-weight:700">+3.40%</td>
+          <td>111</td>
+          <td style="font-size:.75rem">★法人共識 ★籌碼集中 ★主力連續進場</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2018</td>
+          <td>測試股18</td>
+          <td>2022-01-10</td>
+          <td>2022-02-06</td>
+          <td>295.5</td>
+          <td>272.6</td>
+          <td style="color:#00cc66;font-weight:700">-7.75%</td>
+          <td>86</td>
+          <td style="font-size:.75rem">★籌碼乾淨 ★軋空潛力</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2017</td>
+          <td>測試股17</td>
+          <td>2021-12-31</td>
+          <td>2022-01-25</td>
+          <td>410.4</td>
+          <td>387.0</td>
+          <td style="color:#00cc66;font-weight:700">-5.70%</td>
+          <td>109</td>
+          <td style="font-size:.75rem">★主力連續進場 ★主力低調吃貨</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2016</td>
+          <td>測試股16</td>
+          <td>2021-12-21</td>
+          <td>2022-01-17</td>
+          <td>123.3</td>
+          <td>143.5</td>
+          <td style="color:#ff4444;font-weight:700">+16.38%</td>
+          <td>104</td>
+          <td style="font-size:.75rem">★籌碼集中 ★大戶接手</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2014</td>
+          <td>測試股14</td>
+          <td>2021-12-01</td>
+          <td>2021-12-29</td>
+          <td>245.2</td>
+          <td>283.9</td>
+          <td style="color:#ff4444;font-weight:700">+15.78%</td>
+          <td>112</td>
+          <td style="font-size:.75rem">★法人共識 ★籌碼集中 ★主力連續進場</td>
+          <td>stop_loss</td>
+        </tr>
+        <tr>
+          <td>2015</td>
+          <td>測試股15</td>
+          <td>2021-12-11</td>
+          <td>2021-12-27</td>
+          <td>167.4</td>
+          <td>206.6</td>
+          <td style="color:#ff4444;font-weight:700">+23.42%</td>
+          <td>81</td>
+          <td style="font-size:.75rem">★法人共識 ★投信深度認養</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2013</td>
+          <td>測試股13</td>
+          <td>2021-11-21</td>
+          <td>2021-12-17</td>
+          <td>57.7</td>
+          <td>55.9</td>
+          <td style="color:#00cc66;font-weight:700">-3.12%</td>
+          <td>109</td>
+          <td style="font-size:.75rem">★籌碼乾淨 ★軋空潛力</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2012</td>
+          <td>測試股12</td>
+          <td>2021-11-11</td>
+          <td>2021-12-04</td>
+          <td>203.8</td>
+          <td>210.4</td>
+          <td style="color:#ff4444;font-weight:700">+3.24%</td>
+          <td>81</td>
+          <td style="font-size:.75rem">★主力連續進場 ★主力低調吃貨</td>
+          <td>take_profit</td>
+        </tr>
+        <tr>
+          <td>2011</td>
+          <td>測試股11</td>
+          <td>2021-11-01</td>
+          <td>2021-11-28</td>
+          <td>238.8</td>
+          <td>261.6</td>
+          <td style="color:#ff4444;font-weight:700">+9.55%</td>
+          <td>98</td>
+          <td style="font-size:.75rem">★籌碼集中 ★大戶接手</td>
+          <td>stop_loss</td>
+        </tr>
+        <tr>
+          <td>2010</td>
+          <td>測試股10</td>
+          <td>2021-10-22</td>
+          <td>2021-11-13</td>
+          <td>470.6</td>
+          <td>440.9</td>
+          <td style="color:#00cc66;font-weight:700">-6.31%</td>
+          <td>98</td>
+          <td style="font-size:.75rem">★法人共識 ★投信深度認養</td>
+          <td>stop_loss</td>
+        </tr>
+        <tr>
+          <td>2009</td>
+          <td>測試股09</td>
+          <td>2021-10-12</td>
+          <td>2021-10-31</td>
+          <td>76.2</td>
+          <td>70.8</td>
+          <td style="color:#00cc66;font-weight:700">-7.09%</td>
+          <td>101</td>
+          <td style="font-size:.75rem">★法人共識 ★籌碼集中 ★主力連續進場</td>
+          <td>take_profit</td>
+        </tr>
+        <tr>
+          <td>2008</td>
+          <td>測試股08</td>
+          <td>2021-10-02</td>
+          <td>2021-10-26</td>
+          <td>85.3</td>
+          <td>105.9</td>
+          <td style="color:#ff4444;font-weight:700">+24.15%</td>
+          <td>88</td>
+          <td style="font-size:.75rem">★籌碼乾淨 ★軋空潛力</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2007</td>
+          <td>測試股07</td>
+          <td>2021-09-22</td>
+          <td>2021-10-19</td>
+          <td>486.3</td>
+          <td>430.1</td>
+          <td style="color:#00cc66;font-weight:700">-11.56%</td>
+          <td>104</td>
+          <td style="font-size:.75rem">★主力連續進場 ★主力低調吃貨</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2006</td>
+          <td>測試股06</td>
+          <td>2021-09-12</td>
+          <td>2021-10-03</td>
+          <td>88.4</td>
+          <td>100.6</td>
+          <td style="color:#ff4444;font-weight:700">+13.80%</td>
+          <td>92</td>
+          <td style="font-size:.75rem">★籌碼集中 ★大戶接手</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2005</td>
+          <td>測試股05</td>
+          <td>2021-09-02</td>
+          <td>2021-10-01</td>
+          <td>212.1</td>
+          <td>240.8</td>
+          <td style="color:#ff4444;font-weight:700">+13.53%</td>
+          <td>81</td>
+          <td style="font-size:.75rem">★法人共識 ★投信深度認養</td>
+          <td>stop_loss</td>
+        </tr>
+        <tr>
+          <td>2004</td>
+          <td>測試股04</td>
+          <td>2021-08-23</td>
+          <td>2021-09-16</td>
+          <td>294.2</td>
+          <td>338.9</td>
+          <td style="color:#ff4444;font-weight:700">+15.19%</td>
+          <td>82</td>
+          <td style="font-size:.75rem">★法人共識 ★籌碼集中 ★主力連續進場</td>
+          <td>take_profit</td>
+        </tr>
+        <tr>
+          <td>2002</td>
+          <td>測試股02</td>
+          <td>2021-08-03</td>
+          <td>2021-08-30</td>
+          <td>137.4</td>
+          <td>151.9</td>
+          <td style="color:#ff4444;font-weight:700">+10.55%</td>
+          <td>88</td>
+          <td style="font-size:.75rem">★主力連續進場 ★主力低調吃貨</td>
+          <td>take_profit</td>
+        </tr>
+        <tr>
+          <td>2003</td>
+          <td>測試股03</td>
+          <td>2021-08-13</td>
+          <td>2021-08-30</td>
+          <td>202.1</td>
+          <td>208.7</td>
+          <td style="color:#ff4444;font-weight:700">+3.27%</td>
+          <td>101</td>
+          <td style="font-size:.75rem">★籌碼乾淨 ★軋空潛力</td>
+          <td>take_profit</td>
+        </tr>
+        <tr>
+          <td>2001</td>
+          <td>測試股01</td>
+          <td>2021-07-24</td>
+          <td>2021-08-09</td>
+          <td>440.2</td>
+          <td>412.1</td>
+          <td style="color:#00cc66;font-weight:700">-6.38%</td>
+          <td>112</td>
+          <td style="font-size:.75rem">★籌碼集中 ★大戶接手</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2000</td>
+          <td>測試股00</td>
+          <td>2021-07-14</td>
+          <td>2021-08-08</td>
+          <td>369.0</td>
+          <td>398.9</td>
+          <td style="color:#ff4444;font-weight:700">+8.10%</td>
+          <td>111</td>
+          <td style="font-size:.75rem">★法人共識 ★投信深度認養</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2049</td>
+          <td>測試股49</td>
+          <td>2021-07-04</td>
+          <td>2021-07-20</td>
+          <td>164.4</td>
+          <td>178.8</td>
+          <td style="color:#ff4444;font-weight:700">+8.76%</td>
+          <td>85</td>
+          <td style="font-size:.75rem">★法人共識 ★籌碼集中 ★主力連續進場</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2048</td>
+          <td>測試股48</td>
+          <td>2021-06-24</td>
+          <td>2021-07-14</td>
+          <td>363.2</td>
+          <td>375.3</td>
+          <td style="color:#ff4444;font-weight:700">+3.33%</td>
+          <td>99</td>
+          <td style="font-size:.75rem">★籌碼乾淨 ★軋空潛力</td>
+          <td>take_profit</td>
+        </tr>
+        <tr>
+          <td>2047</td>
+          <td>測試股47</td>
+          <td>2021-06-14</td>
+          <td>2021-07-05</td>
+          <td>170.8</td>
+          <td>187.8</td>
+          <td style="color:#ff4444;font-weight:700">+9.95%</td>
+          <td>107</td>
+          <td style="font-size:.75rem">★主力連續進場 ★主力低調吃貨</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2046</td>
+          <td>測試股46</td>
+          <td>2021-06-04</td>
+          <td>2021-07-01</td>
+          <td>242.7</td>
+          <td>239.3</td>
+          <td style="color:#00cc66;font-weight:700">-1.40%</td>
+          <td>97</td>
+          <td style="font-size:.75rem">★籌碼集中 ★大戶接手</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2045</td>
+          <td>測試股45</td>
+          <td>2021-05-25</td>
+          <td>2021-06-21</td>
+          <td>175.8</td>
+          <td>169.2</td>
+          <td style="color:#00cc66;font-weight:700">-3.75%</td>
+          <td>100</td>
+          <td style="font-size:.75rem">★法人共識 ★投信深度認養</td>
+          <td>stop_loss</td>
+        </tr>
+        <tr>
+          <td>2044</td>
+          <td>測試股44</td>
+          <td>2021-05-15</td>
+          <td>2021-06-02</td>
+          <td>60.9</td>
+          <td>54.8</td>
+          <td style="color:#00cc66;font-weight:700">-10.02%</td>
+          <td>106</td>
+          <td style="font-size:.75rem">★法人共識 ★籌碼集中 ★主力連續進場</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2043</td>
+          <td>測試股43</td>
+          <td>2021-05-05</td>
+          <td>2021-05-24</td>
+          <td>276.2</td>
+          <td>311.6</td>
+          <td style="color:#ff4444;font-weight:700">+12.82%</td>
+          <td>95</td>
+          <td style="font-size:.75rem">★籌碼乾淨 ★軋空潛力</td>
+          <td>stop_loss</td>
+        </tr>
+        <tr>
+          <td>2042</td>
+          <td>測試股42</td>
+          <td>2021-04-25</td>
+          <td>2021-05-15</td>
+          <td>490.5</td>
+          <td>602.1</td>
+          <td style="color:#ff4444;font-weight:700">+22.75%</td>
+          <td>110</td>
+          <td style="font-size:.75rem">★主力連續進場 ★主力低調吃貨</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2041</td>
+          <td>測試股41</td>
+          <td>2021-04-15</td>
+          <td>2021-04-30</td>
+          <td>294.1</td>
+          <td>342.0</td>
+          <td style="color:#ff4444;font-weight:700">+16.29%</td>
+          <td>106</td>
+          <td style="font-size:.75rem">★籌碼集中 ★大戶接手</td>
+          <td>take_profit</td>
+        </tr>
+        <tr>
+          <td>2040</td>
+          <td>測試股40</td>
+          <td>2021-04-05</td>
+          <td>2021-04-20</td>
+          <td>272.3</td>
+          <td>299.0</td>
+          <td style="color:#ff4444;font-weight:700">+9.81%</td>
+          <td>93</td>
+          <td style="font-size:.75rem">★法人共識 ★投信深度認養</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2038</td>
+          <td>測試股38</td>
+          <td>2021-03-16</td>
+          <td>2021-04-13</td>
+          <td>473.1</td>
+          <td>431.1</td>
+          <td style="color:#00cc66;font-weight:700">-8.88%</td>
+          <td>94</td>
+          <td style="font-size:.75rem">★籌碼乾淨 ★軋空潛力</td>
+          <td>take_profit</td>
+        </tr>
+        <tr>
+          <td>2039</td>
+          <td>測試股39</td>
+          <td>2021-03-26</td>
+          <td>2021-04-11</td>
+          <td>361.4</td>
+          <td>326.9</td>
+          <td style="color:#00cc66;font-weight:700">-9.55%</td>
+          <td>80</td>
+          <td style="font-size:.75rem">★法人共識 ★籌碼集中 ★主力連續進場</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2037</td>
+          <td>測試股37</td>
+          <td>2021-03-06</td>
+          <td>2021-03-28</td>
+          <td>432.9</td>
+          <td>418.3</td>
+          <td style="color:#00cc66;font-weight:700">-3.37%</td>
+          <td>111</td>
+          <td style="font-size:.75rem">★主力連續進場 ★主力低調吃貨</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2036</td>
+          <td>測試股36</td>
+          <td>2021-02-24</td>
+          <td>2021-03-19</td>
+          <td>207.1</td>
+          <td>202.7</td>
+          <td style="color:#00cc66;font-weight:700">-2.12%</td>
+          <td>109</td>
+          <td style="font-size:.75rem">★籌碼集中 ★大戶接手</td>
+          <td>take_profit</td>
+        </tr>
+        <tr>
+          <td>2035</td>
+          <td>測試股35</td>
+          <td>2021-02-14</td>
+          <td>2021-03-01</td>
+          <td>91.9</td>
+          <td>90.0</td>
+          <td style="color:#00cc66;font-weight:700">-2.07%</td>
+          <td>85</td>
+          <td style="font-size:.75rem">★法人共識 ★投信深度認養</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2034</td>
+          <td>測試股34</td>
+          <td>2021-02-04</td>
+          <td>2021-02-25</td>
+          <td>347.0</td>
+          <td>326.6</td>
+          <td style="color:#00cc66;font-weight:700">-5.88%</td>
+          <td>78</td>
+          <td style="font-size:.75rem">★法人共識 ★籌碼集中 ★主力連續進場</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2033</td>
+          <td>測試股33</td>
+          <td>2021-01-25</td>
+          <td>2021-02-16</td>
+          <td>111.9</td>
+          <td>116.1</td>
+          <td style="color:#ff4444;font-weight:700">+3.75%</td>
+          <td>111</td>
+          <td style="font-size:.75rem">★籌碼乾淨 ★軋空潛力</td>
+          <td>take_profit</td>
+        </tr>
+        <tr>
+          <td>2032</td>
+          <td>測試股32</td>
+          <td>2021-01-15</td>
+          <td>2021-02-13</td>
+          <td>151.9</td>
+          <td>136.6</td>
+          <td style="color:#00cc66;font-weight:700">-10.07%</td>
+          <td>94</td>
+          <td style="font-size:.75rem">★主力連續進場 ★主力低調吃貨</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2031</td>
+          <td>測試股31</td>
+          <td>2021-01-05</td>
+          <td>2021-02-01</td>
+          <td>436.3</td>
+          <td>463.7</td>
+          <td style="color:#ff4444;font-weight:700">+6.28%</td>
+          <td>79</td>
+          <td style="font-size:.75rem">★籌碼集中 ★大戶接手</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2030</td>
+          <td>測試股30</td>
+          <td>2020-12-26</td>
+          <td>2021-01-15</td>
+          <td>229.5</td>
+          <td>222.1</td>
+          <td style="color:#00cc66;font-weight:700">-3.22%</td>
+          <td>82</td>
+          <td style="font-size:.75rem">★法人共識 ★投信深度認養</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2029</td>
+          <td>測試股29</td>
+          <td>2020-12-16</td>
+          <td>2021-01-07</td>
+          <td>156.9</td>
+          <td>144.4</td>
+          <td style="color:#00cc66;font-weight:700">-7.97%</td>
+          <td>110</td>
+          <td style="font-size:.75rem">★法人共識 ★籌碼集中 ★主力連續進場</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2028</td>
+          <td>測試股28</td>
+          <td>2020-12-06</td>
+          <td>2021-01-03</td>
+          <td>115.2</td>
+          <td>143.6</td>
+          <td style="color:#ff4444;font-weight:700">+24.65%</td>
+          <td>87</td>
+          <td style="font-size:.75rem">★籌碼乾淨 ★軋空潛力</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2026</td>
+          <td>測試股26</td>
+          <td>2020-11-16</td>
+          <td>2020-12-14</td>
+          <td>363.3</td>
+          <td>325.6</td>
+          <td style="color:#00cc66;font-weight:700">-10.38%</td>
+          <td>78</td>
+          <td style="font-size:.75rem">★籌碼集中 ★大戶接手</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2027</td>
+          <td>測試股27</td>
+          <td>2020-11-26</td>
+          <td>2020-12-12</td>
+          <td>235.0</td>
+          <td>256.8</td>
+          <td style="color:#ff4444;font-weight:700">+9.28%</td>
+          <td>95</td>
+          <td style="font-size:.75rem">★主力連續進場 ★主力低調吃貨</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2025</td>
+          <td>測試股25</td>
+          <td>2020-11-06</td>
+          <td>2020-12-05</td>
+          <td>125.7</td>
+          <td>143.8</td>
+          <td style="color:#ff4444;font-weight:700">+14.40%</td>
+          <td>88</td>
+          <td style="font-size:.75rem">★法人共識 ★投信深度認養</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2024</td>
+          <td>測試股24</td>
+          <td>2020-10-27</td>
+          <td>2020-11-17</td>
+          <td>124.1</td>
+          <td>139.8</td>
+          <td style="color:#ff4444;font-weight:700">+12.65%</td>
+          <td>100</td>
+          <td style="font-size:.75rem">★法人共識 ★籌碼集中 ★主力連續進場</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2022</td>
+          <td>測試股22</td>
+          <td>2020-10-07</td>
+          <td>2020-11-04</td>
+          <td>447.5</td>
+          <td>465.1</td>
+          <td style="color:#ff4444;font-weight:700">+3.93%</td>
+          <td>109</td>
+          <td style="font-size:.75rem">★主力連續進場 ★主力低調吃貨</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2023</td>
+          <td>測試股23</td>
+          <td>2020-10-17</td>
+          <td>2020-11-01</td>
+          <td>152.6</td>
+          <td>184.1</td>
+          <td style="color:#ff4444;font-weight:700">+20.64%</td>
+          <td>79</td>
+          <td style="font-size:.75rem">★籌碼乾淨 ★軋空潛力</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2021</td>
+          <td>測試股21</td>
+          <td>2020-09-27</td>
+          <td>2020-10-21</td>
+          <td>413.7</td>
+          <td>403.7</td>
+          <td style="color:#00cc66;font-weight:700">-2.42%</td>
+          <td>96</td>
+          <td style="font-size:.75rem">★籌碼集中 ★大戶接手</td>
+          <td>hold</td>
+        </tr>
+        <tr>
+          <td>2020</td>
+          <td>測試股20</td>
+          <td>2020-09-17</td>
+          <td>2020-10-05</td>
+          <td>474.3</td>
+          <td>558.1</td>
+          <td style="color:#ff4444;font-weight:700">+17.67%</td>
+          <td>78</td>
+          <td style="font-size:.75rem">★法人共識 ★投信深度認養</td>
+          <td>hold</td>
+        </tr></tbody>
+</table>
+</div>
+
+<footer>⚠️ 本回測報告僅供研究參考，不代表未來績效保證，請依個人風險承受度操作。</footer>
+
+<script>
+// 資金曲線
+const equityData = [1.0, 1.1971106758080314, 1.1326145684386106, 1.0231944559686934, 1.139255036313992, 1.4167595253682916, 1.4531203913564081, 1.4732294709073042, 1.3466998526852352, 1.5203975362238389, 1.4136613597338659, 1.6212331575850616, 1.4902910257405968, 1.6568106821537343, 1.9569788696842512, 2.0298076151346858, 2.2012544121898023, 2.051629223590377, 2.451602810758226, 2.7174070422038716, 2.8149377405007927, 3.312284952505782, 3.232220051550844, 3.899421438338862, 4.052784158595318, 4.565505442156531, 5.222909169308744, 5.707417339057385, 5.115153001918758, 6.376180304475118, 5.868199082002595, 5.678984819663513, 6.03562975218421, 5.42769601150996, 5.631416505239556, 5.300347638649104, 5.190764825662887, 5.080483004161599, 4.909138463018704, 4.440501836084157, 4.046291146767872, 4.443044630494284, 5.166682297276589, 6.342221021794566, 7.155090768976057, 6.438406800326566, 6.196691869256285, 6.1098820120025925, 6.718008441768658, 6.941818745032428, 7.549861262845488, 8.161625088750853, 7.640630847510738, 8.446956519191273, 8.722809626695787, 10.04813114373624, 11.40777925229461, 12.982156026932554, 11.481853397457725, 14.254727723221256, 13.244550168032347, 12.408674392446795, 13.59342219876081, 14.033640974579365, 13.595849748335986, 16.779585173274878, 19.427912849480986, 22.6107501532889, 21.321540714724183, 19.669211501975678, 20.338619858668554, 24.654375779898228, 29.01909275903179, 36.05922768873773, 35.65939612849644, 43.98051710790523, 39.853095721549415, 36.476932241173024, 35.49239965706579, 33.47063364518686, 35.513686960184245, 35.05703223171501, 32.209617470634825, 28.69912185631557, 27.484527823702457, 33.46019613117841, 37.202179536391505, 40.69926555169897, 45.05930907108668, 43.337660369230896, 46.738275955139486, 58.086928689644914, 52.72812599997589, 50.43720531882767, 62.4562840331015, 65.89128476539908, 72.25676136153425, 80.09858042402634, 98.97531593796884, 120.79429197088604, 112.67625788692177, 136.21230039415641, 146.49739935071023, 143.62292370079956, 160.5998642539128, 196.03174674771964, 183.81611861210507, 181.37823905491535, 184.4325358265655, 192.32673106232633, 180.97493698540904, 222.310980284708, 269.4513595517396, 247.31512888035022, 284.5225797297243, 263.2376844522335, 271.4920018096297, 245.6170723483717, 219.6765442506845, 258.08992903768944, 297.67894470128783];
+const equityDates = ["2020-03-22", "2020-04-01", "2020-04-09", "2020-04-15", "2020-05-05", "2020-05-09", "2020-05-26", "2020-06-04", "2020-06-05", "2020-06-19", "2020-07-07", "2020-07-16", "2020-07-28", "2020-07-31", "2020-08-13", "2020-08-24", "2020-09-03", "2020-09-04", "2020-09-25", "2020-09-26", "2020-10-05", "2020-10-21", "2020-11-01", "2020-11-04", "2020-11-17", "2020-12-05", "2020-12-12", "2020-12-14", "2021-01-03", "2021-01-07", "2021-01-15", "2021-02-01", "2021-02-13", "2021-02-16", "2021-02-25", "2021-03-01", "2021-03-19", "2021-03-28", "2021-04-11", "2021-04-13", "2021-04-20", "2021-04-30", "2021-05-15", "2021-05-24", "2021-06-02", "2021-06-21", "2021-07-01", "2021-07-05", "2021-07-14", "2021-07-20", "2021-08-08", "2021-08-09", "2021-08-30", "2021-08-30", "2021-09-16", "2021-10-01", "2021-10-03", "2021-10-19", "2021-10-26", "2021-10-31", "2021-11-13", "2021-11-28", "2021-12-04", "2021-12-17", "2021-12-27", "2021-12-29", "2022-01-17", "2022-01-25", "2022-02-06", "2022-02-14", "2022-02-20", "2022-02-26", "2022-03-18", "2022-03-20", "2022-03-26", "2022-04-05", "2022-04-15", "2022-04-25", "2022-05-16", "2022-05-17", "2022-06-02", "2022-06-13", "2022-06-22", "2022-07-01", "2022-07-08", "2022-07-26", "2022-07-28", "2022-08-09", "2022-08-24", "2022-09-03", "2022-09-06", "2022-09-17", "2022-09-30", "2022-10-08", "2022-10-19", "2022-10-31", "2022-11-06", "2022-11-23", "2022-12-05", "2022-12-07", "2022-12-15", "2022-12-21", "2022-12-31", "2023-01-19", "2023-01-22", "2023-02-13", "2023-02-19", "2023-03-01", "2023-03-14", "2023-03-16", "2023-03-24", "2023-04-04", "2023-04-17", "2023-04-22", "2023-05-07", "2023-05-21", "2023-05-22", "2023-06-07", "2023-06-17", "2023-06-28"];
+new Chart(document.getElementById('equityChart'), {
+  type: 'line',
+  data: {
+    labels: equityDates,
+    datasets: [{
+      label: '策略資金曲線',
+      data: equityData,
+      borderColor: '#00e5ff',
+      backgroundColor: 'rgba(0,229,255,0.08)',
+      fill: true,
+      tension: 0.3,
+      pointRadius: 0,
+      borderWidth: 2,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { labels: { color: '#6a9dbf' } } },
+    scales: {
+      x: { ticks: { color:'#6a9dbf', maxTicksLimit:12 }, grid: { color:'rgba(15,48,80,.5)' } },
+      y: { ticks: { color:'#6a9dbf', callback: v => v.toFixed(2)+'x' }, grid: { color:'rgba(15,48,80,.5)' } }
+    }
+  }
+});
+
+// 月份報酬
+const monthly = {"2020-03": 19.71, "2020-04": -1.24, "2020-05": 9.44, "2020-06": -0.9, "2020-07": 8.97, "2020-08": 6.08, "2020-09": 6.78, "2020-10": 7.63, "2020-11": 12.41, "2020-12": 4.43, "2021-01": 4.49, "2021-02": -1.48, "2021-03": -2.52, "2021-04": 1.92, "2021-05": 17.78, "2021-06": -6.89, "2021-07": 5.16, "2021-08": 3.88, "2021-09": 15.19, "2021-10": 6.57, "2021-11": 1.62, "2021-12": 9.83, "2022-01": 5.34, "2022-02": 8.64, "2022-03": 15.5, "2022-04": -6.85, "2022-05": 0.2, "2022-06": -6.77, "2022-07": 9.52, "2022-08": 3.45, "2022-09": 4.64, "2022-10": 13.0, "2022-11": 17.21, "2022-12": 8.36, "2023-01": 16.94, "2023-02": -3.78, "2023-03": 5.73, "2023-04": 9.34, "2023-05": -4.63, "2023-06": 7.42};
+const mLabels = Object.keys(monthly);
+const mVals   = Object.values(monthly);
+new Chart(document.getElementById('monthlyChart'), {
+  type: 'bar',
+  data: {
+    labels: mLabels,
+    datasets: [{
+      label: '月平均報酬 (%)',
+      data: mVals,
+      backgroundColor: mVals.map(v => v >= 0 ? 'rgba(255,61,90,0.75)' : 'rgba(0,204,102,0.75)'),
+      borderWidth: 0,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { labels: { color:'#6a9dbf' } } },
+    scales: {
+      x: { ticks: { color:'#6a9dbf' }, grid: { color:'rgba(15,48,80,.5)' } },
+      y: { ticks: { color:'#6a9dbf', callback: v => v+'%' }, grid: { color:'rgba(15,48,80,.5)' } }
+    }
+  }
+});
+
+// 標記績效
+const tagLabels = ["\u2605\u6cd5\u4eba\u5171\u8b58", "\u2605\u6295\u4fe1\u6df1\u5ea6\u8a8d\u990a", "\u2605\u7c4c\u78bc\u96c6\u4e2d", "\u2605\u5927\u6236\u63a5\u624b", "\u2605\u4e3b\u529b\u9023\u7e8c\u9032\u5834", "\u2605\u4e3b\u529b\u4f4e\u8abf\u5403\u8ca8", "\u2605\u7c4c\u78bc\u4e7e\u6de8", "\u2605\u8ecb\u7a7a\u6f5b\u529b"];
+const tagWinRates = [64.60000000000001, 66.7, 56.2, 50.0, 58.3, 54.2, 66.7, 66.7];
+const tagReturns  = [6.83, 8.28, 4.05, 2.72, 4.45, 3.52, 7.37, 7.37];
+new Chart(document.getElementById('tagChart'), {
+  type: 'bar',
+  data: {
+    labels: tagLabels,
+    datasets: [
+      { label:'勝率(%)', data: tagWinRates, backgroundColor:'rgba(0,180,255,0.7)', yAxisID:'y' },
+      { label:'平均報酬(%)', data: tagReturns, backgroundColor:'rgba(255,215,64,0.7)', type:'line', yAxisID:'y2', tension:0.3 },
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { labels: { color:'#6a9dbf' } } },
+    scales: {
+      x: { ticks: { color:'#6a9dbf', maxRotation:30 }, grid: { color:'rgba(15,48,80,.5)' } },
+      y:  { ticks: { color:'#00b4ff', callback:v=>v+'%' }, grid: { color:'rgba(15,48,80,.5)' }, position:'left' },
+      y2: { ticks: { color:'#ffd740', callback:v=>v+'%' }, grid: { display:false }, position:'right' },
+    }
+  }
+});
+</script>
+</body>
+</html>
