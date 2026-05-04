@@ -286,6 +286,29 @@ def fetch_all_institutional_by_date(date: str) -> pd.DataFrame:
     return df
 
 
+def fetch_all_institutional_history(end_date: str, days_back: int = 30) -> pd.DataFrame:
+    """
+    一次拉全市場 N 天法人歷史（Sponsor 限定）。
+    用來取代逐支呼叫 fetch_institutional，大幅減少 API 次數與 timeout 風險。
+    """
+    from datetime import datetime, timedelta
+    end_d = datetime.strptime(end_date, "%Y-%m-%d")
+    start = (end_d - timedelta(days=days_back)).strftime("%Y-%m-%d")
+    logger.info(f"取得全市場法人歷史 {start}~{end_date}（一次批次）...")
+    df = _get("TaiwanStockInstitutionalInvestorsBuySell", {
+        "start_date": start,
+        "end_date": end_date,
+    }, retry=2, timeout=60)  # 一次性大量資料，多給時間
+    if df.empty:
+        logger.warning("批次法人歷史回傳空白")
+        return df
+    df["stock_id"] = df["stock_id"].astype(str).str.strip()
+    df["diff"] = pd.to_numeric(df["buy"], errors="coerce") - \
+                 pd.to_numeric(df["sell"], errors="coerce")
+    logger.info(f"批次法人歷史：{len(df):,} 筆，{df['stock_id'].nunique()} 支股票")
+    return df
+
+
 def fetch_margin(stock_id: str, days_back: int = 10) -> pd.DataFrame:
     """
     取得個股融資融券。
@@ -460,6 +483,7 @@ class DailyDataCache:
     def __init__(self, scan_date: Optional[str] = None):
         self.date = scan_date or datetime.today().strftime("%Y-%m-%d")
         self._institutional: Optional[pd.DataFrame] = None
+        self._inst_hist: Optional[pd.DataFrame] = None
         self._margin: Optional[pd.DataFrame] = None
         self._price: Optional[pd.DataFrame] = None
         self._revenue: Optional[pd.DataFrame] = None
@@ -468,6 +492,19 @@ class DailyDataCache:
         if self._institutional is None:
             self._institutional = fetch_all_institutional_by_date(self.date)
         return self._institutional
+
+    def get_institutional_history(self, days_back: int = 35) -> pd.DataFrame:
+        """全市場 N 天法人歷史，一次批次抓，後續個股查詢都從這切片"""
+        if self._inst_hist is None:
+            self._inst_hist = fetch_all_institutional_history(self.date, days_back)
+        return self._inst_hist
+
+    def institutional_history_for(self, stock_id: str) -> pd.DataFrame:
+        """從批次歷史快取中取出特定股票（取代 fetch_institutional 個別呼叫）"""
+        df = self.get_institutional_history()
+        if df.empty:
+            return df
+        return df[df["stock_id"] == stock_id].copy()
 
     def get_margin(self) -> pd.DataFrame:
         if self._margin is None:

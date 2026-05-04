@@ -284,8 +284,8 @@ def run_scan(scan_date: str = None, quick: bool = False,
                 skip_count += 1
                 continue
 
-            inst_hist   = fetch_institutional(stock_id,
-                                              days_back=INSTITUTIONAL_LOOKBACK)
+            # 從批次法人歷史 cache 撈，不再個別呼叫 fetch_institutional
+            inst_hist   = cache.institutional_history_for(stock_id)
             revenue_df  = fetch_month_revenue(stock_id)
             fin_df      = fetch_financial_statements(stock_id)
             share_df    = fetch_shareholding(stock_id)
