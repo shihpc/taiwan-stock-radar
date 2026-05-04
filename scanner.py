@@ -44,6 +44,7 @@ from data.fetcher import (
     fetch_shareholding,
     fetch_holding_distribution,
     fetch_margin,
+    fetch_broker_data,
     DailyDataCache,
 
     fetch_trading_dates,
