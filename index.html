@@ -754,6 +754,28 @@ body::before{
 .kl-range-btn.active{
   background:rgba(0,207,255,.12);border-color:var(--border3);color:var(--c1);
 }
+.kl-tf-grp{
+  display:flex;gap:1px;background:var(--bg3);
+  border:1px solid var(--border);border-radius:6px;padding:2px;
+}
+.kl-tf-btn{
+  padding:5px 12px;font-size:.65rem;font-weight:700;cursor:pointer;
+  background:transparent;border:none;border-radius:4px;color:var(--t3);
+  transition:all .15s;font-family:'Noto Sans TC',sans-serif;
+}
+.kl-tf-btn.active{
+  background:rgba(0,207,255,.18);color:var(--c1);
+  box-shadow:0 0 4px rgba(0,207,255,.3) inset;
+}
+.kl-adj-btn{
+  background:var(--bg3);border:1px solid var(--border);border-radius:6px;
+  padding:6px 12px;font-size:.62rem;font-weight:700;cursor:pointer;
+  color:var(--t3);transition:all .15s;font-family:'Noto Sans TC',sans-serif;
+  display:flex;align-items:center;gap:5px;white-space:nowrap;
+}
+.kl-adj-btn.active{
+  background:rgba(255,212,38,.1);border-color:rgba(255,212,38,.4);color:var(--c4);
+}
 #klTokenRow.show{display:block !important;}
 @keyframes spin{to{transform:rotate(360deg);}}
 </style>
@@ -1389,12 +1411,24 @@ body::before{
         </div>
       </div>
 
-      <!-- 第二列：日期區間 -->
+      <!-- K線型態 + 還原權息 -->
+      <div style="display:flex;gap:6px;align-items:center;">
+        <div class="kl-tf-grp">
+          <button class="kl-tf-btn" id="klTfD" onclick="KLINE.setTimeframe('D')">日K</button>
+          <button class="kl-tf-btn" id="klTfW" onclick="KLINE.setTimeframe('W')">週K</button>
+          <button class="kl-tf-btn" id="klTfM" onclick="KLINE.setTimeframe('M')">月K</button>
+        </div>
+        <button class="kl-adj-btn" id="klAdjBtn" onclick="KLINE.toggleAdjusted()">
+          <span id="klAdjIco">○</span> 還原權息
+        </button>
+      </div>
+
+      <!-- 日期區間 -->
       <div style="display:flex;gap:4px;">
-        <button class="kl-range-btn" id="klRange3M" onclick="KLINE.setDateRange(65)">3M</button>
-        <button class="kl-range-btn" id="klRange6M" onclick="KLINE.setDateRange(130)">6M</button>
-        <button class="kl-range-btn active" id="klRange1Y" onclick="KLINE.setDateRange(250)">1Y</button>
-        <button class="kl-range-btn" id="klRange2Y" onclick="KLINE.setDateRange(500)">2Y</button>
+        <button class="kl-range-btn" id="klRange3M" onclick="KLINE.setDateRange(3)">3M</button>
+        <button class="kl-range-btn" id="klRange6M" onclick="KLINE.setDateRange(6)">6M</button>
+        <button class="kl-range-btn active" id="klRange1Y" onclick="KLINE.setDateRange(12)">1Y</button>
+        <button class="kl-range-btn" id="klRange2Y" onclick="KLINE.setDateRange(24)">2Y</button>
       </div>
 
       <!-- 候選股切換（掃描後才顯示） -->
@@ -3424,11 +3458,22 @@ function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 // ══════════════════════════════════════════
 loadSettings();
 
-// 還原 FinMind token
+// 還原 K線 Tab 的使用者設定
 (function() {
   const t = localStorage.getItem('klToken');
   const inp = document.getElementById('klTokenInput');
   if (t && inp) inp.value = t;
+  // K線型態 active 狀態
+  if (typeof KLINE !== 'undefined') {
+    const st = KLINE.getState();
+    document.querySelectorAll('.kl-tf-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('klTf' + st.timeframe)?.classList.add('active');
+    if (st.adjusted) {
+      document.getElementById('klAdjBtn')?.classList.add('active');
+      const ico = document.getElementById('klAdjIco');
+      if (ico) ico.textContent = '●';
+    }
+  }
 })();
 
 // 關閉 K線代碼提示

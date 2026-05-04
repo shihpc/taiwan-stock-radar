@@ -26,7 +26,8 @@ const KLINE = (() => {
   const PAD = { l: 60, r: 8, t: 8, b: 4 };
 
   // ── 狀態 ──────────────────────────────────
-  let raw       = [];   // [{date,open,high,low,close,volume}]
+  let dailyData = [];   // 從 API 拉到的原始日線資料
+  let raw       = [];   // 顯示用（日/週/月聚合後）
   let ind       = {};   // computed indicators
   let view      = { s: 0, e: 0 };
   let hIdx      = -1;
@@ -35,6 +36,9 @@ const KLINE = (() => {
   let touchRef  = {};
   let rafPending = false;
   let mainCtx, volCtx, kdCtx;
+  let currentCode = '';
+  let timeframe   = localStorage.getItem('klTimeframe') || 'D';   // 'D'|'W'|'M'
+  let adjusted    = localStorage.getItem('klAdjusted') === '1';
 
   // ── 指標計算 ──────────────────────────────
 
@@ -96,12 +100,15 @@ const KLINE = (() => {
   async function fetchData(code) {
     const end   = new Date();
     const start = new Date();
-    start.setDate(start.getDate() - 860);  // ~2.4年，確保 MA240 有足夠暖身期
+    // 月線需要更長歷史才能畫出有意義的均線
+    const yrs = timeframe === 'M' ? 10 : timeframe === 'W' ? 5 : 2.4;
+    start.setDate(start.getDate() - Math.round(yrs * 365));
     const fmt = d => d.toISOString().slice(0, 10);
     const token = (document.getElementById('klTokenInput')?.value || '').trim();
+    const dataset = adjusted ? 'TaiwanStockPriceAdj' : 'TaiwanStockPrice';
 
     const params = new URLSearchParams({
-      dataset: 'TaiwanStockPrice',
+      dataset,
       data_id: code,
       start_date: fmt(start),
       end_date: fmt(end),
@@ -124,6 +131,38 @@ const KLINE = (() => {
         volume: +r.Trading_Volume,
       }))
       .filter(r => r.open > 0)
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  // ── 日 → 週/月 聚合 ──────────────────────
+
+  function weekKey(dateStr) {
+    // 取該週的星期一作為 key
+    const d = new Date(dateStr + 'T12:00:00Z');
+    const day = d.getUTCDay();             // 0=Sun, 1=Mon ... 6=Sat
+    const off = day === 0 ? -6 : 1 - day;
+    d.setUTCDate(d.getUTCDate() + off);
+    return d.toISOString().slice(0, 10);
+  }
+
+  function aggregateBars(daily, tf) {
+    if (tf === 'D' || !daily.length) return daily;
+    const keyFn = tf === 'W' ? weekKey : d => d.slice(0, 7);   // YYYY-MM
+    const groups = new Map();
+    for (const b of daily) {
+      const k = keyFn(b.date);
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k).push(b);
+    }
+    return Array.from(groups.values())
+      .map(bars => ({
+        date:   bars[bars.length - 1].date,
+        open:   bars[0].open,
+        high:   Math.max(...bars.map(x => x.high)),
+        low:    Math.min(...bars.map(x => x.low)),
+        close:  bars[bars.length - 1].close,
+        volume: bars.reduce((s, x) => s + x.volume, 0),
+      }))
       .sort((a, b) => a.date.localeCompare(b.date));
   }
 
@@ -638,14 +677,57 @@ const KLINE = (() => {
 
   // ── 日期區間 ──────────────────────────────
 
-  function setDateRange(bars) {
+  function setDateRange(months) {
     if (!raw.length) return;
+    const perMonth = timeframe === 'M' ? 1 : timeframe === 'W' ? 4.3 : 21;
+    const bars = Math.round(months * perMonth);
     view.e = raw.length - 1;
     view.s = Math.max(0, raw.length - bars);
     document.querySelectorAll('.kl-range-btn').forEach(b => b.classList.remove('active'));
-    const map = { 65: 'klRange3M', 130: 'klRange6M', 250: 'klRange1Y', 500: 'klRange2Y' };
-    if (map[bars]) document.getElementById(map[bars])?.classList.add('active');
+    const map = { 3: 'klRange3M', 6: 'klRange6M', 12: 'klRange1Y', 24: 'klRange2Y' };
+    if (map[months]) document.getElementById(map[months])?.classList.add('active');
     redraw();
+  }
+
+  // ── K線型態 / 還原權息切換 ────────────────
+
+  function setTimeframe(tf) {
+    if (timeframe === tf) return;
+    timeframe = tf;
+    localStorage.setItem('klTimeframe', tf);
+    document.querySelectorAll('.kl-tf-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('klTf' + tf)?.classList.add('active');
+    if (!dailyData.length) return;
+    // 月線需要更多歷史資料，若資料量不足則自動重抓
+    const needLong = (tf === 'M' && dailyData.length < 1500) ||
+                     (tf === 'W' && dailyData.length < 800);
+    if (needLong && currentCode) {
+      load(currentCode);
+      return;
+    }
+    raw = aggregateBars(dailyData, tf);
+    ind = compute(raw);
+    const defN = Math.min(tf === 'M' ? 60 : tf === 'W' ? 100 : 250, raw.length);
+    view.e = raw.length - 1;
+    view.s = Math.max(0, raw.length - defN);
+    hIdx = -1;
+    redraw();
+    updateSubLine();
+  }
+
+  function toggleAdjusted() {
+    adjusted = !adjusted;
+    localStorage.setItem('klAdjusted', adjusted ? '1' : '0');
+    document.getElementById('klAdjBtn')?.classList.toggle('active', adjusted);
+    document.getElementById('klAdjIco').textContent = adjusted ? '●' : '○';
+    if (currentCode) load(currentCode);
+  }
+
+  function updateSubLine() {
+    if (!raw.length) return;
+    const tfLbl = { D: '日K', W: '週K', M: '月K' }[timeframe];
+    document.getElementById('klSub').textContent =
+      `${raw[0].date}～${raw[raw.length - 1].date}　${raw.length} 筆 ${tfLbl}${adjusted ? '（還原權息）' : ''}`;
   }
 
   // ── 候選股切換列 ──────────────────────────
@@ -693,6 +775,7 @@ const KLINE = (() => {
 
   async function load(code) {
     if (!code) return;
+    currentCode = code;
     const inp = document.getElementById('klCodeInput');
     if (inp) inp.value = code;
 
@@ -709,11 +792,12 @@ const KLINE = (() => {
     document.getElementById('klStatBar').style.display   = 'none';
 
     try {
-      raw = await fetchData(code);
+      dailyData = await fetchData(code);
+      raw = aggregateBars(dailyData, timeframe);
       ind = compute(raw);
 
-      // 預設顯示最近 250 筆（約 1 年）
-      const defN = Math.min(250, raw.length);
+      // 預設顯示筆數依 timeframe 調整
+      const defN = Math.min(timeframe === 'M' ? 60 : timeframe === 'W' ? 100 : 250, raw.length);
       view.e = raw.length - 1;
       view.s = Math.max(0, raw.length - defN);
       hIdx = -1;
@@ -721,10 +805,9 @@ const KLINE = (() => {
       document.getElementById('klLoading').style.display  = 'none';
       document.getElementById('klChartWrap').style.display = 'block';
       document.getElementById('klStatBar').style.display   = 'grid';
-      document.getElementById('klSub').textContent =
-        `${raw[0].date} ～ ${raw[raw.length - 1].date}　共 ${raw.length} 筆`;
+      updateSubLine();
 
-      // 更新日期按鈕 active 狀態
+      // 預設 active 1Y
       document.querySelectorAll('.kl-range-btn').forEach(b => b.classList.remove('active'));
       document.getElementById('klRange1Y')?.classList.add('active');
 
@@ -781,5 +864,10 @@ const KLINE = (() => {
 
   window.addEventListener('resize', onWindowResize);
 
-  return { load, search, loadFromScan, pickHint, setDateRange, onTabActivated, codeHint, renderSwitcher };
+  return {
+    load, search, loadFromScan, pickHint, setDateRange,
+    setTimeframe, toggleAdjusted,
+    onTabActivated, codeHint, renderSwitcher,
+    getState: () => ({ timeframe, adjusted }),
+  };
 })();
