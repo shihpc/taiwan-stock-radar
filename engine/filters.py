@@ -61,9 +61,12 @@ def is_valid_stock(row: pd.Series) -> bool:
     if len(stock_id) == 5 and stock_id[:4].isdigit() and stock_id[4].isupper():
         return True
 
-    # 5~6 位且以 "00" 開頭 → 6 碼 ETF（006205, 00878 等）
-    if stock_id.isdigit() and len(stock_id) in (5, 6) and stock_id.startswith("00"):
-        return True
+    # 5~6 位且以 "00" 開頭 → ETF / 主動型基金（006205, 00878, 00981A 等）
+    # 允許尾部一個大寫字母（如 00981A 凱基台灣優選高息30 主動式 ETF）
+    if len(stock_id) in (5, 6) and stock_id.startswith("00"):
+        body = stock_id[:-1] if stock_id[-1].isupper() else stock_id
+        if body.isdigit():
+            return True
 
     return False
 
