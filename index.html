@@ -732,6 +732,29 @@ body::before{
 .dim-M .drc-code{color:var(--c2);}
 .dim-M .drc-score{color:var(--c2);}
 .dim-M .drc-fill{background:linear-gradient(90deg,var(--c2),rgba(0,255,157,.4));}
+
+/* ═══════════════════════════════════════════
+   K線圖 Tab
+═══════════════════════════════════════════ */
+.kl-stat-bar{
+  display:grid;grid-template-columns:repeat(5,1fr);
+  gap:3px;padding:2px 0;
+}
+.kl-stat-cell{
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:5px;padding:4px 5px;text-align:center;
+}
+.kl-stat-lbl{font-size:.48rem;color:var(--t3);letter-spacing:.3px;}
+.kl-stat-val{font-family:'Space Mono',monospace;font-size:.6rem;font-weight:700;}
+.kl-range-btn{
+  flex:1;padding:5px 0;font-size:.65rem;font-weight:700;cursor:pointer;
+  background:var(--bg3);border:1px solid var(--border);border-radius:6px;
+  color:var(--t3);transition:all .15s;font-family:'Noto Sans TC',sans-serif;
+}
+.kl-range-btn.active{
+  background:rgba(0,207,255,.12);border-color:var(--border3);color:var(--c1);
+}
+@keyframes spin{to{transform:rotate(360deg);}}
 </style>
 </head>
 <body>
@@ -1323,6 +1346,105 @@ body::before{
 
 </div>
 
+  <!-- PAGE 6：K線圖 -->
+  <div class="page" id="p6">
+    <div class="pg">
+      <!-- FinMind Token -->
+      <div style="background:rgba(0,207,255,.04);border:1px solid rgba(0,207,255,.08);border-radius:8px;padding:7px 12px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:.6rem;color:var(--t3);flex:1;">FinMind Token（選填，提升至 600次/hr）</span>
+          <input id="klTokenInput" type="text" placeholder="輸入 token..."
+            style="width:130px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;
+                   padding:4px 8px;color:var(--t1);font-size:.62rem;font-family:'Space Mono',monospace;outline:none;"
+            oninput="localStorage.setItem('klToken',this.value)"/>
+        </div>
+      </div>
+
+      <!-- 代碼搜尋 -->
+      <div style="display:flex;gap:6px;align-items:center;">
+        <div style="flex:1;position:relative;">
+          <input id="klCodeInput" type="text" inputmode="numeric"
+            placeholder="輸入股票代碼，如 2330"
+            style="width:100%;background:var(--bg3);border:1px solid var(--border2);
+                   border-radius:8px;padding:8px 12px;color:var(--t1);
+                   font-size:.72rem;font-family:'Space Mono',monospace;
+                   outline:none;-webkit-appearance:none;"
+            onkeydown="if(event.key==='Enter')KLINE.search()"
+            oninput="KLINE.codeHint(this.value)"/>
+          <div id="klHintList" style="display:none;position:absolute;top:100%;left:0;right:0;
+               background:var(--bg3);border:1px solid var(--border2);border-top:none;
+               border-radius:0 0 8px 8px;z-index:200;max-height:160px;overflow-y:auto;"></div>
+        </div>
+        <button onclick="KLINE.search()"
+          style="background:linear-gradient(135deg,rgba(0,207,255,.15),rgba(0,207,255,.05));
+                 border:1px solid var(--border3);border-radius:8px;padding:8px 14px;
+                 color:var(--c1);font-size:.72rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">
+          查詢
+        </button>
+      </div>
+
+      <!-- 日期區間 -->
+      <div style="display:flex;gap:4px;">
+        <button class="kl-range-btn" id="klRange3M" onclick="KLINE.setDateRange(65)">3M</button>
+        <button class="kl-range-btn" id="klRange6M" onclick="KLINE.setDateRange(130)">6M</button>
+        <button class="kl-range-btn active" id="klRange1Y" onclick="KLINE.setDateRange(250)">1Y</button>
+        <button class="kl-range-btn" id="klRange2Y" onclick="KLINE.setDateRange(500)">2Y</button>
+      </div>
+
+      <!-- 候選股切換 -->
+      <div style="font-size:.55rem;color:var(--t3);padding:0 2px;">候選股快速切換</div>
+      <div class="stock-switcher" id="klSwitcher">
+        <div style="display:flex;align-items:center;font-size:.62rem;color:var(--t3);white-space:nowrap;">掃描後顯示</div>
+      </div>
+
+      <!-- 標題列 -->
+      <div style="display:flex;justify-content:space-between;align-items:baseline;padding:0 2px;">
+        <div id="klTitle" style="font-size:.85rem;font-weight:700;color:var(--t1);">— 等待輸入 —</div>
+        <div id="klSub" style="font-size:.6rem;color:var(--t3);">輸入代碼後查詢 K 線</div>
+      </div>
+
+      <!-- Stat 卡 -->
+      <div id="klStatBar" class="kl-stat-bar" style="display:none;"></div>
+
+      <!-- 圖表容器 -->
+      <div id="klChartWrap" style="position:relative;display:none;border-radius:8px;overflow:hidden;border:1px solid var(--border);">
+        <div id="klTooltip" style="display:none;position:absolute;z-index:10;
+             background:rgba(6,15,28,.93);border:1px solid rgba(0,200,255,.22);
+             border-radius:6px;padding:8px 10px;pointer-events:none;min-width:155px;
+             backdrop-filter:blur(4px);line-height:1.5;"></div>
+        <canvas id="klMainCanvas" style="display:block;cursor:crosshair;touch-action:none;"></canvas>
+        <canvas id="klVolCanvas"  style="display:block;touch-action:none;border-top:1px solid rgba(0,200,255,.08);"></canvas>
+        <canvas id="klKdCanvas"   style="display:block;touch-action:none;border-top:1px solid rgba(0,200,255,.08);"></canvas>
+      </div>
+
+      <!-- 載入中 -->
+      <div id="klLoading" style="display:none;justify-content:center;align-items:center;
+           min-height:200px;flex-direction:column;gap:12px;">
+        <div style="width:32px;height:32px;border:2px solid var(--border2);
+                    border-top-color:var(--c1);border-radius:50%;animation:spin 1s linear infinite;"></div>
+        <div style="font-size:.7rem;color:var(--t2);">拉取 FinMind 資料…</div>
+      </div>
+
+      <!-- 錯誤 -->
+      <div id="klError" style="display:none;justify-content:center;align-items:center;
+           min-height:150px;flex-direction:column;gap:8px;text-align:center;">
+        <div style="font-size:2rem;">⚠️</div>
+        <div id="klErrorMsg" style="font-size:.7rem;color:var(--c6);"></div>
+        <div style="font-size:.6rem;color:var(--t3);">確認代碼正確，或稍後再試</div>
+      </div>
+
+      <!-- 空白提示 -->
+      <div id="klEmpty" style="display:flex;justify-content:center;align-items:center;
+           min-height:240px;flex-direction:column;gap:10px;">
+        <div style="font-size:3rem;">📈</div>
+        <div style="font-size:.82rem;font-weight:700;color:var(--t2);">K 線圖</div>
+        <div style="font-size:.65rem;color:var(--t3);text-align:center;line-height:1.7;">
+          輸入股票代碼後查詢<br>或從排行榜點選個股
+        </div>
+      </div>
+    </div>
+  </div>
+
 <!-- TABBAR -->
 <div id="tabbar">
   <button class="tab active" onclick="switchTab(0)">
@@ -1350,6 +1472,10 @@ body::before{
   <button class="tab" onclick="switchTab(5)">
     <div class="tab-ico">🎚</div>
     <div class="tab-lbl">篩選</div>
+  </button>
+  <button class="tab" onclick="switchTab(6)">
+    <div class="tab-ico">📈</div>
+    <div class="tab-lbl">K線</div>
   </button>
 </div>
 
@@ -1456,6 +1582,7 @@ function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 loadSettings();
 
 </script>
+<script src="kline-tab.js"></script>
 <script>
 // ══════════════════════════════════════════
 //  GLOBALS
@@ -1619,7 +1746,7 @@ function parseCSVLine(line) {
 // ══════════════════════════════════════════
 function switchTab(idx) {
   currentTab = idx;
-  const pageIds = ['p0','p1','p2','p3','p4','p5'];
+  const pageIds = ['p0','p1','p2','p3','p4','p5','p6'];
   pageIds.forEach((id, i) => {
     const el = document.getElementById(id);
     if (el) el.classList.toggle('active', i === idx);
@@ -1638,6 +1765,9 @@ function switchTab(idx) {
     selectChartStock(selectedStock.code, btn || null);
     const inp = document.getElementById('chartCodeInput');
     if (inp) inp.value = selectedStock.code;
+  }
+  if (idx === 6 && typeof KLINE !== 'undefined') {
+    KLINE.onTabActivated(selectedStock || null);
   }
 }
 
@@ -2162,7 +2292,10 @@ async function startScan() {
   hideLoading();
 
   // Chart 延遲初始化（不阻塞排行榜顯示）
-  setTimeout(() => renderChartSelector(), 300);
+  setTimeout(() => {
+    renderChartSelector();
+    if (typeof KLINE !== 'undefined') KLINE.renderSwitcher();
+  }, 300);
 }
 
 // ══════════════════════════════════════════
@@ -2529,6 +2662,14 @@ function openDetail(code) {
   switchTab(1);
 }
 
+// 從個股詳情跳到 K線 tab
+function viewKlineFromDetail(code) {
+  switchTab(6);
+  const inp = document.getElementById('klCodeInput');
+  if (inp) inp.value = code;
+  if (typeof KLINE !== 'undefined') KLINE.load(code);
+}
+
 // 從個股詳情跳到圖表頁，並自動載入該股 K 線
 function viewChartFromDetail(code) {
   switchTab(3);
@@ -2732,11 +2873,17 @@ function renderDetail(s) {
         <div style="font-size:.7rem;color:var(--t1);line-height:1.6;">${s.signal_desc}</div>
       </div>
       <div style="display:flex;gap:6px;margin-bottom:10px;">
-        <button onclick="viewChartFromDetail('${s.code}')"
+        <button onclick="viewKlineFromDetail('${s.code}')"
           style="flex:1;background:rgba(0,207,255,.08);border:1px solid var(--border2);
                  border-radius:8px;padding:7px;color:var(--c1);font-size:.65rem;
                  font-weight:700;cursor:pointer;">
-          📊 查看 K 線圖表
+          📈 K 線圖
+        </button>
+        <button onclick="viewChartFromDetail('${s.code}')"
+          style="flex:1;background:rgba(0,207,255,.04);border:1px solid var(--border);
+                 border-radius:8px;padding:7px;color:var(--t2);font-size:.65rem;
+                 font-weight:700;cursor:pointer;">
+          📊 TV 圖表
         </button>
         <a href="https://www.cnyes.com/twstock/${s.code}" target="_blank" rel="noopener"
           style="flex:1;display:flex;align-items:center;justify-content:center;
@@ -3273,6 +3420,21 @@ function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 //  INIT
 // ══════════════════════════════════════════
 loadSettings();
+
+// 還原 FinMind token
+(function() {
+  const t = localStorage.getItem('klToken');
+  const inp = document.getElementById('klTokenInput');
+  if (t && inp) inp.value = t;
+})();
+
+// 關閉 K線代碼提示
+document.addEventListener('click', e => {
+  if (!e.target.closest('#klCodeInput') && !e.target.closest('#klHintList')) {
+    const h = document.getElementById('klHintList');
+    if (h) h.style.display = 'none';
+  }
+});
 </script>
 </body>
 </html>
