@@ -405,6 +405,22 @@ def fetch_holding_distribution(stock_id: str, days_back: int = 60) -> pd.DataFra
     return df
 
 
+def fetch_all_holding_distribution_history(end_date: str, days_back: int = 60) -> pd.DataFrame:
+    """一次拉全市場 N 天股權分散歷史（Sponsor 限定）"""
+    from datetime import datetime, timedelta
+    end_d = datetime.strptime(end_date, "%Y-%m-%d")
+    start = (end_d - timedelta(days=days_back)).strftime("%Y-%m-%d")
+    logger.info(f"取得全市場股權分散 {start}~{end_date}（一次批次）...")
+    df = _get("TaiwanStockHoldingSharesPer", {
+        "start_date": start,
+        "end_date": end_date,
+    }, retry=2, timeout=90)  # 此 dataset 資料量最大，給更多時間
+    if not df.empty:
+        df["stock_id"] = df["stock_id"].astype(str).str.strip()
+        logger.info(f"批次股權分散：{len(df):,} 筆，{df['stock_id'].nunique()} 支股票")
+    return df
+
+
 # ── 基本面資料 ────────────────────────────────────────────────
 
 def fetch_month_revenue(stock_id: str, months_back: int = REVENUE_LOOKBACK_MONTHS) -> pd.DataFrame:
@@ -519,6 +535,7 @@ class DailyDataCache:
         self._margin: Optional[pd.DataFrame] = None
         self._margin_hist: Optional[pd.DataFrame] = None
         self._share_hist: Optional[pd.DataFrame] = None
+        self._holding_hist: Optional[pd.DataFrame] = None
         self._price: Optional[pd.DataFrame] = None
         self._revenue: Optional[pd.DataFrame] = None
 
@@ -562,6 +579,19 @@ class DailyDataCache:
     def shareholding_history_for(self, stock_id: str) -> pd.DataFrame:
         """從批次外資持股 cache 撈個股（取代 fetch_shareholding 個別呼叫）"""
         df = self.get_shareholding_history()
+        if df.empty:
+            return df
+        return df[df["stock_id"] == stock_id].copy()
+
+    def get_holding_distribution_history(self, days_back: int = 60) -> pd.DataFrame:
+        """全市場 N 天股權分散歷史，一次批次抓"""
+        if self._holding_hist is None:
+            self._holding_hist = fetch_all_holding_distribution_history(self.date, days_back)
+        return self._holding_hist
+
+    def holding_distribution_for(self, stock_id: str) -> pd.DataFrame:
+        """從批次股權分散 cache 撈個股"""
+        df = self.get_holding_distribution_history()
         if df.empty:
             return df
         return df[df["stock_id"] == stock_id].copy()
