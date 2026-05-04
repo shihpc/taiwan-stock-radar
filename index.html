@@ -754,6 +754,7 @@ body::before{
 .kl-range-btn.active{
   background:rgba(0,207,255,.12);border-color:var(--border3);color:var(--c1);
 }
+#klTokenRow.show{display:block !important;}
 @keyframes spin{to{transform:rotate(360deg);}}
 </style>
 </head>
@@ -1348,19 +1349,8 @@ body::before{
 
   <!-- PAGE 6：K線圖 -->
   <div class="page" id="p6">
-    <div class="pg">
-      <!-- FinMind Token -->
-      <div style="background:rgba(0,207,255,.04);border:1px solid rgba(0,207,255,.08);border-radius:8px;padding:7px 12px;">
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span style="font-size:.6rem;color:var(--t3);flex:1;">FinMind Token（選填，提升至 600次/hr）</span>
-          <input id="klTokenInput" type="text" placeholder="輸入 token..."
-            style="width:130px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;
-                   padding:4px 8px;color:var(--t1);font-size:.62rem;font-family:'Space Mono',monospace;outline:none;"
-            oninput="localStorage.setItem('klToken',this.value)"/>
-        </div>
-      </div>
-
-      <!-- 代碼搜尋 -->
+    <div class="pg" style="gap:8px;">
+      <!-- 第一列：搜尋 + 查詢 + Token 設定 -->
       <div style="display:flex;gap:6px;align-items:center;">
         <div style="flex:1;position:relative;">
           <input id="klCodeInput" type="text" inputmode="numeric"
@@ -1381,9 +1371,25 @@ body::before{
                  color:var(--c1);font-size:.72rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">
           查詢
         </button>
+        <button onclick="document.getElementById('klTokenRow').classList.toggle('show')"
+          title="FinMind Token 設定"
+          style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;
+                 padding:8px 10px;color:var(--t3);font-size:.85rem;cursor:pointer;flex-shrink:0;">⚙</button>
       </div>
 
-      <!-- 日期區間 -->
+      <!-- Token 設定（預設隱藏） -->
+      <div id="klTokenRow" style="display:none;background:rgba(0,207,255,.04);
+           border:1px solid rgba(0,207,255,.1);border-radius:8px;padding:7px 12px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:.58rem;color:var(--t3);flex:1;">FinMind Token（選填，600次/hr）</span>
+          <input id="klTokenInput" type="text" placeholder="貼上 token..."
+            style="flex:2;background:var(--bg3);border:1px solid var(--border);border-radius:6px;
+                   padding:4px 8px;color:var(--t1);font-size:.6rem;font-family:'Space Mono',monospace;outline:none;"
+            oninput="localStorage.setItem('klToken',this.value)"/>
+        </div>
+      </div>
+
+      <!-- 第二列：日期區間 -->
       <div style="display:flex;gap:4px;">
         <button class="kl-range-btn" id="klRange3M" onclick="KLINE.setDateRange(65)">3M</button>
         <button class="kl-range-btn" id="klRange6M" onclick="KLINE.setDateRange(130)">6M</button>
@@ -1391,16 +1397,13 @@ body::before{
         <button class="kl-range-btn" id="klRange2Y" onclick="KLINE.setDateRange(500)">2Y</button>
       </div>
 
-      <!-- 候選股切換 -->
-      <div style="font-size:.55rem;color:var(--t3);padding:0 2px;">候選股快速切換</div>
-      <div class="stock-switcher" id="klSwitcher">
-        <div style="display:flex;align-items:center;font-size:.62rem;color:var(--t3);white-space:nowrap;">掃描後顯示</div>
-      </div>
+      <!-- 候選股切換（掃描後才顯示） -->
+      <div class="stock-switcher" id="klSwitcher" style="display:none;"></div>
 
-      <!-- 標題列 -->
-      <div style="display:flex;justify-content:space-between;align-items:baseline;padding:0 2px;">
-        <div id="klTitle" style="font-size:.85rem;font-weight:700;color:var(--t1);">— 等待輸入 —</div>
-        <div id="klSub" style="font-size:.6rem;color:var(--t3);">輸入代碼後查詢 K 線</div>
+      <!-- 標題列（載入後才顯示） -->
+      <div id="klTitleRow" style="display:none;justify-content:space-between;align-items:baseline;padding:0 2px;">
+        <div id="klTitle" style="font-size:.82rem;font-weight:700;color:var(--t1);"></div>
+        <div id="klSub" style="font-size:.58rem;color:var(--t3);"></div>
       </div>
 
       <!-- Stat 卡 -->

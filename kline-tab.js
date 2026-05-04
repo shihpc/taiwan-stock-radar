@@ -654,7 +654,8 @@ const KLINE = (() => {
     const sw = document.getElementById('klSwitcher');
     if (!sw) return;
     const stocks = (window.scanResults || []).slice(0, 10);
-    if (!stocks.length) return;
+    if (!stocks.length) { sw.style.display = 'none'; return; }
+    sw.style.display = 'flex';
     sw.innerHTML = stocks.map((s, i) => {
       const up = s.chg >= 0;
       return `<div class="stock-btn ${i === 0 ? 'active' : ''}" onclick="KLINE.loadFromScan('${s.code}',this)">
@@ -700,6 +701,7 @@ const KLINE = (() => {
 
     document.getElementById('klTitle').textContent = known ? `${code} ${known.name}` : code;
     document.getElementById('klSub').textContent   = '拉取 FinMind 資料...';
+    document.getElementById('klTitleRow').style.display = 'flex';
     document.getElementById('klLoading').style.display  = 'flex';
     document.getElementById('klError').style.display    = 'none';
     document.getElementById('klEmpty').style.display    = 'none';
