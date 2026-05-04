@@ -288,10 +288,11 @@ def save_app_csv(results: list, scan_date: str):
     if not rows:
         return None
 
+    df_out = pd.DataFrame(rows).drop_duplicates(subset=["code"], keep="first")
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     filepath = os.path.join(OUTPUT_DIR, "scan_app.csv")
-    pd.DataFrame(rows).to_csv(filepath, index=False, encoding="utf-8-sig")
-    logger.info(f"App CSV 已儲存：{filepath}（{len(rows)} 支）")
+    df_out.to_csv(filepath, index=False, encoding="utf-8-sig")
+    logger.info(f"App CSV 已儲存：{filepath}（{len(df_out)} 支）")
     return filepath
 
 

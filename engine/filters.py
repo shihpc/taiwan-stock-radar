@@ -82,7 +82,10 @@ def filter_stock_list(stock_list_df: pd.DataFrame) -> pd.DataFrame:
 
     before = len(stock_list_df)
     mask = stock_list_df.apply(is_valid_stock, axis=1)
-    result = stock_list_df[mask].sort_values("stock_id").reset_index(drop=True)
+    result = (stock_list_df[mask]
+              .drop_duplicates(subset=["stock_id"], keep="first")
+              .sort_values("stock_id")
+              .reset_index(drop=True))
     after = len(result)
     logger.info(f"股票過濾：{before} → {after} 支（移除 {before - after} 支）")
     return result

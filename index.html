@@ -1579,8 +1579,15 @@ async function loadScanCSV() {
       rows.push(s);
     }
 
-    console.log(`✅ 載入真實資料：${rows.length} 支`);
-    return rows;
+    // 前端去重（CSV 若有重複代碼只保留第一筆）
+    const seen = new Set();
+    const deduped = rows.filter(r => {
+      if (seen.has(r.code)) return false;
+      seen.add(r.code);
+      return true;
+    });
+    console.log(`✅ 載入真實資料：${deduped.length} 支（去重前 ${rows.length} 支）`);
+    return deduped;
 
   } catch(e) {
     console.warn('scan_app.csv 載入失敗，使用 Mock 資料：', e.message);
