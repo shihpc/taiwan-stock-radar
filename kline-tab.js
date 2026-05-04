@@ -153,6 +153,52 @@ const KLINE = (() => {
       .sort((a, b) => a.date.localeCompare(b.date));
   }
 
+  // ── 股票名稱查詢（含 localStorage 快取）──
+
+  function getCachedName(code) {
+    try {
+      const cache = JSON.parse(localStorage.getItem('klStockNames') || '{}');
+      return cache[code] || '';
+    } catch (_) { return ''; }
+  }
+
+  function setCachedName(code, name) {
+    if (!name) return;
+    try {
+      const cache = JSON.parse(localStorage.getItem('klStockNames') || '{}');
+      cache[code] = name;
+      localStorage.setItem('klStockNames', JSON.stringify(cache));
+    } catch (_) {}
+  }
+
+  async function fetchStockName(code) {
+    // 1. 已掃描資料 / scanResults 直接拿
+    const known = (window.allStockData || []).find(x => x.code === code) ||
+                  (window.scanResults  || []).find(x => x.code === code);
+    if (known?.name) {
+      setCachedName(code, known.name);
+      return known.name;
+    }
+    // 2. localStorage cache
+    const cached = getCachedName(code);
+    if (cached) return cached;
+    // 3. FinMind TaiwanStockInfo
+    const token = (document.getElementById('klTokenInput')?.value || '').trim();
+    const params = new URLSearchParams({ dataset: 'TaiwanStockInfo', data_id: code });
+    if (token) params.set('token', token);
+    try {
+      const resp = await fetch(`${API}?${params}`);
+      if (!resp.ok) return '';
+      const json = await resp.json();
+      if (json.status === 200 && json.data?.length) {
+        const name = json.data[0].stock_name || '';
+        if (name) setCachedName(code, name);
+        return name;
+      }
+    } catch (_) {}
+    return '';
+  }
+
   // ── 日 → 週/月 聚合 ──────────────────────
 
   function weekKey(dateStr) {
@@ -811,10 +857,13 @@ const KLINE = (() => {
     const inp = document.getElementById('klCodeInput');
     if (inp) inp.value = code;
 
+    // 立即顯示已知名稱（從 scan 資料或 localStorage cache）
+    let stockName = getCachedName(code);
     const known = (window.allStockData || []).find(x => x.code === code) ||
                   (window.scanResults  || []).find(x => x.code === code);
+    if (known?.name) stockName = known.name;
 
-    document.getElementById('klTitle').textContent = known ? `${code} ${known.name}` : code;
+    document.getElementById('klTitle').textContent = stockName ? `${code} ${stockName}` : code;
     document.getElementById('klSub').textContent   = '拉取 FinMind 資料...';
     document.getElementById('klTitleRow').style.display = 'flex';
     document.getElementById('klLoading').style.display  = 'flex';
@@ -824,7 +873,16 @@ const KLINE = (() => {
     document.getElementById('klStatBar').style.display   = 'none';
 
     try {
-      dailyData = await fetchData(code);
+      // 平行 fetch：股價資料 + 股票名稱（如果尚未知）
+      const [priceData, fetchedName] = await Promise.all([
+        fetchData(code),
+        stockName ? Promise.resolve(stockName) : fetchStockName(code),
+      ]);
+      if (fetchedName && !stockName) {
+        stockName = fetchedName;
+        document.getElementById('klTitle').textContent = `${code} ${stockName}`;
+      }
+      dailyData = priceData;
       raw = aggregateBars(dailyData, timeframe);
       ind = compute(raw);
 
