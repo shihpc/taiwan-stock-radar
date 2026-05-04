@@ -450,6 +450,22 @@ def fetch_all_revenue_by_date(date: str) -> pd.DataFrame:
     })
 
 
+def fetch_all_revenue_history(end_date: str, months_back: int = 13) -> pd.DataFrame:
+    """一次拉全市場 N 個月月營收歷史（Sponsor 限定）"""
+    from datetime import datetime, timedelta
+    end_d = datetime.strptime(end_date, "%Y-%m-%d")
+    start = (end_d - timedelta(days=months_back * 31)).strftime("%Y-%m-%d")
+    logger.info(f"取得全市場月營收 {start}~{end_date}（一次批次）...")
+    df = _get("TaiwanStockMonthRevenue", {
+        "start_date": start,
+        "end_date": end_date,
+    }, retry=2, timeout=60)
+    if not df.empty:
+        df["stock_id"] = df["stock_id"].astype(str).str.strip()
+        logger.info(f"批次月營收：{len(df):,} 筆，{df['stock_id'].nunique()} 支股票")
+    return df
+
+
 def fetch_financial_statements(stock_id: str) -> pd.DataFrame:
     """
     取得個股損益表（季報）。
@@ -536,6 +552,7 @@ class DailyDataCache:
         self._margin_hist: Optional[pd.DataFrame] = None
         self._share_hist: Optional[pd.DataFrame] = None
         self._holding_hist: Optional[pd.DataFrame] = None
+        self._revenue_hist: Optional[pd.DataFrame] = None
         self._price: Optional[pd.DataFrame] = None
         self._revenue: Optional[pd.DataFrame] = None
 
@@ -592,6 +609,19 @@ class DailyDataCache:
     def holding_distribution_for(self, stock_id: str) -> pd.DataFrame:
         """從批次股權分散 cache 撈個股"""
         df = self.get_holding_distribution_history()
+        if df.empty:
+            return df
+        return df[df["stock_id"] == stock_id].copy()
+
+    def get_revenue_history(self, months_back: int = 13) -> pd.DataFrame:
+        """全市場 N 個月月營收歷史，一次批次抓"""
+        if self._revenue_hist is None:
+            self._revenue_hist = fetch_all_revenue_history(self.date, months_back)
+        return self._revenue_hist
+
+    def revenue_history_for(self, stock_id: str) -> pd.DataFrame:
+        """從批次月營收 cache 撈個股"""
+        df = self.get_revenue_history()
         if df.empty:
             return df
         return df[df["stock_id"] == stock_id].copy()

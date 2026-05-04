@@ -289,8 +289,8 @@ def run_scan(scan_date: str = None, quick: bool = False,
             share_df    = cache.shareholding_history_for(stock_id)
             margin_hist = cache.margin_history_for(stock_id)
             holding_df  = cache.holding_distribution_for(stock_id)
-            # 以下仍須個別呼叫（FinMind 該 API 不支援批次）
-            revenue_df  = fetch_month_revenue(stock_id)
+            revenue_df  = cache.revenue_history_for(stock_id)
+            # 財報為季度公布、cache 命中率高，仍個別呼叫
             fin_df      = fetch_financial_statements(stock_id)
 
             broker_df = pd.DataFrame()  # full mode 在 Step 3.5 補抓
