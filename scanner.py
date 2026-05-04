@@ -284,15 +284,14 @@ def run_scan(scan_date: str = None, quick: bool = False,
                 skip_count += 1
                 continue
 
-            # 從批次法人歷史 cache 撈，不再個別呼叫 fetch_institutional
+            # 從批次 cache 撈，避免個別 API call timeout
             inst_hist   = cache.institutional_history_for(stock_id)
+            share_df    = cache.shareholding_history_for(stock_id)
+            margin_hist = cache.margin_history_for(stock_id)
+            # 以下仍須個別呼叫（FinMind 該 API 不支援批次）
             revenue_df  = fetch_month_revenue(stock_id)
             fin_df      = fetch_financial_statements(stock_id)
-            share_df    = fetch_shareholding(stock_id)
-
-            # Sprint 2：股權分散 + 融資券歷史
             holding_df  = fetch_holding_distribution(stock_id, days_back=35)
-            margin_hist = fetch_margin(stock_id, days_back=30)
 
             broker_df = pd.DataFrame()  # full mode 在 Step 3.5 補抓
 

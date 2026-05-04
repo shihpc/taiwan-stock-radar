@@ -87,8 +87,8 @@ def _save_cache(dataset: str, stock_id: str, df: pd.DataFrame) -> None:
 
 # ── 基礎請求函式 ──────────────────────────────────────────────
 
-def _get(dataset: str, params: dict, retry: int = 2,
-         timeout: int = 15) -> pd.DataFrame:
+def _get(dataset: str, params: dict, retry: int = 1,
+         timeout: int = 25) -> pd.DataFrame:
     """
     統一的 FinMind GET 請求，含重試與錯誤處理。
     """
@@ -340,6 +340,38 @@ def fetch_all_margin_by_date(date: str) -> pd.DataFrame:
     return df
 
 
+def fetch_all_margin_history(end_date: str, days_back: int = 30) -> pd.DataFrame:
+    """一次拉全市場 N 天融資券歷史（Sponsor 限定）"""
+    from datetime import datetime, timedelta
+    end_d = datetime.strptime(end_date, "%Y-%m-%d")
+    start = (end_d - timedelta(days=days_back)).strftime("%Y-%m-%d")
+    logger.info(f"取得全市場融資券歷史 {start}~{end_date}（一次批次）...")
+    df = _get("TaiwanStockMarginPurchaseShortSale", {
+        "start_date": start,
+        "end_date": end_date,
+    }, retry=2, timeout=60)
+    if not df.empty:
+        df["stock_id"] = df["stock_id"].astype(str).str.strip()
+        logger.info(f"批次融資券歷史：{len(df):,} 筆，{df['stock_id'].nunique()} 支股票")
+    return df
+
+
+def fetch_all_shareholding_history(end_date: str, days_back: int = 60) -> pd.DataFrame:
+    """一次拉全市場 N 天外資持股比例（Sponsor 限定）"""
+    from datetime import datetime, timedelta
+    end_d = datetime.strptime(end_date, "%Y-%m-%d")
+    start = (end_d - timedelta(days=days_back)).strftime("%Y-%m-%d")
+    logger.info(f"取得全市場外資持股 {start}~{end_date}（一次批次）...")
+    df = _get("TaiwanStockShareholding", {
+        "start_date": start,
+        "end_date": end_date,
+    }, retry=2, timeout=60)
+    if not df.empty:
+        df["stock_id"] = df["stock_id"].astype(str).str.strip()
+        logger.info(f"批次外資持股：{len(df):,} 筆，{df['stock_id'].nunique()} 支股票")
+    return df
+
+
 def fetch_shareholding(stock_id: str, days_back: int = 60) -> pd.DataFrame:
     """
     取得外資持股比例。
@@ -485,6 +517,8 @@ class DailyDataCache:
         self._institutional: Optional[pd.DataFrame] = None
         self._inst_hist: Optional[pd.DataFrame] = None
         self._margin: Optional[pd.DataFrame] = None
+        self._margin_hist: Optional[pd.DataFrame] = None
+        self._share_hist: Optional[pd.DataFrame] = None
         self._price: Optional[pd.DataFrame] = None
         self._revenue: Optional[pd.DataFrame] = None
 
@@ -502,6 +536,32 @@ class DailyDataCache:
     def institutional_history_for(self, stock_id: str) -> pd.DataFrame:
         """從批次歷史快取中取出特定股票（取代 fetch_institutional 個別呼叫）"""
         df = self.get_institutional_history()
+        if df.empty:
+            return df
+        return df[df["stock_id"] == stock_id].copy()
+
+    def get_margin_history(self, days_back: int = 30) -> pd.DataFrame:
+        """全市場 N 天融資券歷史，一次批次抓"""
+        if self._margin_hist is None:
+            self._margin_hist = fetch_all_margin_history(self.date, days_back)
+        return self._margin_hist
+
+    def margin_history_for(self, stock_id: str) -> pd.DataFrame:
+        """從批次融資券歷史 cache 撈個股（取代 fetch_margin 個別呼叫）"""
+        df = self.get_margin_history()
+        if df.empty:
+            return df
+        return df[df["stock_id"] == stock_id].copy()
+
+    def get_shareholding_history(self, days_back: int = 60) -> pd.DataFrame:
+        """全市場 N 天外資持股歷史，一次批次抓"""
+        if self._share_hist is None:
+            self._share_hist = fetch_all_shareholding_history(self.date, days_back)
+        return self._share_hist
+
+    def shareholding_history_for(self, stock_id: str) -> pd.DataFrame:
+        """從批次外資持股 cache 撈個股（取代 fetch_shareholding 個別呼叫）"""
+        df = self.get_shareholding_history()
         if df.empty:
             return df
         return df[df["stock_id"] == stock_id].copy()
