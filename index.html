@@ -1929,16 +1929,46 @@ let userSettings = { ...SETTINGS_DEFAULTS };
 let allStockData = [];
 let scanResults  = [];
 
+// 設定版本 — 升一版會把 SETTINGS_MIGRATIONS[版號] 列出的 key 強制套用新預設
+const SETTINGS_VERSION = 2;
+const SETTINGS_MIGRATIONS = {
+  // v2：minScore 預設由 77 改為 52
+  2: ['minScore'],
+};
+
 function loadFilterSettings() {
   try {
     const stored = localStorage.getItem('radarSettings');
-    if (stored) userSettings = { ...SETTINGS_DEFAULTS, ...JSON.parse(stored) };
+    const oldVer = parseInt(localStorage.getItem('radarSettingsVer') || '1', 10);
+    if (stored) {
+      const merged = { ...SETTINGS_DEFAULTS, ...JSON.parse(stored) };
+      // 套用 migration：把指定 key 強制換回新預設
+      if (oldVer < SETTINGS_VERSION) {
+        const reset = [];
+        for (let v = oldVer + 1; v <= SETTINGS_VERSION; v++) {
+          (SETTINGS_MIGRATIONS[v] || []).forEach(k => {
+            merged[k] = SETTINGS_DEFAULTS[k];
+            reset.push(k);
+          });
+        }
+        if (reset.length) {
+          console.log(`[settings] 升級至 v${SETTINGS_VERSION}，重置：${reset.join(', ')}`);
+        }
+      }
+      userSettings = merged;
+    }
   } catch (_) {}
+  // 寫回新版本號（即使 stored 為空也標記，避免下次又跑一次 migration）
+  try { localStorage.setItem('radarSettingsVer', String(SETTINGS_VERSION)); } catch (_) {}
+  saveFilterSettings();
   applySettingsToUI();
 }
 
 function saveFilterSettings() {
-  try { localStorage.setItem('radarSettings', JSON.stringify(userSettings)); } catch (_) {}
+  try {
+    localStorage.setItem('radarSettings', JSON.stringify(userSettings));
+    localStorage.setItem('radarSettingsVer', String(SETTINGS_VERSION));
+  } catch (_) {}
 }
 
 function applySettingsToUI() {
