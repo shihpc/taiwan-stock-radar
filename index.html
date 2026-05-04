@@ -128,27 +128,71 @@ body::before{
 .market-open{background:rgba(0,255,157,.1);color:var(--c2);border:1px solid rgba(0,255,157,.3);}
 .market-closed{background:rgba(45,90,122,.2);color:var(--t3);border:1px solid var(--border);}
 
-/* 資料更新日期列 */
-.data-dates-row{
-  display:flex;
-  flex-wrap:wrap;
-  gap:4px;
-  padding:6px 12px;
-  background:rgba(0,0,0,.35);
-  border-bottom:1px solid var(--border);
-  flex-shrink:0;
+/* 資料更新日期 - 觸發按鈕 */
+.dates-btn{
+  background:var(--bg3);border:1px solid var(--border2);
+  border-radius:14px;padding:3px 9px;
+  color:var(--t2);font-size:.6rem;font-weight:600;
+  cursor:pointer;letter-spacing:.5px;
+  font-family:'Noto Sans TC',sans-serif;
+  transition:all .15s;white-space:nowrap;
 }
+.dates-btn:active{transform:scale(.94);}
+.dates-btn.has-stale{border-color:rgba(255,140,66,.4);color:var(--c6);}
+
+/* 資料更新日期 Modal */
+.dates-modal{
+  display:none;position:fixed;inset:0;
+  background:rgba(0,5,15,.7);backdrop-filter:blur(4px);
+  z-index:9500;align-items:center;justify-content:center;
+  padding:20px;
+}
+.dates-modal.show{display:flex;}
+.dates-modal-card{
+  background:var(--bg2);border:1px solid var(--border3);
+  border-radius:12px;width:100%;max-width:340px;
+  box-shadow:0 0 32px rgba(0,207,255,.15);
+  display:flex;flex-direction:column;
+  max-height:80vh;
+}
+.dates-modal-hdr{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:12px 16px;border-bottom:1px solid var(--border);
+  font-size:.78rem;font-weight:700;color:var(--c1);
+  letter-spacing:1px;
+}
+.dates-modal-close{
+  background:none;border:none;color:var(--t2);
+  font-size:1.4rem;line-height:1;cursor:pointer;
+  padding:0 4px;font-weight:300;
+}
+.dates-modal-close:hover{color:var(--c1);}
+.dates-modal-body{
+  padding:12px 16px;display:flex;flex-direction:column;gap:6px;
+  overflow-y:auto;
+}
+.dates-modal-foot{
+  padding:8px 16px;border-top:1px solid var(--border);
+  display:flex;gap:14px;justify-content:center;
+  font-size:.55rem;color:var(--t3);
+}
+.dates-legend{display:flex;align-items:center;gap:4px;}
+.dates-legend .dot{
+  width:6px;height:6px;border-radius:50%;display:inline-block;
+}
+.dates-legend .dot.fresh{background:var(--c2);box-shadow:0 0 4px var(--c2);}
+.dates-legend .dot.stale{background:var(--c6);}
+
 .dd-chip{
-  flex:1;min-width:calc(25% - 4px);
   background:var(--bg3);border:1px solid var(--border);
-  border-radius:5px;padding:4px 6px;
-  font-size:.55rem;
-  display:flex;flex-direction:column;gap:1px;align-items:center;
-  cursor:default;
+  border-radius:6px;padding:8px 12px;
+  display:flex;justify-content:space-between;align-items:center;
 }
-.dd-chip .dd-name{color:var(--t2);font-size:.52rem;letter-spacing:.5px;}
-.dd-chip .dd-date{color:var(--c4);font-family:'Space Mono',monospace;font-size:.57rem;}
+.dd-chip .dd-name{color:var(--t2);font-size:.7rem;letter-spacing:.5px;}
+.dd-chip .dd-date{color:var(--c4);font-family:'Space Mono',monospace;font-size:.72rem;}
+.dd-chip.stale{border-color:rgba(255,140,66,.25);}
 .dd-chip.stale .dd-date{color:var(--c6);}
+.dd-chip.fresh{border-color:rgba(0,255,157,.25);}
 .dd-chip.fresh .dd-date{color:var(--c2);}
 
 /* ═══════════════════════════════════════════
@@ -813,19 +857,34 @@ body::before{
     <div class="scan-date">
       <span class="sd-val" id="lastScanTime">尚未執行</span>
     </div>
-    <div class="market-status" id="marketStatus">—</div>
+    <div style="display:flex;align-items:center;gap:6px;">
+      <button class="dates-btn" id="datesBtn" onclick="openDatesModal()">📅 資料日期</button>
+      <div class="market-status" id="marketStatus">—</div>
+    </div>
   </div>
 </div>
 
-<!-- 資料更新日期列 -->
-<div class="data-dates-row" id="dataDatesRow">
-  <div class="dd-chip" id="dd-A"><div class="dd-name">外資</div><div class="dd-date">—</div></div>
-  <div class="dd-chip" id="dd-B"><div class="dd-name">投信</div><div class="dd-date">—</div></div>
-  <div class="dd-chip" id="dd-C"><div class="dd-name">主力分點</div><div class="dd-date">—</div></div>
-  <div class="dd-chip" id="dd-D"><div class="dd-name">技術面</div><div class="dd-date">—</div></div>
-  <div class="dd-chip" id="dd-E"><div class="dd-name">基本面</div><div class="dd-date">—</div></div>
-  <div class="dd-chip" id="dd-H"><div class="dd-name">股權分散</div><div class="dd-date">—</div></div>
-  <div class="dd-chip" id="dd-M"><div class="dd-name">融資券</div><div class="dd-date">—</div></div>
+<!-- 資料更新日期 Modal -->
+<div class="dates-modal" id="datesModal" onclick="if(event.target===this)closeDatesModal()">
+  <div class="dates-modal-card">
+    <div class="dates-modal-hdr">
+      <span>📅 資料更新日期</span>
+      <button class="dates-modal-close" onclick="closeDatesModal()">×</button>
+    </div>
+    <div class="dates-modal-body">
+      <div class="dd-chip" id="dd-A"><div class="dd-name">外資</div><div class="dd-date">—</div></div>
+      <div class="dd-chip" id="dd-B"><div class="dd-name">投信</div><div class="dd-date">—</div></div>
+      <div class="dd-chip" id="dd-C"><div class="dd-name">主力分點</div><div class="dd-date">—</div></div>
+      <div class="dd-chip" id="dd-D"><div class="dd-name">技術面</div><div class="dd-date">—</div></div>
+      <div class="dd-chip" id="dd-E"><div class="dd-name">基本面</div><div class="dd-date">—</div></div>
+      <div class="dd-chip" id="dd-H"><div class="dd-name">股權分散</div><div class="dd-date">—</div></div>
+      <div class="dd-chip" id="dd-M"><div class="dd-name">融資券</div><div class="dd-date">—</div></div>
+    </div>
+    <div class="dates-modal-foot">
+      <span class="dates-legend"><span class="dot fresh"></span>當日</span>
+      <span class="dates-legend"><span class="dot stale"></span>非當日</span>
+    </div>
+  </div>
 </div>
 
 <!-- PAGES -->
@@ -2016,6 +2075,7 @@ function updateDataDates(dataDates) {
   //               E:'2025/04/10', H:'2025/04/24', M:'2025/05/02' }
   const today = new Date().toLocaleDateString('zh-TW',{month:'2-digit',day:'2-digit'}).replace('/','/');
   const ids = ['A','B','C','D','E','H','M'];
+  let hasStale = false;
   ids.forEach(id => {
     const chip = document.getElementById('dd-'+id);
     if (!chip) return;
@@ -2026,9 +2086,19 @@ function updateDataDates(dataDates) {
     if (val && val !== '—' && val !== '-') {
       const isToday = val.includes(today);
       chip.classList.add(isToday ? 'fresh' : 'stale');
+      if (!isToday) hasStale = true;
     }
   });
+  // 觸發按鈕：有非當日資料時改為警示色
+  document.getElementById('datesBtn')?.classList.toggle('has-stale', hasStale);
 }
+
+function openDatesModal()  { document.getElementById('datesModal')?.classList.add('show'); }
+function closeDatesModal() { document.getElementById('datesModal')?.classList.remove('show'); }
+// ESC 關閉
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeDatesModal();
+});
 
 // ══════════════════════════════════════════
 //  MOCK DATA — 模擬全市場 (上市+上櫃+ETF，不含權證)
