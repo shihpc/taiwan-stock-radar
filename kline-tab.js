@@ -861,7 +861,8 @@ const KLINE = (() => {
   function search() {
     const inp = document.getElementById('klCodeInput');
     if (!inp) return;
-    const code = inp.value.trim().replace(/\D/g, '');
+    // 允許數字與大寫字母（如 00981A 主動式 ETF、2002A 特別股）
+    const code = inp.value.trim().toUpperCase().replace(/[^0-9A-Z]/g, '');
     if (!code) return;
     const hint = document.getElementById('klHintList');
     if (hint) hint.style.display = 'none';

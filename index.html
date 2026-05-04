@@ -979,14 +979,15 @@ body::before{
       <!-- 代碼搜尋輸入框 -->
       <div style="display:flex;gap:6px;align-items:center;">
         <div style="flex:1;position:relative;">
-          <input id="detailCodeInput" type="text" inputmode="numeric"
-            placeholder="輸入股票代碼，如 2330"
+          <input id="detailCodeInput" type="text"
+            placeholder="輸入股票代碼，如 2330 / 00981A"
+            autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false"
             style="width:100%;background:var(--bg3);border:1px solid var(--border2);
                    border-radius:8px;padding:8px 12px;color:var(--t1);
                    font-size:.72rem;font-family:'Space Mono',monospace;
-                   outline:none;-webkit-appearance:none;"
+                   outline:none;-webkit-appearance:none;text-transform:uppercase;"
             onkeydown="if(event.key==='Enter')detailSearch()"
-            oninput="detailCodeHint(this.value)"/>
+            oninput="this.value=this.value.toUpperCase();detailCodeHint(this.value)"/>
           <div id="detailHintList" style="display:none;position:absolute;top:100%;left:0;right:0;
                background:var(--bg3);border:1px solid var(--border2);border-top:none;
                border-radius:0 0 8px 8px;z-index:200;max-height:160px;overflow-y:auto;">
@@ -1033,14 +1034,15 @@ body::before{
       <!-- 代碼搜尋輸入框 -->
       <div style="display:flex;gap:6px;align-items:center;">
         <div style="flex:1;position:relative;">
-          <input id="chartCodeInput" type="text" inputmode="numeric"
-            placeholder="輸入股票代碼，如 2330"
+          <input id="chartCodeInput" type="text"
+            placeholder="輸入股票代碼，如 2330 / 00981A"
+            autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false"
             style="width:100%;background:var(--bg3);border:1px solid var(--border2);
                    border-radius:8px;padding:8px 12px;color:var(--t1);
                    font-size:.72rem;font-family:'Space Mono',monospace;
-                   outline:none;-webkit-appearance:none;"
+                   outline:none;-webkit-appearance:none;text-transform:uppercase;"
             onkeydown="if(event.key==='Enter')chartSearch()"
-            oninput="chartCodeHint(this.value)"/>
+            oninput="this.value=this.value.toUpperCase();chartCodeHint(this.value)"/>
           <!-- 提示下拉 -->
           <div id="chartHintList" style="display:none;position:absolute;top:100%;left:0;right:0;
                background:var(--bg3);border:1px solid var(--border2);border-top:none;
@@ -1433,14 +1435,15 @@ body::before{
       <!-- 第一列：搜尋 + 查詢 + Token 設定 -->
       <div style="display:flex;gap:6px;align-items:center;">
         <div style="flex:1;position:relative;">
-          <input id="klCodeInput" type="text" inputmode="numeric"
-            placeholder="輸入股票代碼，如 2330"
+          <input id="klCodeInput" type="text"
+            placeholder="輸入股票代碼，如 2330 / 00981A"
+            autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false"
             style="width:100%;background:var(--bg3);border:1px solid var(--border2);
                    border-radius:8px;padding:8px 12px;color:var(--t1);
                    font-size:.72rem;font-family:'Space Mono',monospace;
-                   outline:none;-webkit-appearance:none;"
+                   outline:none;-webkit-appearance:none;text-transform:uppercase;"
             onkeydown="if(event.key==='Enter')KLINE.search()"
-            oninput="KLINE.codeHint(this.value)"/>
+            oninput="this.value=this.value.toUpperCase();KLINE.codeHint(this.value)"/>
           <div id="klHintList" style="display:none;position:absolute;top:100%;left:0;right:0;
                background:var(--bg3);border:1px solid var(--border2);border-top:none;
                border-radius:0 0 8px 8px;z-index:200;max-height:160px;overflow-y:auto;"></div>
@@ -2824,7 +2827,7 @@ function viewChartFromDetail(code) {
 function chartSearch() {
   const inp = document.getElementById('chartCodeInput');
   if (!inp) return;
-  const code = inp.value.trim().replace(/\D/g,'');
+  const code = inp.value.trim().toUpperCase().replace(/[^0-9A-Z]/g,'');
   if (!code) return;
 
   // 關閉提示下拉
@@ -2904,7 +2907,7 @@ document.addEventListener('click', e => {
 function detailSearch() {
   const inp = document.getElementById('detailCodeInput');
   if (!inp) return;
-  const code = inp.value.trim().replace(/\D/g, '');
+  const code = inp.value.trim().toUpperCase().replace(/[^0-9A-Z]/g, '');
   if (!code) return;
 
   const hint = document.getElementById('detailHintList');
