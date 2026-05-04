@@ -488,6 +488,22 @@ def fetch_financial_statements(stock_id: str) -> pd.DataFrame:
     return df
 
 
+def fetch_all_financial_history(end_date: str, days_back: int = 730) -> pd.DataFrame:
+    """一次拉全市場 N 天財報歷史（Sponsor 限定，資料量超大）"""
+    from datetime import datetime, timedelta
+    end_d = datetime.strptime(end_date, "%Y-%m-%d")
+    start = (end_d - timedelta(days=days_back)).strftime("%Y-%m-%d")
+    logger.info(f"取得全市場財報 {start}~{end_date}（一次批次）...")
+    df = _get("TaiwanStockFinancialStatements", {
+        "start_date": start,
+        "end_date": end_date,
+    }, retry=2, timeout=120)  # 財報資料量最大，給 2 分鐘
+    if not df.empty:
+        df["stock_id"] = df["stock_id"].astype(str).str.strip()
+        logger.info(f"批次財報：{len(df):,} 筆，{df['stock_id'].nunique()} 支股票")
+    return df
+
+
 def fetch_balance_sheet(stock_id: str) -> pd.DataFrame:
     """取得資產負債表（選用，Sprint 2+）"""
     start, _ = _date_range(400)
@@ -553,6 +569,7 @@ class DailyDataCache:
         self._share_hist: Optional[pd.DataFrame] = None
         self._holding_hist: Optional[pd.DataFrame] = None
         self._revenue_hist: Optional[pd.DataFrame] = None
+        self._fin_hist: Optional[pd.DataFrame] = None
         self._price: Optional[pd.DataFrame] = None
         self._revenue: Optional[pd.DataFrame] = None
 
@@ -622,6 +639,19 @@ class DailyDataCache:
     def revenue_history_for(self, stock_id: str) -> pd.DataFrame:
         """從批次月營收 cache 撈個股"""
         df = self.get_revenue_history()
+        if df.empty:
+            return df
+        return df[df["stock_id"] == stock_id].copy()
+
+    def get_financial_history(self, days_back: int = 730) -> pd.DataFrame:
+        """全市場 N 天財報歷史，一次批次抓"""
+        if self._fin_hist is None:
+            self._fin_hist = fetch_all_financial_history(self.date, days_back)
+        return self._fin_hist
+
+    def financial_for(self, stock_id: str) -> pd.DataFrame:
+        """從批次財報 cache 撈個股"""
+        df = self.get_financial_history()
         if df.empty:
             return df
         return df[df["stock_id"] == stock_id].copy()

@@ -284,14 +284,13 @@ def run_scan(scan_date: str = None, quick: bool = False,
                 skip_count += 1
                 continue
 
-            # 從批次 cache 撈，避免個別 API call timeout
+            # 全部從批次 cache 撈，零個股 API 呼叫
             inst_hist   = cache.institutional_history_for(stock_id)
             share_df    = cache.shareholding_history_for(stock_id)
             margin_hist = cache.margin_history_for(stock_id)
             holding_df  = cache.holding_distribution_for(stock_id)
             revenue_df  = cache.revenue_history_for(stock_id)
-            # 財報為季度公布、cache 命中率高，仍個別呼叫
-            fin_df      = fetch_financial_statements(stock_id)
+            fin_df      = cache.financial_for(stock_id)
 
             broker_df = pd.DataFrame()  # full mode 在 Step 3.5 補抓
 
