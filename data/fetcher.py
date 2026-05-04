@@ -228,21 +228,19 @@ def fetch_all_stock_price_by_date(date: str) -> pd.DataFrame:
 
 
 def fetch_all_stock_price_history(end_date: str, days_back: int = LOOKBACK_DAYS) -> pd.DataFrame:
-    """
-    一次拉全市場 N 天股價歷史（Sponsor 限定）。
-    資料量最大（全市場 × 90 天可達 24 萬筆），timeout 給 3 分鐘。
-    """
-    from datetime import datetime, timedelta
-    end_d = datetime.strptime(end_date, "%Y-%m-%d")
-    start = (end_d - timedelta(days=days_back)).strftime("%Y-%m-%d")
-    logger.info(f"取得全市場股價 {start}~{end_date}（一次批次）...")
-    df = _get("TaiwanStockPrice", {
-        "start_date": start,
-        "end_date": end_date,
-    }, retry=2, timeout=180)
-    if not df.empty:
-        df["stock_id"] = df["stock_id"].astype(str).str.strip()
-        logger.info(f"批次股價：{len(df):,} 筆，{df['stock_id'].nunique()} 支股票")
+    """逐日批次拉 N 個交易日的全市場股價"""
+    dates = _recent_trading_days(end_date, days_back)
+    logger.info(f"逐日拉股價歷史 {dates[0]}~{dates[-1]}（{len(dates)} 個交易日）...")
+    dfs = []
+    for d in dates:
+        df_day = fetch_all_stock_price_by_date(d)
+        if not df_day.empty:
+            dfs.append(df_day)
+    if not dfs:
+        return pd.DataFrame()
+    df = pd.concat(dfs, ignore_index=True)
+    df["stock_id"] = df["stock_id"].astype(str).str.strip()
+    logger.info(f"股價歷史合計：{len(df):,} 筆，{df['stock_id'].nunique()} 支，{len(dfs)} 個交易日")
     return df
 
 
@@ -306,26 +304,34 @@ def fetch_all_institutional_by_date(date: str) -> pd.DataFrame:
     return df
 
 
-def fetch_all_institutional_history(end_date: str, days_back: int = 30) -> pd.DataFrame:
-    """
-    一次拉全市場 N 天法人歷史（Sponsor 限定）。
-    用來取代逐支呼叫 fetch_institutional，大幅減少 API 次數與 timeout 風險。
-    """
+def _recent_trading_days(end_date: str, count: int) -> list:
+    """回傳近 count 個非週末日（不嚴格濾國定假日，多拉幾天無妨）"""
     from datetime import datetime, timedelta
-    end_d = datetime.strptime(end_date, "%Y-%m-%d")
-    start = (end_d - timedelta(days=days_back)).strftime("%Y-%m-%d")
-    logger.info(f"取得全市場法人歷史 {start}~{end_date}（一次批次）...")
-    df = _get("TaiwanStockInstitutionalInvestorsBuySell", {
-        "start_date": start,
-        "end_date": end_date,
-    }, retry=2, timeout=60)  # 一次性大量資料，多給時間
-    if df.empty:
-        logger.warning("批次法人歷史回傳空白")
-        return df
-    df["stock_id"] = df["stock_id"].astype(str).str.strip()
-    df["diff"] = pd.to_numeric(df["buy"], errors="coerce") - \
-                 pd.to_numeric(df["sell"], errors="coerce")
-    logger.info(f"批次法人歷史：{len(df):,} 筆，{df['stock_id'].nunique()} 支股票")
+    d = datetime.strptime(end_date, "%Y-%m-%d")
+    dates = []
+    while len(dates) < count:
+        if d.weekday() < 5:
+            dates.append(d.strftime("%Y-%m-%d"))
+        d -= timedelta(days=1)
+    return list(reversed(dates))
+
+
+def fetch_all_institutional_history(end_date: str, days_back: int = 15) -> pd.DataFrame:
+    """
+    取得全市場 N 個交易日法人資料（Sponsor 限定）。
+    FinMind 不支援「無 data_id + 多日範圍」批次，改用逐日 by_date 串接。
+    """
+    dates = _recent_trading_days(end_date, days_back)
+    logger.info(f"逐日拉法人歷史 {dates[0]}~{dates[-1]}（{len(dates)} 個交易日）...")
+    dfs = []
+    for d in dates:
+        df_day = fetch_all_institutional_by_date(d)
+        if not df_day.empty:
+            dfs.append(df_day)
+    if not dfs:
+        return pd.DataFrame()
+    df = pd.concat(dfs, ignore_index=True)
+    logger.info(f"法人歷史合計：{len(df):,} 筆，{df['stock_id'].nunique()} 支股票，{len(dfs)} 個交易日")
     return df
 
 
@@ -360,35 +366,48 @@ def fetch_all_margin_by_date(date: str) -> pd.DataFrame:
     return df
 
 
-def fetch_all_margin_history(end_date: str, days_back: int = 30) -> pd.DataFrame:
-    """一次拉全市場 N 天融資券歷史（Sponsor 限定）"""
-    from datetime import datetime, timedelta
-    end_d = datetime.strptime(end_date, "%Y-%m-%d")
-    start = (end_d - timedelta(days=days_back)).strftime("%Y-%m-%d")
-    logger.info(f"取得全市場融資券歷史 {start}~{end_date}（一次批次）...")
-    df = _get("TaiwanStockMarginPurchaseShortSale", {
-        "start_date": start,
-        "end_date": end_date,
-    }, retry=2, timeout=60)
-    if not df.empty:
-        df["stock_id"] = df["stock_id"].astype(str).str.strip()
-        logger.info(f"批次融資券歷史：{len(df):,} 筆，{df['stock_id'].nunique()} 支股票")
+def fetch_all_margin_history(end_date: str, days_back: int = 15) -> pd.DataFrame:
+    """逐日批次拉 N 個交易日的全市場融資券（Sponsor 限定）"""
+    dates = _recent_trading_days(end_date, days_back)
+    logger.info(f"逐日拉融資券歷史 {dates[0]}~{dates[-1]}（{len(dates)} 個交易日）...")
+    dfs = []
+    for d in dates:
+        df_day = fetch_all_margin_by_date(d)
+        if not df_day.empty:
+            dfs.append(df_day)
+    if not dfs:
+        return pd.DataFrame()
+    df = pd.concat(dfs, ignore_index=True)
+    logger.info(f"融資券歷史合計：{len(df):,} 筆，{df['stock_id'].nunique()} 支，{len(dfs)} 個交易日")
     return df
 
 
-def fetch_all_shareholding_history(end_date: str, days_back: int = 60) -> pd.DataFrame:
-    """一次拉全市場 N 天外資持股比例（Sponsor 限定）"""
-    from datetime import datetime, timedelta
-    end_d = datetime.strptime(end_date, "%Y-%m-%d")
-    start = (end_d - timedelta(days=days_back)).strftime("%Y-%m-%d")
-    logger.info(f"取得全市場外資持股 {start}~{end_date}（一次批次）...")
+def fetch_all_shareholding_by_date(date: str) -> pd.DataFrame:
+    """全市場單日外資持股（Sponsor 限定）"""
     df = _get("TaiwanStockShareholding", {
-        "start_date": start,
-        "end_date": end_date,
+        "start_date": date, "end_date": date,
     }, retry=2, timeout=60)
-    if not df.empty:
-        df["stock_id"] = df["stock_id"].astype(str).str.strip()
-        logger.info(f"批次外資持股：{len(df):,} 筆，{df['stock_id'].nunique()} 支股票")
+    if df.empty:
+        return df
+    df["stock_id"] = df["stock_id"].astype(str).str.strip()
+    if "date" in df.columns:
+        df = df[df["date"].astype(str).str[:10] == date]
+    return df
+
+
+def fetch_all_shareholding_history(end_date: str, days_back: int = 15) -> pd.DataFrame:
+    """逐日批次拉 N 個交易日的全市場外資持股"""
+    dates = _recent_trading_days(end_date, days_back)
+    logger.info(f"逐日拉外資持股 {dates[0]}~{dates[-1]}（{len(dates)} 個交易日）...")
+    dfs = []
+    for d in dates:
+        df_day = fetch_all_shareholding_by_date(d)
+        if not df_day.empty:
+            dfs.append(df_day)
+    if not dfs:
+        return pd.DataFrame()
+    df = pd.concat(dfs, ignore_index=True)
+    logger.info(f"外資持股合計：{len(df):,} 筆，{df['stock_id'].nunique()} 支，{len(dfs)} 個交易日")
     return df
 
 
@@ -425,19 +444,34 @@ def fetch_holding_distribution(stock_id: str, days_back: int = 60) -> pd.DataFra
     return df
 
 
-def fetch_all_holding_distribution_history(end_date: str, days_back: int = 60) -> pd.DataFrame:
-    """一次拉全市場 N 天股權分散歷史（Sponsor 限定）"""
-    from datetime import datetime, timedelta
-    end_d = datetime.strptime(end_date, "%Y-%m-%d")
-    start = (end_d - timedelta(days=days_back)).strftime("%Y-%m-%d")
-    logger.info(f"取得全市場股權分散 {start}~{end_date}（一次批次）...")
+def fetch_all_holding_distribution_by_date(date: str) -> pd.DataFrame:
+    """全市場單日股權分散（Sponsor 限定）"""
     df = _get("TaiwanStockHoldingSharesPer", {
-        "start_date": start,
-        "end_date": end_date,
-    }, retry=2, timeout=90)  # 此 dataset 資料量最大，給更多時間
-    if not df.empty:
-        df["stock_id"] = df["stock_id"].astype(str).str.strip()
-        logger.info(f"批次股權分散：{len(df):,} 筆，{df['stock_id'].nunique()} 支股票")
+        "start_date": date, "end_date": date,
+    }, retry=2, timeout=90)
+    if df.empty:
+        return df
+    df["stock_id"] = df["stock_id"].astype(str).str.strip()
+    if "date" in df.columns:
+        df = df[df["date"].astype(str).str[:10] == date]
+    return df
+
+
+def fetch_all_holding_distribution_history(end_date: str, days_back: int = 60) -> pd.DataFrame:
+    """
+    股權分散每週公布。逐日嘗試（多數天會空），合併成歷史。
+    """
+    dates = _recent_trading_days(end_date, days_back)
+    logger.info(f"逐日拉股權分散 {dates[0]}~{dates[-1]}（{len(dates)} 個交易日，週更新）...")
+    dfs = []
+    for d in dates:
+        df_day = fetch_all_holding_distribution_by_date(d)
+        if not df_day.empty:
+            dfs.append(df_day)
+    if not dfs:
+        return pd.DataFrame()
+    df = pd.concat(dfs, ignore_index=True)
+    logger.info(f"股權分散合計：{len(df):,} 筆，{df['stock_id'].nunique()} 支，{len(dfs)} 天有資料")
     return df
 
 
@@ -471,18 +505,29 @@ def fetch_all_revenue_by_date(date: str) -> pd.DataFrame:
 
 
 def fetch_all_revenue_history(end_date: str, months_back: int = 13) -> pd.DataFrame:
-    """一次拉全市場 N 個月月營收歷史（Sponsor 限定）"""
-    from datetime import datetime, timedelta
+    """
+    月營收每月 10 號附近公布，逐月對「該月 15 號」做 by_date 批次。
+    """
+    from datetime import datetime
     end_d = datetime.strptime(end_date, "%Y-%m-%d")
-    start = (end_d - timedelta(days=months_back * 31)).strftime("%Y-%m-%d")
-    logger.info(f"取得全市場月營收 {start}~{end_date}（一次批次）...")
-    df = _get("TaiwanStockMonthRevenue", {
-        "start_date": start,
-        "end_date": end_date,
-    }, retry=2, timeout=60)
-    if not df.empty:
-        df["stock_id"] = df["stock_id"].astype(str).str.strip()
-        logger.info(f"批次月營收：{len(df):,} 筆，{df['stock_id'].nunique()} 支股票")
+    targets = []
+    for offset in range(months_back):
+        y, m = end_d.year, end_d.month - offset
+        while m <= 0:
+            m += 12; y -= 1
+        targets.append(f"{y:04d}-{m:02d}-15")
+    logger.info(f"逐月拉月營收（{len(targets)} 個月）...")
+    dfs = []
+    for d in targets:
+        df_day = fetch_all_revenue_by_date(d)
+        if not df_day.empty:
+            dfs.append(df_day)
+    if not dfs:
+        return pd.DataFrame()
+    df = pd.concat(dfs, ignore_index=True)
+    df["stock_id"] = df["stock_id"].astype(str).str.strip()
+    df = df.drop_duplicates(subset=["stock_id", "date"], keep="first")
+    logger.info(f"月營收合計：{len(df):,} 筆，{df['stock_id'].nunique()} 支")
     return df
 
 
@@ -508,19 +553,43 @@ def fetch_financial_statements(stock_id: str) -> pd.DataFrame:
     return df
 
 
-def fetch_all_financial_history(end_date: str, days_back: int = 730) -> pd.DataFrame:
-    """一次拉全市場 N 天財報歷史（Sponsor 限定，資料量超大）"""
-    from datetime import datetime, timedelta
-    end_d = datetime.strptime(end_date, "%Y-%m-%d")
-    start = (end_d - timedelta(days=days_back)).strftime("%Y-%m-%d")
-    logger.info(f"取得全市場財報 {start}~{end_date}（一次批次）...")
+def fetch_all_financial_by_date(date: str) -> pd.DataFrame:
+    """全市場單日財報（Sponsor 限定）"""
     df = _get("TaiwanStockFinancialStatements", {
-        "start_date": start,
-        "end_date": end_date,
-    }, retry=2, timeout=120)  # 財報資料量最大，給 2 分鐘
-    if not df.empty:
-        df["stock_id"] = df["stock_id"].astype(str).str.strip()
-        logger.info(f"批次財報：{len(df):,} 筆，{df['stock_id'].nunique()} 支股票")
+        "start_date": date, "end_date": date,
+    }, retry=2, timeout=90)
+    if df.empty:
+        return df
+    df["stock_id"] = df["stock_id"].astype(str).str.strip()
+    return df
+
+
+def fetch_all_financial_history(end_date: str, days_back: int = 730) -> pd.DataFrame:
+    """
+    財報每季公布（5/8/11/3 月）。對 8 個季度的代表日做 by_date 批次。
+    """
+    from datetime import datetime
+    end_d = datetime.strptime(end_date, "%Y-%m-%d")
+    # 對近 8 季 + 1 個 buffer：每季結束月的 15 號
+    targets = []
+    for q in range(9):
+        y = end_d.year
+        m = end_d.month - q * 3
+        while m <= 0:
+            m += 12; y -= 1
+        targets.append(f"{y:04d}-{m:02d}-15")
+    logger.info(f"逐季拉財報（{len(targets)} 個季度代表日）...")
+    dfs = []
+    for d in targets:
+        df_day = fetch_all_financial_by_date(d)
+        if not df_day.empty:
+            dfs.append(df_day)
+    if not dfs:
+        return pd.DataFrame()
+    df = pd.concat(dfs, ignore_index=True)
+    df["stock_id"] = df["stock_id"].astype(str).str.strip()
+    df = df.drop_duplicates(subset=["stock_id", "date", "type"], keep="first")
+    logger.info(f"財報合計：{len(df):,} 筆，{df['stock_id'].nunique()} 支")
     return df
 
 
@@ -599,8 +668,8 @@ class DailyDataCache:
             self._institutional = fetch_all_institutional_by_date(self.date)
         return self._institutional
 
-    def get_institutional_history(self, days_back: int = 35) -> pd.DataFrame:
-        """全市場 N 天法人歷史，一次批次抓，後續個股查詢都從這切片"""
+    def get_institutional_history(self, days_back: int = 20) -> pd.DataFrame:
+        """全市場 N 天法人歷史，逐日批次拉"""
         if self._inst_hist is None:
             self._inst_hist = fetch_all_institutional_history(self.date, days_back)
         return self._inst_hist
@@ -612,8 +681,8 @@ class DailyDataCache:
             return df
         return df[df["stock_id"] == stock_id].copy()
 
-    def get_margin_history(self, days_back: int = 30) -> pd.DataFrame:
-        """全市場 N 天融資券歷史，一次批次抓"""
+    def get_margin_history(self, days_back: int = 15) -> pd.DataFrame:
+        """全市場 N 天融資券歷史，逐日批次拉"""
         if self._margin_hist is None:
             self._margin_hist = fetch_all_margin_history(self.date, days_back)
         return self._margin_hist
@@ -625,8 +694,8 @@ class DailyDataCache:
             return df
         return df[df["stock_id"] == stock_id].copy()
 
-    def get_shareholding_history(self, days_back: int = 60) -> pd.DataFrame:
-        """全市場 N 天外資持股歷史，一次批次抓"""
+    def get_shareholding_history(self, days_back: int = 20) -> pd.DataFrame:
+        """全市場 N 天外資持股歷史，逐日批次拉"""
         if self._share_hist is None:
             self._share_hist = fetch_all_shareholding_history(self.date, days_back)
         return self._share_hist
@@ -638,8 +707,8 @@ class DailyDataCache:
             return df
         return df[df["stock_id"] == stock_id].copy()
 
-    def get_holding_distribution_history(self, days_back: int = 60) -> pd.DataFrame:
-        """全市場 N 天股權分散歷史，一次批次抓"""
+    def get_holding_distribution_history(self, days_back: int = 35) -> pd.DataFrame:
+        """全市場 N 天股權分散歷史（每週公布，逐日嘗試）"""
         if self._holding_hist is None:
             self._holding_hist = fetch_all_holding_distribution_history(self.date, days_back)
         return self._holding_hist
@@ -677,8 +746,8 @@ class DailyDataCache:
             return df
         return df[df["stock_id"] == stock_id].copy()
 
-    def get_price_history(self, days_back: int = LOOKBACK_DAYS) -> pd.DataFrame:
-        """全市場 N 天股價歷史，一次批次抓"""
+    def get_price_history(self, days_back: int = 75) -> pd.DataFrame:
+        """全市場 N 天股價歷史，逐日批次拉（MA60 需 60 天 + buffer）"""
         if self._price_hist is None:
             self._price_hist = fetch_all_stock_price_history(self.date, days_back)
         return self._price_hist
