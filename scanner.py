@@ -318,7 +318,8 @@ def run_scan(scan_date: str = None, quick: bool = False,
             logger.debug(f"  {stock_id} 失敗：{e}")
 
     # ── Step 3.5：full mode — 對候選股補抓分點資料並重算 C 分 ────
-    sprint3_threshold = 77
+    # 與 CANDIDATE_THRESHOLD 一致，所有候選股都補抓 broker
+    sprint3_threshold = CANDIDATE_THRESHOLD
     if use_broker:
         pre_candidates = [r for r in results
                           if r["total_score"] >= sprint3_threshold]

@@ -58,9 +58,11 @@ def score_foreign(institutional_df: pd.DataFrame,
     if institutional_df.empty:
         return {"score": 0, "detail": detail}
 
-    # 篩選外資資料（FinMind 批次 API 回傳英文 Foreign_Investor，個股歷史回傳中文「外資」，兩者都要支援）
+    # 只取「主要外資」（外資及陸資 / Foreign_Investor），排除外資自營商
+    # 否則同一天兩筆（主力 + 自營商）會干擾 _count_consecutive_buy 邏輯
     foreign = institutional_df[
-        institutional_df["name"].str.contains("外資|Foreign|foreign", na=False, regex=True)
+        institutional_df["name"].str.contains("外資及陸資|Foreign_Investor", na=False, regex=True) &
+        ~institutional_df["name"].str.contains("自營|Dealer", na=False, regex=True)
     ].copy()
     foreign = foreign.sort_values("date").reset_index(drop=True)
 
