@@ -693,8 +693,9 @@ body::before{
 .sub-tab.active-M{color:var(--c2);border-bottom-color:var(--c2);}
 .sub-tab.active-F{color:var(--c1);border-bottom-color:var(--c1);}
 
-.sub-page{display:none;}
+.sub-page{display:none;flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
 .sub-page.active{display:block;}
+.sub-page::-webkit-scrollbar{display:none;}
 
 /* 面向排行卡 */
 .dim-rank-card{
@@ -1367,8 +1368,6 @@ body::before{
     </div>
   </div>
 
-</div>
-
   <!-- PAGE 6：K線圖 -->
   <div class="page" id="p6">
     <div class="pg" style="gap:8px;">
@@ -1481,6 +1480,8 @@ body::before{
       </div>
     </div>
   </div>
+
+</div>
 
 <!-- TABBAR -->
 <div id="tabbar">
