@@ -58,9 +58,9 @@ def score_foreign(institutional_df: pd.DataFrame,
     if institutional_df.empty:
         return {"score": 0, "detail": detail}
 
-    # 篩選外資資料，只取最近交易日
+    # 篩選外資資料（FinMind 批次 API 回傳英文 Foreign_Investor，個股歷史回傳中文「外資」，兩者都要支援）
     foreign = institutional_df[
-        institutional_df["name"].str.contains("外資", na=False)
+        institutional_df["name"].str.contains("外資|Foreign|foreign", na=False, regex=True)
     ].copy()
     foreign = foreign.sort_values("date").reset_index(drop=True)
 
@@ -147,7 +147,7 @@ def score_trust(institutional_df: pd.DataFrame,
         return {"score": 0, "detail": detail}
 
     trust = institutional_df[
-        institutional_df["name"].str.contains("投信", na=False)
+        institutional_df["name"].str.contains("投信|Trust|trust", na=False, regex=True)
     ].copy()
     trust = trust.sort_values("date").reset_index(drop=True)
 
