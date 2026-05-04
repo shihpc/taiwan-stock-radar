@@ -278,8 +278,8 @@ def run_scan(scan_date: str = None, quick: bool = False,
                 skip_count += 1
                 continue
 
-            # 個股歷史資料
-            price_df    = fetch_stock_price(stock_id, days_back=LOOKBACK_DAYS)
+            # 個股歷史資料（從批次 cache，必要時自動 fallback 到個別呼叫）
+            price_df    = cache.price_history_for(stock_id)
             if price_df.empty:
                 skip_count += 1
                 continue

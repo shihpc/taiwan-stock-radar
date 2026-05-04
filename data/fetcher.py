@@ -226,6 +226,25 @@ def fetch_all_stock_price_by_date(date: str) -> pd.DataFrame:
     return _get("TaiwanStockPrice", {"start_date": date, "end_date": date})
 
 
+def fetch_all_stock_price_history(end_date: str, days_back: int = LOOKBACK_DAYS) -> pd.DataFrame:
+    """
+    一次拉全市場 N 天股價歷史（Sponsor 限定）。
+    資料量最大（全市場 × 90 天可達 24 萬筆），timeout 給 3 分鐘。
+    """
+    from datetime import datetime, timedelta
+    end_d = datetime.strptime(end_date, "%Y-%m-%d")
+    start = (end_d - timedelta(days=days_back)).strftime("%Y-%m-%d")
+    logger.info(f"取得全市場股價 {start}~{end_date}（一次批次）...")
+    df = _get("TaiwanStockPrice", {
+        "start_date": start,
+        "end_date": end_date,
+    }, retry=2, timeout=180)
+    if not df.empty:
+        df["stock_id"] = df["stock_id"].astype(str).str.strip()
+        logger.info(f"批次股價：{len(df):,} 筆，{df['stock_id'].nunique()} 支股票")
+    return df
+
+
 def fetch_per_pbr(stock_id: str, days_back: int = 30) -> pd.DataFrame:
     """
     取得個股 PER / PBR 資料。
@@ -571,6 +590,7 @@ class DailyDataCache:
         self._revenue_hist: Optional[pd.DataFrame] = None
         self._fin_hist: Optional[pd.DataFrame] = None
         self._price: Optional[pd.DataFrame] = None
+        self._price_hist: Optional[pd.DataFrame] = None
         self._revenue: Optional[pd.DataFrame] = None
 
     def get_institutional(self) -> pd.DataFrame:
@@ -655,6 +675,24 @@ class DailyDataCache:
         if df.empty:
             return df
         return df[df["stock_id"] == stock_id].copy()
+
+    def get_price_history(self, days_back: int = LOOKBACK_DAYS) -> pd.DataFrame:
+        """全市場 N 天股價歷史，一次批次抓"""
+        if self._price_hist is None:
+            self._price_hist = fetch_all_stock_price_history(self.date, days_back)
+        return self._price_hist
+
+    def price_history_for(self, stock_id: str) -> pd.DataFrame:
+        """從批次股價 cache 撈個股；若 cache 為空則 fallback 到個股 fetch"""
+        df = self.get_price_history()
+        if df.empty:
+            # 批次失敗時 fallback：個別呼叫，避免完全沒資料
+            return fetch_stock_price(stock_id)
+        result = df[df["stock_id"] == stock_id].copy()
+        if result.empty:
+            # 該股票不在批次資料裡（如新上市），fallback
+            return fetch_stock_price(stock_id)
+        return result
 
     def get_margin(self) -> pd.DataFrame:
         if self._margin is None:
