@@ -223,7 +223,8 @@ def fetch_all_stock_price_by_date(date: str) -> pd.DataFrame:
     用於批次掃描，避免逐支呼叫。
     """
     logger.info(f"取得全市場收盤 {date}...")
-    return _get("TaiwanStockPrice", {"start_date": date, "end_date": date})
+    return _get("TaiwanStockPrice", {"start_date": date, "end_date": date},
+                retry=2, timeout=60)
 
 
 def fetch_all_stock_price_history(end_date: str, days_back: int = LOOKBACK_DAYS) -> pd.DataFrame:
@@ -288,7 +289,7 @@ def fetch_all_institutional_by_date(date: str) -> pd.DataFrame:
     df = _get("TaiwanStockInstitutionalInvestorsBuySell", {
         "start_date": date,
         "end_date": date,
-    })
+    }, retry=2, timeout=60)
     if df.empty:
         return df
     df["stock_id"] = df["stock_id"].astype(str).str.strip()
@@ -353,7 +354,7 @@ def fetch_all_margin_by_date(date: str) -> pd.DataFrame:
     df = _get("TaiwanStockMarginPurchaseShortSale", {
         "start_date": date,
         "end_date": date,
-    })
+    }, retry=2, timeout=60)
     if not df.empty:
         df["stock_id"] = df["stock_id"].astype(str).str.strip()
     return df
@@ -466,7 +467,7 @@ def fetch_all_revenue_by_date(date: str) -> pd.DataFrame:
     return _get("TaiwanStockMonthRevenue", {
         "start_date": date,
         "end_date": date,
-    })
+    }, retry=2, timeout=60)
 
 
 def fetch_all_revenue_history(end_date: str, months_back: int = 13) -> pd.DataFrame:
