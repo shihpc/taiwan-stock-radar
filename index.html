@@ -2676,11 +2676,17 @@ function renderBrokerRank() {
   const hasBrokerData = allStockData.some(s => s.C > 0);
 
   if (!hasBrokerData) {
+    // 分點資料是 scanner Step 3.5 對 total_score≥77 的股票補抓
+    // 若所有 C=0，多半是評分階段沒有股票過 77 門檻
+    const maxScore = allStockData.length ? Math.max(...allStockData.map(s => s.score || 0)) : 0;
+    const sub = maxScore < 77
+      ? `本次掃描沒有股票達 77 分門檻<br>分點資料只對 ≥77 分的候選股補抓<br><span style="color:var(--t3);font-size:.55rem">（目前最高分：${maxScore}）</span>`
+      : `分點補抓階段未產生資料<br>可能是 broker API 暫時失敗`;
     document.getElementById('brokerRankList').innerHTML = `
       <div class="empty">
         <div class="empty-icon">🎯</div>
-        <div class="empty-title">分點資料未啟用</div>
-        <div class="empty-sub">需 FinMind Sponsor 方案<br>執行時加入 --broker 參數</div>
+        <div class="empty-title">本日無分點資料</div>
+        <div class="empty-sub">${sub}</div>
       </div>`;
     return;
   }
