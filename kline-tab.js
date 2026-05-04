@@ -115,10 +115,29 @@ const KLINE = (() => {
     });
     if (token) params.set('token', token);
 
-    const resp = await fetch(`${API}?${params}`);
+    let resp;
+    try {
+      resp = await fetch(`${API}?${params}`);
+    } catch (e) {
+      // fetch 本身失敗 → 多半是 CORS 或網路問題
+      if (adjusted) {
+        throw new Error('還原權息為 FinMind Sponsor 資料集，請在 ⚙ 填入 Sponsor token，或關閉還原權息');
+      }
+      throw new Error('網路錯誤，請確認連線後重試');
+    }
+    if (resp.status === 401 || resp.status === 402) {
+      throw new Error(adjusted
+        ? '還原權息需 Sponsor token（HTTP ' + resp.status + '）'
+        : 'Token 無效（HTTP ' + resp.status + '）');
+    }
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const json = await resp.json();
-    if (json.status !== 200) throw new Error(json.msg || 'API 錯誤');
+    if (json.status !== 200) {
+      if (adjusted && (json.status === 402 || /sponsor|level/i.test(json.msg || ''))) {
+        throw new Error('還原權息需 Sponsor 級 token，請填入或關閉還原權息');
+      }
+      throw new Error(json.msg || 'API 錯誤');
+    }
     if (!json.data?.length) throw new Error('無資料（代碼可能有誤）');
 
     return json.data
@@ -715,12 +734,25 @@ const KLINE = (() => {
     updateSubLine();
   }
 
-  function toggleAdjusted() {
+  function paintAdjBtn() {
+    document.getElementById('klAdjBtn')?.classList.toggle('active', adjusted);
+    const ico = document.getElementById('klAdjIco');
+    if (ico) ico.textContent = adjusted ? '●' : '○';
+  }
+
+  async function toggleAdjusted() {
+    const prev = adjusted;
     adjusted = !adjusted;
     localStorage.setItem('klAdjusted', adjusted ? '1' : '0');
-    document.getElementById('klAdjBtn')?.classList.toggle('active', adjusted);
-    document.getElementById('klAdjIco').textContent = adjusted ? '●' : '○';
-    if (currentCode) load(currentCode);
+    paintAdjBtn();
+    if (!currentCode) return;
+    const ok = await load(currentCode);
+    if (!ok) {
+      // 失敗 → 回退狀態，避免按鈕顯示已開啟卻沒資料
+      adjusted = prev;
+      localStorage.setItem('klAdjusted', adjusted ? '1' : '0');
+      paintAdjBtn();
+    }
   }
 
   function updateSubLine() {
@@ -814,11 +846,13 @@ const KLINE = (() => {
       setupCanvases();
       setupInteraction();
       redraw();
+      return true;
 
     } catch (err) {
       document.getElementById('klLoading').style.display = 'none';
       document.getElementById('klError').style.display   = 'flex';
       document.getElementById('klErrorMsg').textContent  = err.message;
+      return false;
     }
   }
 
