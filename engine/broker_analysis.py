@@ -23,32 +23,19 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-# ── 已知主力慣用分點（可依個人觀察持續更新）────────────────
-# 格式：{分點代碼: 分點名稱}
-# 這些分點歷史上頻繁出現在強勢股的底部建倉
+# ── 主力分點判定（v2 改為動態，不再依賴寫死清單）────────────
+# 「是否有主導分點」改為依該股近 N 日的實際分點買超分布動態判定，
+# 詳見 score_broker_full 中的 has_dominant 邏輯。
+#
+# 以下兩個字典僅作「資訊參考」，不再用於主邏輯加分。
+# 留存原因：可作為跨股的長期觀察參考（例如想知道某股是否有外資分點介入）
 KNOWN_STRONG_BROKERS = {
-    "1020": "元大-台北",
-    "1010": "元大-中山",
-    "1480": "富邦-台北",
-    "8440": "凱基-台北",
-    "9200": "永豐金-台北",
-    "6460": "台灣企銀",
-    "5380": "兆豐-台北",
-    "1440": "富邦-中正",
-    "8880": "玉山-台北",
-    "9600": "台新-台北",
+    "1020": "元大-台北",     "1010": "元大-中山",
+    "1480": "富邦-台北",     "1440": "富邦-中正",
+    "8440": "凱基-台北",     "9200": "永豐金-台北",
+    "6460": "台灣企銀",      "5380": "兆豐-台北",
+    "8880": "玉山-台北",     "9600": "台新-台北",
 }
-
-# 外資慣用分點（外資下單集中的券商分點）
-FOREIGN_BROKER_IDS = {
-    "9800", "9801", "9802", "9803", "9900",  # 美林
-    "9700", "9701",                            # 高盛
-    "9500", "9501",                            # 摩根士丹利
-    "9300", "9301",                            # 瑞銀
-    "9100",                                    # 瑞士信貸
-    "8200", "8201",                            # 匯豐
-}
-
 
 # ── 資料前處理 ────────────────────────────────────────────────
 
@@ -99,17 +86,15 @@ def analyze_single_day(day_df: pd.DataFrame,
         "total_buy_lots":     int,    # 全日總買（張）
         "total_sell_lots":    int,    # 全日總賣（張）
         "net_lots":           int,    # 全日淨買（張）
-        "foreign_buy_lots":   int,    # 外資分點買超（張）
-        "has_known_broker":   bool,   # 是否有主力慣用分點
-        "known_brokers_found":list,   # 出現的已知主力分點
+        "has_known_broker":   bool,   # 是否有主力慣用分點（參考）
+        "known_brokers_found":list,   # 出現的已知主力分點（參考）
         "silent_accum":       bool,   # 量增不漲吃貨型態
     }
     """
     empty = {
         "top3_buy_lots": 0, "top3_concentration": 0.0, "top3_brokers": [],
         "total_buy_lots": 0, "total_sell_lots": 0, "net_lots": 0,
-        "foreign_buy_lots": 0, "has_known_broker": False,
-        "known_brokers_found": [], "silent_accum": False,
+        "has_known_broker": False, "known_brokers_found": [], "silent_accum": False,
     }
 
     if day_df.empty:
@@ -129,11 +114,7 @@ def analyze_single_day(day_df: pd.DataFrame,
     top3_conc  = top3_buy / total_buy if total_buy > 0 else 0.0
     top3_names = top3["securities_trader"].tolist()
 
-    # 外資分點買超
-    foreign = agg[agg["securities_trader_id"].isin(FOREIGN_BROKER_IDS)]
-    foreign_buy = int(foreign["diff_lots"].clip(lower=0).sum())
-
-    # 已知主力分點
+    # 已知主力分點（清單僅作參考，主邏輯改用動態判定）
     known_found = agg[agg["securities_trader_id"].isin(KNOWN_STRONG_BROKERS.keys())]
     known_buy   = known_found[known_found["diff_lots"] > 0]
     known_names = known_buy["securities_trader"].tolist()
@@ -164,7 +145,6 @@ def analyze_single_day(day_df: pd.DataFrame,
         "total_buy_lots":     total_buy,
         "total_sell_lots":    total_sell,
         "net_lots":           net,
-        "foreign_buy_lots":   foreign_buy,
         "has_known_broker":   len(known_names) > 0,
         "known_brokers_found": known_names,
         "silent_accum":       silent_accum,
@@ -252,6 +232,33 @@ def analyze_broker_consecutive(
                if daily_results else 0.0
     silent_days = sum(1 for r in daily_results if r["silent_accum"])
 
+    # ── 動態主導分點：該股近 N 日累計淨買超最大的分點 ──
+    # 不再依賴寫死的 KNOWN_STRONG_BROKERS，而是依據實際累計買超判斷
+    broker_total = agg_all.groupby(
+        ["securities_trader_id", "securities_trader"], as_index=False
+    )["diff_lots"].sum().sort_values("diff_lots", ascending=False)
+
+    if not broker_total.empty and broker_total.iloc[0]["diff_lots"] > 0:
+        top_buyer_id   = broker_total.iloc[0]["securities_trader_id"]
+        top_buyer_name = broker_total.iloc[0]["securities_trader"]
+        top_buyer_lots = int(broker_total.iloc[0]["diff_lots"])
+        # 該分點佔全市場「總正向買超」的比例
+        all_pos_net = float(broker_total[broker_total["diff_lots"] > 0]["diff_lots"].sum()) or 1.0
+        top_buyer_share = top_buyer_lots / all_pos_net
+    else:
+        top_buyer_id   = ""
+        top_buyer_name = ""
+        top_buyer_lots = 0
+        top_buyer_share = 0.0
+
+    # 連最久分點的累計買超（用於判定持續性）
+    if top_broker_id:
+        top_consec_lots = int(agg_all[
+            agg_all["securities_trader_id"] == top_broker_id
+        ]["diff_lots"].sum())
+    else:
+        top_consec_lots = 0
+
     # 分點連續天數明細（只保留 > 0 的）
     consec_detail = {
         broker_name_map.get(bid, bid): days
@@ -265,6 +272,10 @@ def analyze_broker_consecutive(
     return {
         "max_consec_days":          max_consec,
         "top_consec_broker":        top_broker_name,
+        "top_consec_lots":          top_consec_lots,    # 連最久分點累計買超（張）
+        "top_buyer_name":           top_buyer_name,     # 累計買超第一名
+        "top_buyer_lots":           top_buyer_lots,     # 第一名累計買超（張）
+        "top_buyer_share":          round(top_buyer_share, 4),  # 占全部正買超比例
         "consec_detail":            consec_detail,
         "avg_daily_concentration":  round(avg_conc, 4),
         "silent_accum_days":        silent_days,
@@ -320,6 +331,10 @@ def score_broker_full(
     detail["broker_analysis"] = {
         "max_consec_days":         analysis["max_consec_days"],
         "top_consec_broker":       analysis["top_consec_broker"],
+        "top_consec_lots":         analysis.get("top_consec_lots", 0),
+        "top_buyer_name":          analysis.get("top_buyer_name", ""),
+        "top_buyer_lots":          analysis.get("top_buyer_lots", 0),
+        "top_buyer_share":         analysis.get("top_buyer_share", 0.0),
         "avg_daily_concentration": analysis["avg_daily_concentration"],
         "silent_accum_days":       analysis["silent_accum_days"],
         "days_analyzed":           analysis["days_analyzed"],
@@ -330,12 +345,32 @@ def score_broker_full(
     if analysis["daily_analysis"]:
         latest_day = analysis["daily_analysis"][-1]
         latest_conc = latest_day["top3_concentration"]
-        has_known   = latest_day["has_known_broker"]
-        known_found = latest_day["known_brokers_found"]
     else:
         latest_conc = analysis["avg_daily_concentration"]
-        has_known   = False
+
+    # ── 動態判定「主導分點」：依個股實際情況，不再用寫死清單 ──
+    # 滿足任一條件即視為有主導分點：
+    #   1. 連最久分點 ≥ 3 天
+    #   2. 第一名分點累計買超佔比 > 25%（單股一枝獨秀）
+    #   3. 連最久分點累計淨買超 > 1000 張（絕對量大）
+    top_buyer_share = analysis.get("top_buyer_share", 0.0)
+    top_consec_lots = analysis.get("top_consec_lots", 0)
+    has_dominant = (
+        analysis["max_consec_days"] >= 3 or
+        top_buyer_share > 0.25 or
+        top_consec_lots > 1000
+    )
+    # 命中時把主導分點名稱列出來（顯示用）
+    if has_dominant:
+        names = []
+        if analysis.get("top_consec_broker"):
+            names.append(analysis["top_consec_broker"])
+        if analysis.get("top_buyer_name") and analysis["top_buyer_name"] not in names:
+            names.append(analysis["top_buyer_name"])
+        known_found = names
+    else:
         known_found = []
+    has_known = has_dominant   # 沿用變數名給後面使用
 
     # ── 指標1：分點集中度（8 分）
     if latest_conc >= 0.35:

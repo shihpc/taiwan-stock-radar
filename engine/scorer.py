@@ -552,7 +552,7 @@ def score_stock(
         if broker_analysis.get("silent_accum_days", 0) >= 2:
             tags.append("★主力低調吃貨")
         if c_detail.get("known_brokers"):
-            tags.append("★慣用分點現身")
+            tags.append("★主導分點現身")
 
         return {
             "stock_id":        stock_id,
