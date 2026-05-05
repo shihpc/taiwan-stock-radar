@@ -174,22 +174,22 @@ def score_trust(institutional_df: pd.DataFrame,
     detail["breakdown"]["連買天數"] = s1
     score += s1
 
-    # ── 指標2：累積持股佔流通比（最高 15 分）
+    # ── 指標2：累積持股佔流通比（最高 3 分）
     s2 = 0
     if total_shares and total_shares > 0:
         cumulative = trust["diff"].sum()
         pct = cumulative / total_shares
         detail["holding_pct"] = round(pct, 6)
         if pct >= TRUST_HOLDING_PCT_HIGH:  # ≥ 20%
-            s2 = 15
+            s2 = 3
         elif pct >= TRUST_HOLDING_PCT_MID: # ≥ 10%
-            s2 = 10
+            s2 = 2
         elif pct >= TRUST_HOLDING_PCT_LOW: # ≥  5%
-            s2 = 5
+            s2 = 1
     detail["breakdown"]["持股佔流通比"] = s2
     score += s2
 
-    # ── 指標3：拉回不賣（護盤訊號，最高 10 分）
+    # ── 指標3：拉回不賣（護盤訊號，最高 7 分）
     s3 = 0
     if not price_df.empty and len(trust) >= 2:
         pr = prepare_price_df(price_df)
@@ -209,10 +209,10 @@ def score_trust(institutional_df: pd.DataFrame,
                 pullback_days += 1
 
         if pullback_days >= 2:
-            s3 = 10
+            s3 = 7
             detail["pullback_buy"] = True
         elif pullback_days == 1:
-            s3 = 5
+            s3 = 4
     detail["breakdown"]["拉回不賣"] = s3
     score += s3
 
