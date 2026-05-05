@@ -264,15 +264,11 @@ def run_scan(scan_date: str = None, quick: bool = False,
                         f"{elapsed:.0f}s｜候選 {n_cand} 支")
 
         try:
-            # 不再做 phase1 預篩，所有股票都評分
+            # 不再做任何預篩，所有股票都評分
             today_inst = cache.institutional_for(stock_id)
-
-            # 融資券過濾（快速版，只看今日）
-            today_mg = cache.margin_for(stock_id)
-            passed_mg, margin_ratio = filter_by_margin(stock_id, today_mg)
-            if not passed_mg:
-                skip_count += 1
-                continue
+            today_mg   = cache.margin_for(stock_id)
+            # 仍計算 margin_ratio 顯示用，但不做 pass/fail 過濾
+            _, margin_ratio = filter_by_margin(stock_id, today_mg)
 
             # 個股歷史資料（從批次 cache，必要時自動 fallback 到個別呼叫）
             price_df    = cache.price_history_for(stock_id)
