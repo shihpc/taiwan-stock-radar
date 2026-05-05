@@ -23,19 +23,8 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-# ── 主力分點判定（v2 改為動態，不再依賴寫死清單）────────────
-# 「是否有主導分點」改為依該股近 N 日的實際分點買超分布動態判定，
+# ── 主力分點判定改為動態（依個股實際買超分布）────────────────
 # 詳見 score_broker_full 中的 has_dominant 邏輯。
-#
-# 以下兩個字典僅作「資訊參考」，不再用於主邏輯加分。
-# 留存原因：可作為跨股的長期觀察參考（例如想知道某股是否有外資分點介入）
-KNOWN_STRONG_BROKERS = {
-    "1020": "元大-台北",     "1010": "元大-中山",
-    "1480": "富邦-台北",     "1440": "富邦-中正",
-    "8440": "凱基-台北",     "9200": "永豐金-台北",
-    "6460": "台灣企銀",      "5380": "兆豐-台北",
-    "8880": "玉山-台北",     "9600": "台新-台北",
-}
 
 # ── 資料前處理 ────────────────────────────────────────────────
 
@@ -86,15 +75,13 @@ def analyze_single_day(day_df: pd.DataFrame,
         "total_buy_lots":     int,    # 全日總買（張）
         "total_sell_lots":    int,    # 全日總賣（張）
         "net_lots":           int,    # 全日淨買（張）
-        "has_known_broker":   bool,   # 是否有主力慣用分點（參考）
-        "known_brokers_found":list,   # 出現的已知主力分點（參考）
         "silent_accum":       bool,   # 量增不漲吃貨型態
     }
     """
     empty = {
         "top3_buy_lots": 0, "top3_concentration": 0.0, "top3_brokers": [],
         "total_buy_lots": 0, "total_sell_lots": 0, "net_lots": 0,
-        "has_known_broker": False, "known_brokers_found": [], "silent_accum": False,
+        "silent_accum": False,
     }
 
     if day_df.empty:
@@ -113,11 +100,6 @@ def analyze_single_day(day_df: pd.DataFrame,
     top3_buy   = int(top3["diff_lots"].clip(lower=0).sum())
     top3_conc  = top3_buy / total_buy if total_buy > 0 else 0.0
     top3_names = top3["securities_trader"].tolist()
-
-    # 已知主力分點（清單僅作參考，主邏輯改用動態判定）
-    known_found = agg[agg["securities_trader_id"].isin(KNOWN_STRONG_BROKERS.keys())]
-    known_buy   = known_found[known_found["diff_lots"] > 0]
-    known_names = known_buy["securities_trader"].tolist()
 
     # 量增不漲：若有股價資料，判斷今日收盤漲幅 < 1% 但買超量大
     silent_accum = False
@@ -145,8 +127,6 @@ def analyze_single_day(day_df: pd.DataFrame,
         "total_buy_lots":     total_buy,
         "total_sell_lots":    total_sell,
         "net_lots":           net,
-        "has_known_broker":   len(known_names) > 0,
-        "known_brokers_found": known_names,
         "silent_accum":       silent_accum,
     }
 
@@ -233,7 +213,6 @@ def analyze_broker_consecutive(
     silent_days = sum(1 for r in daily_results if r["silent_accum"])
 
     # ── 動態主導分點：該股近 N 日累計淨買超最大的分點 ──
-    # 不再依賴寫死的 KNOWN_STRONG_BROKERS，而是依據實際累計買超判斷
     broker_total = agg_all.groupby(
         ["securities_trader_id", "securities_trader"], as_index=False
     )["diff_lots"].sum().sort_values("diff_lots", ascending=False)

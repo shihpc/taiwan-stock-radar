@@ -2292,39 +2292,8 @@ function generateMockData() {
     const trust_d3 = isETF ? 0 : trust_d1 + rngInt(20, 500);
     const trust_d5 = isETF ? 0 : trust_d3 + rngInt(30, 600);
 
-    // 主力分點名稱與近1/3/5日買賣超張數
-    const ALL_BROKERS = [
-      '凱基-台北','元大-台北','富邦-台北','國泰-台北',
-      '永豐金-台北','兆豐-台北','玉山-台北','台新-台北',
-      '元富-台北','統一-台北','群益-台北','日盛-台北',
-      '美林','摩根大通','高盛','瑞銀','摩根士丹利',
-      '凱基-內湖','元大-中山','富邦-信義','國泰-中正',
-    ];
-    const brokerSeed = parseInt(s.code) || 0;
-    const pickBroker = (offset) => ALL_BROKERS[(brokerSeed * 7 + offset * 13) % ALL_BROKERS.length];
-    const broker_names = isETF ? [] : (() => {
-      const cnt = broker_days >= 5 ? 3 : broker_days >= 3 ? 2 : 1;
-      const totalLots = rngInt(200, 3000);
-      const ratios = cnt === 3 ? [0.50, 0.30, 0.20] : cnt === 2 ? [0.60, 0.40] : [1.0];
-      // 每個買超分點各自有 d1/d3/d5 累計張數（d1最小，d5最大）
-      const buy = Array.from({length: cnt}, (_, i) => {
-        const base = Math.round(totalLots * ratios[i] / 10) * 10;
-        return {
-          name: pickBroker(i),
-          d1: Math.round(base * 0.35 / 10) * 10,
-          d3: Math.round(base * 0.70 / 10) * 10,
-          d5: base,
-        };
-      });
-      const sellBase = rngInt(50, 400);
-      const sell = {
-        name: pickBroker(cnt + 5),
-        d1: Math.round(sellBase * 0.35 / 10) * 10,
-        d3: Math.round(sellBase * 0.70 / 10) * 10,
-        d5: sellBase,
-      };
-      return { buy, sell };
-    })();
+    // 主力分點名稱：mock 模式不再產生假資料（真實資料由 CSV 的 broker_names 提供）
+    const broker_names = {};
 
     // 自動產生標記
     const tags = [];
