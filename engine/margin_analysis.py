@@ -135,7 +135,7 @@ def score_margin(margin_analysis: dict) -> dict:
       融資率 < 20%（籌碼乾淨）    → +4 分
       融資率 < 35%                → +2 分
       融資率下降中（主動還款）     → +5 分（原 2 分）
-      融券率 > 60%（軋空潛力）    → +10 分（原 融券率>30% 2分）
+      融券率 > 30%（軋空潛力）    → +10 分
       融資率 > 50%                → -3 分
       融資率 > 60%                → -6 分
     """
@@ -166,8 +166,8 @@ def score_margin(margin_analysis: dict) -> dict:
     detail["breakdown"]["融資下降"] = s2
     score += s2
 
-    # ── 軋空潛力（融券率 > 60% → +10，原 融券率>30% → +2）
-    s3 = 10 if short_ratio > 0.60 else 0
+    # ── 軋空潛力（融券率 > 30% → +10）
+    s3 = 10 if short_ratio > 0.30 else 0
     detail["breakdown"]["軋空潛力"] = s3
     score += s3
 

@@ -115,9 +115,9 @@ def _try_numeric_parse(group: pd.DataFrame) -> dict:
 # ── 核心分析函式 ──────────────────────────────────────────────
 
 def analyze_holder_trend(parsed_df: pd.DataFrame,
-                          weeks: int = 4) -> dict:
+                          weeks: int = 2) -> dict:
     """
-    分析大戶持股近 N 週趨勢。
+    分析大戶持股近 N 週趨勢（預設 2 週）。
 
     回傳：
     {
@@ -126,9 +126,9 @@ def analyze_holder_trend(parsed_df: pd.DataFrame,
         "small_declining":   bool,   # 散戶持股同步下降（籌碼移轉確認）
         "concentration":     bool,   # 大戶+超大戶比例上升 + 散戶下降（同時成立）
         "big_total_pct":     float,  # 最新大戶+超大戶佔比
-        "big_chg_4w":        float,  # 近4週大戶比例變化
-        "super_chg_4w":      float,  # 近4週超大戶比例變化
-        "small_chg_4w":      float,  # 近4週散戶比例變化
+        "big_chg_4w":        float,  # 近 N 週大戶比例變化（欄位名沿用 4w）
+        "super_chg_4w":      float,  # 近 N 週超大戶比例變化
+        "small_chg_4w":      float,  # 近 N 週散戶比例變化
         "weeks_available":   int,    # 實際可用週數
     }
     """
@@ -187,9 +187,9 @@ def score_shareholding(holding_df: pd.DataFrame) -> dict:
     """
     股權分散評分（Sprint 2，最高 25 分）。
 
-    計分規則：
-      大戶持股連續4週上升         → +10 分
-      4週變化 > 0.5%              → +5 分（未連續但有上升）
+    計分規則（觀察視窗 2 週）：
+      大戶持股連續 2 週上升       → +10 分
+      2 週變化 > 0.5%             → +5 分（未連續但有上升）
       超大戶持股上升               → +5 分
       籌碼集中（大戶↑ + 散戶↓）   → +10 分
     """
@@ -203,10 +203,10 @@ def score_shareholding(holding_df: pd.DataFrame) -> dict:
     if parsed.empty:
         return {"score": 0, "detail": detail}
 
-    trend = analyze_holder_trend(parsed, weeks=4)
+    trend = analyze_holder_trend(parsed, weeks=2)
     detail["trend"] = trend
 
-    # ── 大戶連續上升（+10）；未連續但4週變化 > 0.5%（+5）
+    # ── 大戶連續上升（+10）；未連續但 2 週變化 > 0.5%（+5）
     if trend["big_rising"]:
         s1 = 10
     elif trend["big_chg_4w"] > 0.5:

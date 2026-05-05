@@ -246,11 +246,11 @@ def score_technical(price_df: pd.DataFrame) -> dict:
     if not tech["valid"]:
         return {"score": 0, "detail": detail}
 
-    # ── 指標1：均線多頭排列（最高 6 分）
+    # ── 指標1：均線多頭排列（最高 10 分）
     if tech["full_bull"]:
-        s1 = 6
+        s1 = 10
     elif tech["partial_bull"]:
-        s1 = 3
+        s1 = 5
     else:
         s1 = 0
     detail["breakdown"]["均線多頭"] = s1
@@ -274,11 +274,11 @@ def score_technical(price_df: pd.DataFrame) -> dict:
     detail["rsi"] = rsi
     score += s2
 
-    # ── 指標3：MACD 黃金交叉（最高 4 分）
+    # ── 指標3：MACD 黃金交叉（最高 5 分）
     if tech["macd_golden_cross"]:
-        s3 = 4
+        s3 = 5
     elif tech["macd_above_zero"]:
-        s3 = 2    # 柱狀圖在零軸上，多頭延續
+        s3 = 3    # 柱狀圖在零軸上，多頭延續
     else:
         s3 = 0
     detail["breakdown"]["MACD"] = s3
@@ -301,7 +301,7 @@ def score_fundamental(revenue_df: pd.DataFrame,
     score = 0
     detail = {"breakdown": {}, "revenue_growth_months": 0}
 
-    # ── 指標1：月營收 YoY 連續正成長（最高 10 分）
+    # ── 指標1：月營收 YoY 連續正成長（唯一指標，最高 20 分）
     s1 = 0
     growth_months = 0
     if not revenue_df.empty:
@@ -310,7 +310,7 @@ def score_fundamental(revenue_df: pd.DataFrame,
         rev["date"] = pd.to_datetime(rev["date"])
         rev = rev.sort_values("date")
 
-        if len(rev) >= REVENUE_GROWTH_MONTHS + 1:
+        if len(rev) >= 2:
             yoy_positive = 0
             # 計算每個月的 YoY 成長
             rev_list = rev["revenue"].tolist()
@@ -326,67 +326,18 @@ def score_fundamental(revenue_df: pd.DataFrame,
 
             growth_months = yoy_positive
             detail["revenue_growth_months"] = growth_months
-            if growth_months >= REVENUE_GROWTH_MONTHS_BONUS:
+            if growth_months >= 3:
+                s1 = 20
+            elif growth_months >= 2:
                 s1 = 10
-            elif growth_months >= REVENUE_GROWTH_MONTHS:
-                s1 = 8
             elif growth_months >= 1:
-                s1 = 3
+                s1 = 5
 
             # 檢查月營收是否創歷史新高
             detail["revenue_record_high"] = float(rev["revenue"].iloc[-1]) >= float(rev["revenue"].max())
 
     detail["breakdown"]["月營收連成長"] = s1
     score += s1
-
-    # ── 指標2：近2季 EPS 成長（最高 7 分）
-    s2 = 0
-    if not financial_df.empty:
-        fin = financial_df.copy()
-        eps_df = fin[fin.get("type", fin.get("origin_name", "")) == "EPS"].copy() \
-                 if "type" in fin.columns else pd.DataFrame()
-
-        if eps_df.empty and "type" in fin.columns:
-            eps_df = fin[fin["type"].str.upper() == "EPS"].copy()
-
-        if not eps_df.empty:
-            eps_df["value"] = pd.to_numeric(eps_df["value"], errors="coerce")
-            eps_df = eps_df.sort_values("date")
-            eps_vals = eps_df["value"].dropna().tolist()
-            if len(eps_vals) >= 3:
-                # 近兩季 EPS 季增
-                q1_growth = (eps_vals[-1] - eps_vals[-2]) / abs(eps_vals[-2]) \
-                            if eps_vals[-2] != 0 else 0
-                q2_growth = (eps_vals[-2] - eps_vals[-3]) / abs(eps_vals[-3]) \
-                            if eps_vals[-3] != 0 else 0
-                avg_growth = (q1_growth + q2_growth) / 2
-                detail["eps_avg_growth"] = round(avg_growth, 4)
-                if avg_growth >= EPS_GROWTH_HIGH:
-                    s2 = 7
-                elif avg_growth >= EPS_GROWTH_MID:
-                    s2 = 5
-                elif avg_growth > 0:
-                    s2 = 2
-
-    detail["breakdown"]["EPS成長"] = s2
-    score += s2
-
-    # ── 指標3：毛利率改善（最高 10 分）
-    s3 = 0
-    if not financial_df.empty and "type" in financial_df.columns:
-        gpm_df = financial_df[
-            financial_df["type"].str.contains("GrossProfitMargin|毛利率", na=False, regex=True)
-        ].copy()
-        if not gpm_df.empty:
-            gpm_df["value"] = pd.to_numeric(gpm_df["value"], errors="coerce")
-            gpm_df = gpm_df.sort_values("date")
-            gpm_vals = gpm_df["value"].dropna().tolist()
-            if len(gpm_vals) >= 2 and gpm_vals[-1] > gpm_vals[-2]:
-                s3 = 10
-                detail["gpm_improving"] = True
-
-    detail["breakdown"]["毛利率改善"] = s3
-    score += s3
 
     return {"score": min(score, 20), "detail": detail}
 

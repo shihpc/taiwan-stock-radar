@@ -94,7 +94,7 @@ EXCLUDE_ETFS = False              # 保留 ETF
 EXCLUDE_WARRANTS = True           # 排除權證（由 filters.py 名稱關鍵字判斷）
 
 # ── Sprint 2：股權分散表參數 ─────────────────────────────────
-HOLDING_LOOKBACK_WEEKS = 4        # 大戶持股觀察週數
+HOLDING_LOOKBACK_WEEKS = 2        # 大戶持股觀察週數
 HOLDING_BIG_THRESHOLD = 400       # 大戶定義：400張以上
 HOLDING_CONCENTRATION_CHANGE = 0.5 # 大戶比例4週變化 > 0.5% 才算集中
 
@@ -102,7 +102,7 @@ HOLDING_CONCENTRATION_CHANGE = 0.5 # 大戶比例4週變化 > 0.5% 才算集中
 MARGIN_CLEAN_THRESHOLD  = 0.20    # 融資率 < 20% = 籌碼乾淨
 MARGIN_WARN_THRESHOLD   = 0.50    # 融資率 > 50% = 警示
 MARGIN_BLOCK_THRESHOLD  = 0.60    # 融資率 > 60% = 直接過濾
-SHORT_SQUEEZE_THRESHOLD = 0.60    # 融券率 > 60% = 軋空潛力（原 30%，改為 60%）
+SHORT_SQUEEZE_THRESHOLD = 0.30    # 融券率 > 30% = 軋空潛力
 
 # ── Sprint 2：滿分調整（加入持股分散+融資券評分後重新計算）
 # 評分結構：A(20) + B(20) + C(0) + D(20) + E(20) + 股權分散(10) + 融資券(8)

@@ -963,7 +963,7 @@ body::before{
     <div class="sub-page" id="sp4" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;">
       <div class="pg">
         <div style="background:rgba(0,255,157,.05);border:1px solid rgba(0,255,157,.2);border-radius:8px;padding:8px 12px;font-size:.65rem;color:var(--t2);line-height:1.6;">
-          ⚡ <strong style="color:var(--c2)">融資券</strong>：融券率高代表空頭部位積累，若股價持續不跌或上漲，空單被迫回補將形成軋空行情，帶來快速漲幅。融券率 > 15% 視為潛在軋空標的。
+          ⚡ <strong style="color:var(--c2)">融資券</strong>：融券率高代表空頭部位積累，若股價持續不跌或上漲，空單被迫回補將形成軋空行情，帶來快速漲幅。融券率 > 30% 視為潛在軋空標的。
         </div>
         <div class="section-hdr">融券軋空潛力排行</div>
         <div id="marginRankList">
@@ -1299,7 +1299,7 @@ body::before{
           </div>
         </div>
         <div style="display:flex;align-items:center;padding:7px 0;">
-          <span style="font-size:.65rem;color:var(--t2);flex:1;">大戶4週持股變化最低</span>
+          <span style="font-size:.65rem;color:var(--t2);flex:1;">大戶 2 週持股變化最低</span>
           <div style="display:flex;align-items:center;gap:8px;">
             <input type="range" id="f-minBigChg" min="-5" max="5" step="0.5" value="-5"
               style="width:110px;accent-color:var(--c1);cursor:pointer;"
@@ -2502,18 +2502,18 @@ function renderBrokerRank() {
 //  排序邏輯：融資率低 + S2m高 = 最乾淨
 // ══════════════════════════════════════════
 function renderMarginRank() {
-  // 篩選：融券率 > 15%（軋空潛力），依融券率由高到低排序
+  // 篩選：融券率 > 30%（軋空潛力），依融券率由高到低排序
   const qualified = allStockData
-    .filter(s => s.short_ratio > 15)
+    .filter(s => s.short_ratio > 30)
     .sort((a,b) => b.short_ratio - a.short_ratio)
     .slice(0,30);
 
-  const bar = sampleInfoBar(allStockData.length, Math.min(qualified.length,30), '融券率>15%', 'var(--c2)');
+  const bar = sampleInfoBar(allStockData.length, Math.min(qualified.length,30), '融券率>30%', 'var(--c2)');
   document.getElementById('marginRankList').innerHTML = bar +
     (qualified.length === 0
       ? `<div class="empty"><div class="empty-icon">⚡</div><div class="empty-title">本日無符合條件個股</div></div>`
       : qualified.map((s,i) => buildDimRankCard(s, i+1, 'M')).join('')) +
-    `<div style="text-align:center;padding:8px;font-size:.6rem;color:var(--t3)">篩選條件：融券率>15%（含ETF），共 ${qualified.length} 支入榜</div>`;
+    `<div style="text-align:center;padding:8px;font-size:.6rem;color:var(--t3)">篩選條件：融券率>30%（含ETF），共 ${qualified.length} 支入榜</div>`;
 }
 
 // ══════════════════════════════════════════
@@ -3064,7 +3064,7 @@ function renderDetail(s) {
           <div class="dim-progress" style="margin-bottom:8px;"><div class="dim-fill" style="width:${s.S2h/25*100}%"></div></div>
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;">
             <div style="background:rgba(255,140,66,.06);border:1px solid rgba(255,140,66,.18);border-radius:5px;padding:5px;text-align:center;">
-              <div style="font-size:.48rem;color:var(--t3);margin-bottom:2px;">大戶4週變化</div>
+              <div style="font-size:.48rem;color:var(--t3);margin-bottom:2px;">大戶 2 週變化</div>
               <div style="font-family:'Space Mono',monospace;font-size:.75rem;color:${s.big_chg>0?'var(--c6)':'var(--t3)'};font-weight:700;">${s.big_chg>0?'+':''}${s.big_chg}%</div>
             </div>
             <div style="background:rgba(255,140,66,.06);border:1px solid rgba(255,140,66,.18);border-radius:5px;padding:5px;text-align:center;">
