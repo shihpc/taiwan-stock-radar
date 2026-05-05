@@ -1136,16 +1136,25 @@ body::before{
         <span id="filterPassCount" style="font-family:'Space Mono',monospace;font-size:.78rem;color:var(--c4);font-weight:700;">尚未掃描</span>
       </div>
 
-      <!-- 候選門檻 -->
+      <!-- 分數門檻 -->
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;">
-        <div style="font-size:.63rem;color:var(--c1);font-weight:700;margin-bottom:8px;letter-spacing:1px;">候選門檻</div>
+        <div style="font-size:.63rem;color:var(--c1);font-weight:700;margin-bottom:8px;letter-spacing:1px;">分數門檻</div>
         <div style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid rgba(0,200,255,.05);">
-          <span style="font-size:.65rem;color:var(--t2);flex:1;">最低總分</span>
+          <span style="font-size:.65rem;color:var(--t2);flex:1;">候選名單門檻</span>
           <div style="display:flex;align-items:center;gap:8px;">
             <input type="range" id="f-minScore" min="0" max="118" step="1" value="52"
               style="width:110px;accent-color:var(--c1);cursor:pointer;"
               oninput="updateFilter('minScore',this.value)"/>
-            <span id="fv-minScore" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:36px;text-align:right;">77 <span style="font-size:.55rem;color:var(--t3);">/118</span></span>
+            <span id="fv-minScore" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:36px;text-align:right;">52 <span style="font-size:.55rem;color:var(--t3);">/118</span></span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid rgba(0,200,255,.05);">
+          <span style="font-size:.65rem;color:var(--t2);flex:1;">強烈關注門檻</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="range" id="f-strongScore" min="0" max="118" step="1" value="95"
+              style="width:110px;accent-color:var(--c1);cursor:pointer;"
+              oninput="updateFilter('strongScore',this.value)"/>
+            <span id="fv-strongScore" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:36px;text-align:right;">95 <span style="font-size:.55rem;color:var(--t3);">/118</span></span>
           </div>
         </div>
         <div style="display:flex;align-items:center;padding:8px 0;">
@@ -1901,6 +1910,7 @@ setInterval(updateMarketStatus, 60000);
 // ══════════════════════════════════════════
 const SETTINGS_DEFAULTS = {
   minScore:       52,
+  strongScore:    95,
   maxDisplay:     30,
   minA:           0,
   minB:           0,
@@ -1933,10 +1943,12 @@ let allStockData = [];
 let scanResults  = [];
 
 // 設定版本 — 升一版會把 SETTINGS_MIGRATIONS[版號] 列出的 key 強制套用新預設
-const SETTINGS_VERSION = 2;
+const SETTINGS_VERSION = 3;
 const SETTINGS_MIGRATIONS = {
   // v2：minScore 預設由 77 改為 52
   2: ['minScore'],
+  // v3：新增 strongScore 預設 95
+  3: ['strongScore'],
 };
 
 function loadFilterSettings() {
@@ -1977,6 +1989,7 @@ function saveFilterSettings() {
 function applySettingsToUI() {
   const fmtMap = {
     minScore:       v => `${v} <span style="font-size:.55rem;color:var(--t3);">/118</span>`,
+    strongScore:    v => `${v} <span style="font-size:.55rem;color:var(--t3);">/118</span>`,
     maxDisplay:     v => `${v} <span style="font-size:.55rem;color:var(--t3);">支</span>`,
     minA:           v => `${v} <span style="font-size:.55rem;color:var(--t3);">/20</span>`,
     minB:           v => `${v} <span style="font-size:.55rem;color:var(--t3);">/20</span>`,
@@ -2017,6 +2030,7 @@ function updateFilter(key, rawVal) {
   userSettings[key] = parseFloat(rawVal);
   const fmtMap = {
     minScore:       v => `${v} <span style="font-size:.55rem;color:var(--t3);">/118</span>`,
+    strongScore:    v => `${v} <span style="font-size:.55rem;color:var(--t3);">/118</span>`,
     maxDisplay:     v => `${v} <span style="font-size:.55rem;color:var(--t3);">支</span>`,
     minA:           v => `${v} <span style="font-size:.55rem;color:var(--t3);">/20</span>`,
     minB:           v => `${v} <span style="font-size:.55rem;color:var(--t3);">/20</span>`,
@@ -2420,7 +2434,7 @@ async function startScan() {
     // 統計數字
     document.getElementById('sumTotal').textContent = allStockData.length.toLocaleString();
     document.getElementById('sumCand').textContent  = scanResults.length;
-    document.getElementById('sumStrong').textContent = scanResults.filter(s=>s.score>=95).length;
+    document.getElementById('sumStrong').textContent = scanResults.filter(s=>s.score>=userSettings.strongScore).length;
     updateFilterCountDisplay();
     document.getElementById('nd0').classList.add('show');
     document.getElementById('nd2').classList.add('show');
@@ -2462,7 +2476,7 @@ function renderRankList() {
 function buildStockCard(s, rank) {
   const rankClass = rank <= 3 ? `rank-${rank}` : 'rank-n';
   const cardClass = rank <= 3 ? 'stock-card top' : 'stock-card';
-  const scoreColor = s.score>=95?'s-high':s.score>=85?'s-mid':'s-low';
+  const scoreColor = s.score>=userSettings.strongScore?'s-high':s.score>=userSettings.strongScore-10?'s-mid':'s-low';
   const isUp = s.chg >= 0;
   const tags = (s.tags||[]).slice(0,3).map(t => {
     let cls = 'tag-law';
