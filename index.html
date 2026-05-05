@@ -2752,6 +2752,56 @@ function pickDetailHint(code) {
   detailSearch();
 }
 
+// ── Wikipedia 公司簡介（CORS 友善，純前端可用）────────────
+async function fetchWikiSummary(stockName) {
+  if (!stockName) return null;
+
+  // 1. localStorage 7 天快取
+  try {
+    const cache = JSON.parse(localStorage.getItem('wikiSummary') || '{}');
+    const hit = cache[stockName];
+    if (hit && Date.now() - (hit.ts || 0) < 7 * 86400_000) {
+      return hit.data;
+    }
+  } catch (_) {}
+
+  // 2. 嘗試直接查 → 失敗則用 search 找最相近的條目
+  async function tryGet(title) {
+    const url = `https://zh.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    const j = await r.json();
+    if (j.type === 'disambiguation' || !j.extract) return null;
+    return {
+      extract: j.extract,
+      pageUrl: j.content_urls?.desktop?.page || `https://zh.wikipedia.org/wiki/${encodeURIComponent(title)}`,
+    };
+  }
+
+  try {
+    let data = await tryGet(stockName);
+    if (!data) {
+      // 找不到 → 用 opensearch 找接近的條目（例如「台積電」→「台灣積體電路製造」）
+      const sUrl = `https://zh.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(stockName)}&limit=1&format=json&origin=*`;
+      const sr = await fetch(sUrl);
+      if (sr.ok) {
+        const sj = await sr.json();
+        const altTitle = sj?.[1]?.[0];
+        if (altTitle && altTitle !== stockName) data = await tryGet(altTitle);
+      }
+    }
+    // 寫入 cache（即使是 null 也寫入避免重複查詢）
+    try {
+      const cache = JSON.parse(localStorage.getItem('wikiSummary') || '{}');
+      cache[stockName] = { ts: Date.now(), data };
+      localStorage.setItem('wikiSummary', JSON.stringify(cache));
+    } catch (_) {}
+    return data;
+  } catch (_) {
+    return null;
+  }
+}
+
 function renderDetail(s) {
   const isUp = s.chg >= 0;
   const dims = [
@@ -2788,7 +2838,7 @@ function renderDetail(s) {
         </div>
       </div>
 
-      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;margin-bottom:10px;font-size:.68rem;color:var(--t2);line-height:1.75;">
+      <div id="detailIntroBox" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;margin-bottom:10px;font-size:.68rem;color:var(--t2);line-height:1.75;">
         ${intro}
       </div>
 
@@ -2796,7 +2846,7 @@ function renderDetail(s) {
         <div style="font-size:.62rem;color:${signalColor};font-weight:700;letter-spacing:2px;margin-bottom:3px;">${s.signal==='BUY'?'📈 買進訊號':'👀 觀察訊號'}</div>
         <div style="font-size:.7rem;color:var(--t1);line-height:1.6;">${s.signal_desc}</div>
       </div>
-      <div style="display:flex;gap:6px;margin-bottom:10px;">
+      <div style="display:flex;gap:6px;margin-bottom:6px;">
         <button onclick="viewKlineFromDetail('${s.code}')"
           style="flex:1;background:rgba(0,207,255,.08);border:1px solid var(--border2);
                  border-radius:8px;padding:7px;color:var(--c1);font-size:.65rem;
@@ -2809,11 +2859,35 @@ function renderDetail(s) {
                  font-weight:700;cursor:pointer;">
           📊 TV 圖表
         </button>
+      </div>
+      <!-- 外部資源連結 -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:10px;">
+        <a href="https://goodinfo.tw/tw/StockInfo/StockDetail.asp?STOCK_ID=${s.code}" target="_blank" rel="noopener"
+          style="display:flex;align-items:center;justify-content:center;
+                 background:var(--bg3);border:1px solid var(--border);
+                 border-radius:6px;padding:6px 2px;color:var(--t2);font-size:.6rem;
+                 text-decoration:none;white-space:nowrap;">
+          📑 Goodinfo
+        </a>
+        <a href="https://mops.twse.com.tw/mops/web/t05st03?step=1&keyword4=${s.code}" target="_blank" rel="noopener"
+          style="display:flex;align-items:center;justify-content:center;
+                 background:var(--bg3);border:1px solid var(--border);
+                 border-radius:6px;padding:6px 2px;color:var(--t2);font-size:.6rem;
+                 text-decoration:none;white-space:nowrap;">
+          🏛 公開觀測站
+        </a>
+        <a href="https://tw.stock.yahoo.com/quote/${s.code}" target="_blank" rel="noopener"
+          style="display:flex;align-items:center;justify-content:center;
+                 background:var(--bg3);border:1px solid var(--border);
+                 border-radius:6px;padding:6px 2px;color:var(--t2);font-size:.6rem;
+                 text-decoration:none;white-space:nowrap;">
+          📰 Yahoo 股市
+        </a>
         <a href="https://www.cnyes.com/twstock/${s.code}" target="_blank" rel="noopener"
-          style="flex:1;display:flex;align-items:center;justify-content:center;
-                 background:rgba(0,207,255,.04);border:1px solid var(--border);
-                 border-radius:8px;padding:7px;color:var(--t2);font-size:.65rem;
-                 text-decoration:none;">
+          style="display:flex;align-items:center;justify-content:center;
+                 background:var(--bg3);border:1px solid var(--border);
+                 border-radius:6px;padding:6px 2px;color:var(--t2);font-size:.6rem;
+                 text-decoration:none;white-space:nowrap;">
           🔗 鉅亨網
         </a>
       </div>
@@ -3031,9 +3105,26 @@ function renderDetail(s) {
     </div>
   `;
   fetchStockNews(s);
+
+  // 背景抓 Wikipedia 公司簡介（CORS 友善），抓到後替換 intro 區塊
+  fetchWikiSummary(s.name).then(wiki => {
+    if (!wiki || !wiki.extract) return;
+    // 確認使用者還在看同一支股票
+    if (selectedStock?.code !== s.code) return;
+    const box = document.getElementById('detailIntroBox');
+    if (!box) return;
+    box.innerHTML = `
+      ${wiki.extract}
+      <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border);
+                  font-size:.55rem;color:var(--t3);">
+        資料來源：<a href="${wiki.pageUrl}" target="_blank" rel="noopener"
+          style="color:var(--c1);text-decoration:none;">維基百科</a>
+      </div>
+    `;
+  });
 }
 
-// 自動產生個股簡介（串接真實 CSV 時，scanner.py 輸出 intro 欄位取代此函式）
+// 自動產生個股簡介（fallback：Wiki 抓不到時用此模板）
 function generateStockIntro(s) {
   const indDesc = {
     '晶圓代工':'提供專業積體電路晶圓代工服務，為全球半導體產業關鍵環節',
