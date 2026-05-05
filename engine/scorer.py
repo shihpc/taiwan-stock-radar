@@ -204,7 +204,10 @@ def score_trust(institutional_df: pd.DataFrame,
         for i in range(1, len(merged)):
             row = merged.iloc[i]
             prev = merged.iloc[i-1]
-            price_chg = (row["price_close"] - prev["price_close"]) / prev["price_close"]
+            prev_close = prev["price_close"]
+            if not prev_close or prev_close == 0:
+                continue   # 避免 divide by zero（停牌或資料異常）
+            price_chg = (row["price_close"] - prev_close) / prev_close
             if price_chg <= TRUST_PULLBACK_DROP_PCT and row["diff"] > 0:
                 pullback_days += 1
 

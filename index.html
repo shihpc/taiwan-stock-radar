@@ -2752,56 +2752,6 @@ function pickDetailHint(code) {
   detailSearch();
 }
 
-// ── Wikipedia 公司簡介（CORS 友善，純前端可用）────────────
-async function fetchWikiSummary(stockName) {
-  if (!stockName) return null;
-
-  // 1. localStorage 7 天快取
-  try {
-    const cache = JSON.parse(localStorage.getItem('wikiSummary') || '{}');
-    const hit = cache[stockName];
-    if (hit && Date.now() - (hit.ts || 0) < 7 * 86400_000) {
-      return hit.data;
-    }
-  } catch (_) {}
-
-  // 2. 嘗試直接查 → 失敗則用 search 找最相近的條目
-  async function tryGet(title) {
-    const url = `https://zh.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
-    const r = await fetch(url);
-    if (!r.ok) return null;
-    const j = await r.json();
-    if (j.type === 'disambiguation' || !j.extract) return null;
-    return {
-      extract: j.extract,
-      pageUrl: j.content_urls?.desktop?.page || `https://zh.wikipedia.org/wiki/${encodeURIComponent(title)}`,
-    };
-  }
-
-  try {
-    let data = await tryGet(stockName);
-    if (!data) {
-      // 找不到 → 用 opensearch 找接近的條目（例如「台積電」→「台灣積體電路製造」）
-      const sUrl = `https://zh.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(stockName)}&limit=1&format=json&origin=*`;
-      const sr = await fetch(sUrl);
-      if (sr.ok) {
-        const sj = await sr.json();
-        const altTitle = sj?.[1]?.[0];
-        if (altTitle && altTitle !== stockName) data = await tryGet(altTitle);
-      }
-    }
-    // 寫入 cache（即使是 null 也寫入避免重複查詢）
-    try {
-      const cache = JSON.parse(localStorage.getItem('wikiSummary') || '{}');
-      cache[stockName] = { ts: Date.now(), data };
-      localStorage.setItem('wikiSummary', JSON.stringify(cache));
-    } catch (_) {}
-    return data;
-  } catch (_) {
-    return null;
-  }
-}
-
 function renderDetail(s) {
   const isUp = s.chg >= 0;
   const dims = [
@@ -3105,23 +3055,6 @@ function renderDetail(s) {
     </div>
   `;
   fetchStockNews(s);
-
-  // 背景抓 Wikipedia 公司簡介（CORS 友善），抓到後替換 intro 區塊
-  fetchWikiSummary(s.name).then(wiki => {
-    if (!wiki || !wiki.extract) return;
-    // 確認使用者還在看同一支股票
-    if (selectedStock?.code !== s.code) return;
-    const box = document.getElementById('detailIntroBox');
-    if (!box) return;
-    box.innerHTML = `
-      ${wiki.extract}
-      <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border);
-                  font-size:.55rem;color:var(--t3);">
-        資料來源：<a href="${wiki.pageUrl}" target="_blank" rel="noopener"
-          style="color:var(--c1);text-decoration:none;">維基百科</a>
-      </div>
-    `;
-  });
 }
 
 // 自動產生個股簡介（fallback：Wiki 抓不到時用此模板）
