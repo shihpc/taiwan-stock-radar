@@ -200,16 +200,12 @@ def score_trust(institutional_df: pd.DataFrame,
             on="date", how="inner"
         ).sort_values("date")
 
-        pullback_days = 0
-        for i in range(1, len(merged)):
-            row = merged.iloc[i]
-            prev = merged.iloc[i-1]
-            prev_close = prev["price_close"]
-            if not prev_close or prev_close == 0:
-                continue   # 避免 divide by zero（停牌或資料異常）
-            price_chg = (row["price_close"] - prev_close) / prev_close
-            if price_chg <= TRUST_PULLBACK_DROP_PCT and row["diff"] > 0:
-                pullback_days += 1
+        # 使用 pct_change 內建處理 0 與 NaN，避免 divide by zero warning
+        merged = merged.copy()
+        merged["price_close"] = pd.to_numeric(merged["price_close"], errors="coerce")
+        merged["price_chg"] = merged["price_close"].pct_change()
+        mask = (merged["price_chg"] <= TRUST_PULLBACK_DROP_PCT) & (merged["diff"] > 0)
+        pullback_days = int(mask.fillna(False).sum())
 
         if pullback_days >= 2:
             s3 = 5
