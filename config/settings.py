@@ -55,16 +55,16 @@ FOREIGN_CONSEC_DAYS_TOP  = 5      # 連買 5 日 → 5 分
 FOREIGN_TURNOVER_PCT_MID  = 0.30  # 買超佔成交 30% → 3 分
 FOREIGN_TURNOVER_PCT_HIGH = 0.50  # 買超佔成交 50% → 5 分
 FOREIGN_HOLDING_WINDOW    = 20    # 持股比例上升判斷視窗（天）
-FOREIGN_HOLDING_SLOPE_MID = 0.0   # 斜率 > 0 → 3 分
-FOREIGN_HOLDING_SLOPE_TOP = 1.5   # 斜率 > 1.5 → 5 分
+FOREIGN_HOLDING_SLOPE_MID = 0.25  # 斜率 > 0.25 → 5 分（每天平均 +0.25 個百分點）
+FOREIGN_HOLDING_SLOPE_TOP = 0.50  # 斜率 > 0.50 → 10 分（每天平均 +0.5 個百分點）
 
 # ── B. 投信認養評分參數 ──────────────────────────────────────
 TRUST_CONSEC_DAYS_MID  = 1        # 連買 1 日 → 3 分
 TRUST_CONSEC_DAYS_HIGH = 3        # 連買 3 日 → 7 分
 TRUST_CONSEC_DAYS_TOP  = 5        # 連買 5 日 → 10 分
-TRUST_HOLDING_PCT_LOW  = 0.05     # 持股佔流通  5% → 5 分
-TRUST_HOLDING_PCT_MID  = 0.10     # 持股佔流通 10% → 10 分
-TRUST_HOLDING_PCT_HIGH = 0.20     # 持股佔流通 20% → 15 分
+TRUST_HOLDING_PCT_LOW  = 0.10     # 持股佔流通 10% → 1 分
+TRUST_HOLDING_PCT_MID  = 0.20     # 持股佔流通 20% → 3 分
+TRUST_HOLDING_PCT_HIGH = 0.30     # 持股佔流通 30% → 5 分
 TRUST_PULLBACK_DROP_PCT = -0.01   # 認定拉回的跌幅門檻（-1%）
 
 # ── D. 技術面評分參數 ────────────────────────────────────────
