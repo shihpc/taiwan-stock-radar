@@ -85,6 +85,46 @@ def _save_cache(dataset: str, stock_id: str, df: pd.DataFrame) -> None:
         pass
 
 
+# ── 全市場單日批次的 cache（過去日期永久有效）────────────────
+
+def _all_cache_path(dataset: str, date: str) -> Path:
+    return _CACHE_ROOT / f"{dataset}_all_{date.replace('-', '')}.pkl"
+
+
+def _load_all_cache(dataset: str, date: str) -> Optional[pd.DataFrame]:
+    """讀取單日全市場 cache。當日資料不從 cache 讀（避免拿到盤中不完整資料）"""
+    today = datetime.today().strftime("%Y-%m-%d")
+    if date >= today:
+        return None
+    path = _all_cache_path(dataset, date)
+    if not path.exists():
+        return None
+    try:
+        with open(path, "rb") as f:
+            df = pickle.load(f)
+        logger.debug(f"[cache hit] {dataset} all {date}")
+        return df
+    except Exception:
+        path.unlink(missing_ok=True)
+        return None
+
+
+def _save_all_cache(dataset: str, date: str, df: pd.DataFrame) -> None:
+    """寫入單日全市場 cache。當日資料與空 DataFrame 不寫入"""
+    today = datetime.today().strftime("%Y-%m-%d")
+    if date >= today:
+        return
+    if df is None or df.empty:
+        return
+    _CACHE_ROOT.mkdir(parents=True, exist_ok=True)
+    path = _all_cache_path(dataset, date)
+    try:
+        with open(path, "wb") as f:
+            pickle.dump(df, f)
+    except Exception:
+        pass
+
+
 # ── 基礎請求函式 ──────────────────────────────────────────────
 
 def _get(dataset: str, params: dict, retry: int = 1,
@@ -220,11 +260,16 @@ def fetch_stock_price(stock_id: str, days_back: int = LOOKBACK_DAYS) -> pd.DataF
 def fetch_all_stock_price_by_date(date: str) -> pd.DataFrame:
     """
     取得全市場單日所有股票收盤資料（Backer/Sponsor 限定）。
-    用於批次掃描，避免逐支呼叫。
+    用於批次掃描，避免逐支呼叫。過去日期永久 cache。
     """
+    cached = _load_all_cache("TaiwanStockPrice", date)
+    if cached is not None:
+        return cached
     logger.info(f"取得全市場收盤 {date}...")
-    return _get("TaiwanStockPrice", {"start_date": date, "end_date": date},
-                retry=2, timeout=60)
+    df = _get("TaiwanStockPrice", {"start_date": date, "end_date": date},
+              retry=2, timeout=60)
+    _save_all_cache("TaiwanStockPrice", date, df)
+    return df
 
 
 def fetch_all_stock_price_history(end_date: str, days_back: int = LOOKBACK_DAYS) -> pd.DataFrame:
@@ -279,10 +324,12 @@ def fetch_institutional(stock_id: str, days_back: int = 30) -> pd.DataFrame:
 
 def fetch_all_institutional_by_date(date: str) -> pd.DataFrame:
     """
-    取得全市場單日三大法人（Backer/Sponsor 限定）。
-    這是掃描器的核心呼叫，一次拿全市場，避免逐支請求。
+    取得全市場單日三大法人（Backer/Sponsor 限定）。過去日期永久 cache。
     欄位：date, stock_id, name, buy, sell, diff
     """
+    cached = _load_all_cache("TaiwanStockInstitutionalInvestorsBuySell", date)
+    if cached is not None:
+        return cached
     logger.info(f"取得全市場法人 {date}...")
     df = _get("TaiwanStockInstitutionalInvestorsBuySell", {
         "start_date": date,
@@ -296,11 +343,9 @@ def fetch_all_institutional_by_date(date: str) -> pd.DataFrame:
 
     # FinMind 批次 API 有時回傳多日資料，過濾到指定日期
     if "date" in df.columns:
-        date_vals = df["date"].astype(str).str[:10].unique()
-        logger.info(f"法人批次資料日期範圍：{sorted(date_vals)}")
         df = df[df["date"].astype(str).str[:10] == date]
-        logger.info(f"過濾後（{date}）：{len(df)} 筆")
 
+    _save_all_cache("TaiwanStockInstitutionalInvestorsBuySell", date, df)
     return df
 
 
@@ -353,9 +398,10 @@ def fetch_margin(stock_id: str, days_back: int = 10) -> pd.DataFrame:
 
 
 def fetch_all_margin_by_date(date: str) -> pd.DataFrame:
-    """
-    取得全市場單日融資融券（Backer/Sponsor 限定）。
-    """
+    """全市場單日融資融券（Sponsor 限定）。過去日期永久 cache。"""
+    cached = _load_all_cache("TaiwanStockMarginPurchaseShortSale", date)
+    if cached is not None:
+        return cached
     logger.info(f"取得全市場融資券 {date}...")
     df = _get("TaiwanStockMarginPurchaseShortSale", {
         "start_date": date,
@@ -363,6 +409,7 @@ def fetch_all_margin_by_date(date: str) -> pd.DataFrame:
     }, retry=2, timeout=60)
     if not df.empty:
         df["stock_id"] = df["stock_id"].astype(str).str.strip()
+    _save_all_cache("TaiwanStockMarginPurchaseShortSale", date, df)
     return df
 
 
@@ -383,7 +430,10 @@ def fetch_all_margin_history(end_date: str, days_back: int = 15) -> pd.DataFrame
 
 
 def fetch_all_shareholding_by_date(date: str) -> pd.DataFrame:
-    """全市場單日外資持股（Sponsor 限定）"""
+    """全市場單日外資持股（Sponsor 限定）。過去日期永久 cache。"""
+    cached = _load_all_cache("TaiwanStockShareholding", date)
+    if cached is not None:
+        return cached
     df = _get("TaiwanStockShareholding", {
         "start_date": date, "end_date": date,
     }, retry=2, timeout=60)
@@ -392,6 +442,7 @@ def fetch_all_shareholding_by_date(date: str) -> pd.DataFrame:
     df["stock_id"] = df["stock_id"].astype(str).str.strip()
     if "date" in df.columns:
         df = df[df["date"].astype(str).str[:10] == date]
+    _save_all_cache("TaiwanStockShareholding", date, df)
     return df
 
 
@@ -445,7 +496,10 @@ def fetch_holding_distribution(stock_id: str, days_back: int = 60) -> pd.DataFra
 
 
 def fetch_all_holding_distribution_by_date(date: str) -> pd.DataFrame:
-    """全市場單日股權分散（Sponsor 限定）"""
+    """全市場單日股權分散（Sponsor 限定）。過去日期永久 cache。"""
+    cached = _load_all_cache("TaiwanStockHoldingSharesPer", date)
+    if cached is not None:
+        return cached
     df = _get("TaiwanStockHoldingSharesPer", {
         "start_date": date, "end_date": date,
     }, retry=2, timeout=90)
@@ -454,6 +508,7 @@ def fetch_all_holding_distribution_by_date(date: str) -> pd.DataFrame:
     df["stock_id"] = df["stock_id"].astype(str).str.strip()
     if "date" in df.columns:
         df = df[df["date"].astype(str).str[:10] == date]
+    _save_all_cache("TaiwanStockHoldingSharesPer", date, df)
     return df
 
 
@@ -494,14 +549,19 @@ def fetch_month_revenue(stock_id: str, months_back: int = REVENUE_LOOKBACK_MONTH
 
 def fetch_all_revenue_by_date(date: str) -> pd.DataFrame:
     """
-    取得全市場單月月營收（Backer/Sponsor 限定）。
+    取得全市場單月月營收（Sponsor 限定）。過去日期永久 cache。
     適合每月 10 日後批次更新。
     """
+    cached = _load_all_cache("TaiwanStockMonthRevenue", date)
+    if cached is not None:
+        return cached
     logger.info(f"取得全市場月營收 {date}...")
-    return _get("TaiwanStockMonthRevenue", {
+    df = _get("TaiwanStockMonthRevenue", {
         "start_date": date,
         "end_date": date,
     }, retry=2, timeout=60)
+    _save_all_cache("TaiwanStockMonthRevenue", date, df)
+    return df
 
 
 def fetch_all_revenue_history(end_date: str, months_back: int = 13) -> pd.DataFrame:
@@ -554,13 +614,17 @@ def fetch_financial_statements(stock_id: str) -> pd.DataFrame:
 
 
 def fetch_all_financial_by_date(date: str) -> pd.DataFrame:
-    """全市場單日財報（Sponsor 限定）"""
+    """全市場單日財報（Sponsor 限定）。過去日期永久 cache。"""
+    cached = _load_all_cache("TaiwanStockFinancialStatements", date)
+    if cached is not None:
+        return cached
     df = _get("TaiwanStockFinancialStatements", {
         "start_date": date, "end_date": date,
     }, retry=2, timeout=90)
     if df.empty:
         return df
     df["stock_id"] = df["stock_id"].astype(str).str.strip()
+    _save_all_cache("TaiwanStockFinancialStatements", date, df)
     return df
 
 
