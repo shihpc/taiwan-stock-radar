@@ -264,13 +264,8 @@ def run_scan(scan_date: str = None, quick: bool = False,
                         f"{elapsed:.0f}s｜候選 {n_cand} 支")
 
         try:
-            # 快速預篩：外資+投信共識 or 單邊大量（phase1_filter 比 min_days=1 嚴格）
+            # 不再做 phase1 預篩，所有股票都評分
             today_inst = cache.institutional_for(stock_id)
-
-
-            if not phase1_filter(today_inst):
-                skip_count += 1
-                continue
 
             # 融資券過濾（快速版，只看今日）
             today_mg = cache.margin_for(stock_id)
