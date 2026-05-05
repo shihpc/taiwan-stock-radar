@@ -201,12 +201,10 @@ def save_app_csv(results: list, scan_date: str):
         big_chg       = round(trend.get("big_chg_4w", 0), 2)
         rsi           = round(r["D_technical"].get("detail", {}).get("rsi", 50), 1)
 
-        # 投信近1/3/5日買超（單位：張，1張=1000股）
-        # cumulative_diff 來自 FinMind buy-sell（股數），轉成張
-        cumulative = int(round(b_det.get("cumulative_diff", 0) / 1000))
-        trust_d5   = cumulative
-        trust_d3   = int(cumulative * 0.65)
-        trust_d1   = int(cumulative * 0.35)
+        # 投信近 1/3/5 個交易日累計買超（張）— 從 scorer 直接算好
+        trust_d1 = b_det.get("trust_d1_lots", 0)
+        trust_d3 = b_det.get("trust_d3_lots", 0)
+        trust_d5 = b_det.get("trust_d5_lots", 0)
 
         # C 子參數
         c_det        = r["C_broker"].get("detail", {})

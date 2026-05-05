@@ -163,6 +163,13 @@ def score_trust(institutional_df: pd.DataFrame,
     detail["consec_days"] = consec
     detail["cumulative_diff"] = int(trust.tail(consec)["diff"].sum()) if consec > 0 else 0
 
+    # 近 1/3/5 個交易日累計買超（張）— 不論是否連買都計算
+    # 注意：FinMind diff 為股數，÷1000 換算為張
+    trust_sorted = trust.sort_values("date", ascending=False)
+    detail["trust_d1_lots"] = int(round(trust_sorted.head(1)["diff"].sum() / 1000))
+    detail["trust_d3_lots"] = int(round(trust_sorted.head(3)["diff"].sum() / 1000))
+    detail["trust_d5_lots"] = int(round(trust_sorted.head(5)["diff"].sum() / 1000))
+
     if consec >= TRUST_CONSEC_DAYS_TOP:    # ≥ 5 天
         s1 = 10
     elif consec >= TRUST_CONSEC_DAYS_HIGH: # ≥ 3 天
@@ -175,10 +182,12 @@ def score_trust(institutional_df: pd.DataFrame,
     score += s1
 
     # ── 指標2：累積持股佔流通比（最高 5 分）
+    # 注意單位：FinMind 法人 buy/sell 為「股」，total_shares 為「張」（1 張=1000 股）
+    # 所以 cumulative（股數）需除以 1000 換成張，才能與 total_shares（張）相除
     s2 = 0
     if total_shares and total_shares > 0:
-        cumulative = trust["diff"].sum()
-        pct = cumulative / total_shares
+        cumulative_lots = trust["diff"].sum() / 1000  # 股 → 張
+        pct = cumulative_lots / total_shares
         detail["holding_pct"] = round(pct, 6)
         if pct >= TRUST_HOLDING_PCT_HIGH:  # ≥ 30%
             s2 = 5
