@@ -2406,6 +2406,12 @@ function buildBreakoutRankCard(s, rank) {
   </div>`;
 }
 
+// ══════════════════════════════════════════
+//  MARGIN RANK（融資 / 融券：5 視窗餘額金額表）
+// ══════════════════════════════════════════
+const MARGIN_WINDOWS = ['1','3','5','10','20'];   // 融資視窗
+const SHORT_WINDOWS  = ['1','3','5','10','21'];   // 融券視窗（依需求 21 日）
+
 function setMarginType(t, btn) {
   marginType = t;
   document.querySelectorAll('.margin-type-chip').forEach(c => c.classList.remove('active'));
