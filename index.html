@@ -1641,20 +1641,23 @@ async function loadScanCSV() {
       } catch(e) {
         s.foreign_radar = {};
       }
-      // 前 30 名 broker top3（新版 {buy,sell} 雙向；舊版 list + broker_dir）
+      // 前 30 名 broker top3（最新 {1:{buy,sell}, 3:{...}, ...} 視窗化）
+      // 兼容中間版 {buy,sell}（無視窗）與最舊版 list + broker_dir
       try {
         const raw = JSON.parse(obj.broker_top3 || '{}');
         if (Array.isArray(raw)) {
-          // 舊格式：依 broker_dir 把 list 放到對應欄位
           const dir = obj.broker_dir || 'buy';
-          s.broker_top3 = (dir === 'sell')
-            ? { buy: [], sell: raw }
-            : { buy: raw, sell: [] };
+          const single = (dir === 'sell')
+            ? { buy: [], sell: raw } : { buy: raw, sell: [] };
+          s.broker_top3 = { '1': single, '3': single, '5': single, '10': single, '20': single };
+        } else if (raw && (raw.buy !== undefined || raw.sell !== undefined)) {
+          const single = { buy: raw.buy || [], sell: raw.sell || [] };
+          s.broker_top3 = { '1': single, '3': single, '5': single, '10': single, '20': single };
         } else {
-          s.broker_top3 = { buy: raw.buy || [], sell: raw.sell || [] };
+          s.broker_top3 = raw || {};
         }
       } catch(e) {
-        s.broker_top3 = { buy: [], sell: [] };
+        s.broker_top3 = {};
       }
       // 投信進出 5 視窗 JSON
       try {
@@ -1662,19 +1665,22 @@ async function loadScanCSV() {
       } catch(e) {
         s.trust_io = {};
       }
-      // 投信前 30 名 broker top3（新版 {buy,sell}；舊版 list + trust_broker_dir）
+      // 投信前 30 名 broker top3（最新視窗化；兼容中間版/舊版）
       try {
         const raw = JSON.parse(obj.trust_broker_top3 || '{}');
         if (Array.isArray(raw)) {
           const dir = obj.trust_broker_dir || 'buy';
-          s.trust_broker_top3 = (dir === 'sell')
-            ? { buy: [], sell: raw }
-            : { buy: raw, sell: [] };
+          const single = (dir === 'sell')
+            ? { buy: [], sell: raw } : { buy: raw, sell: [] };
+          s.trust_broker_top3 = { '1': single, '3': single, '5': single, '10': single, '20': single };
+        } else if (raw && (raw.buy !== undefined || raw.sell !== undefined)) {
+          const single = { buy: raw.buy || [], sell: raw.sell || [] };
+          s.trust_broker_top3 = { '1': single, '3': single, '5': single, '10': single, '20': single };
         } else {
-          s.trust_broker_top3 = { buy: raw.buy || [], sell: raw.sell || [] };
+          s.trust_broker_top3 = raw || {};
         }
       } catch(e) {
-        s.trust_broker_top3 = { buy: [], sell: [] };
+        s.trust_broker_top3 = {};
       }
       // 主力分點 tab：當日 broker 彙總 + 雙向 top3
       try {
@@ -2618,10 +2624,11 @@ function buildTrustIORankCard(s, rank) {
     </tr>`;
   }).join('');
 
-  // 前三大分點（依使用者選擇的方向 chip 決定看買 / 賣超榜）
+  // 前三大分點（依「視窗 chip」+「方向 chip」取對應 top3）
   let brokerSection = '';
   const isBuyDir = trustIODir === 'buy';
-  const top3 = (s.trust_broker_top3 || {})[isBuyDir ? 'buy' : 'sell'] || [];
+  const top3 = ((s.trust_broker_top3 || {})[trustIOSortWindow] || {})[isBuyDir ? 'buy' : 'sell'] || [];
+  const winLabel = trustIOSortWindow === '1' ? '當日' : `${trustIOSortWindow} 日累計`;
   if (top3.length > 0) {
     const dirText  = isBuyDir ? '買超' : '賣超';
     const dirColor = isBuyDir ? 'var(--up)' : 'var(--dn)';
@@ -2629,7 +2636,7 @@ function buildTrustIORankCard(s, rank) {
     brokerSection = `
       <div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(0,200,255,.08);">
         <div style="font-size:.55rem;color:var(--t3);margin-bottom:5px;">
-          前三大金額${dirText}分點（當日）
+          前三大金額${dirText}分點（${winLabel}）
         </div>
         <div style="display:grid;gap:4px;">
           ${top3.map((b,i) => {
@@ -3470,10 +3477,11 @@ function buildForeignRankCard(s, rank) {
     </tr>`;
   }).join('');
 
-  // 前三大分點（依使用者選擇的方向 chip 決定看買 / 賣超榜）
+  // 前三大分點（依「視窗 chip」+「方向 chip」取對應 top3）
   let brokerSection = '';
   const isBuyDir = foreignDir === 'buy';
-  const top3 = (s.broker_top3 || {})[isBuyDir ? 'buy' : 'sell'] || [];
+  const top3 = ((s.broker_top3 || {})[foreignSortWindow] || {})[isBuyDir ? 'buy' : 'sell'] || [];
+  const winLabel = foreignSortWindow === '1' ? '當日' : `${foreignSortWindow} 日累計`;
   if (top3.length > 0) {
     const dirText  = isBuyDir ? '買超' : '賣超';
     const dirColor = isBuyDir ? 'var(--up)' : 'var(--dn)';
@@ -3481,7 +3489,7 @@ function buildForeignRankCard(s, rank) {
     brokerSection = `
       <div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(0,200,255,.08);">
         <div style="font-size:.55rem;color:var(--t3);margin-bottom:5px;">
-          前三大金額${dirText}分點（當日）
+          前三大金額${dirText}分點（${winLabel}）
         </div>
         <div style="display:grid;gap:4px;">
           ${top3.map((b,i) => {
