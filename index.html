@@ -1553,29 +1553,20 @@ async function loadScanCSV() {
 
       // 型別轉換
       const s = {
+        // 基本資料
         code:         obj.code || '',
         name:         obj.name || '',
-        market:       obj.market || '上市',
+        market:       obj.market || '',
         type:         obj.type || 'STOCK',
         industry:     obj.industry || '',
         price:        parseFloat(obj.price) || 0,
         chg:          parseFloat(obj.chg) || 0,
         chg_pct:      parseFloat(obj.chg_pct) || 0,
-        score:        parseInt(obj.score) || 0,
-        pct:          parseFloat(obj.score || 0) / 158,
-        A:            parseInt(obj.A) || 0,
-        B:            parseInt(obj.B) || 0,
-        C:            parseInt(obj.C) || 0,
-        D:            parseInt(obj.D) || 0,
-        E:            parseInt(obj.E) || 0,
-        F:            parseInt(obj.F) || 0,
-        S2h:          parseInt(obj.S2h) || 0,
-        S2m:          parseInt(obj.S2m) || 0,
-        etf_trust_5d: parseFloat(obj.etf_trust_5d) || 0,
-        etf_rank:     obj.etf_rank || 'N/A',
-        etf_chip_cnt: parseInt(obj.etf_chip_cnt) || 0,
-        etf_vol_ratio: parseFloat(obj.etf_vol_ratio) || 0,
-        // 投信雷達
+        // 連買天數 / 融資率（卡片 badge + 個股簡介用）
+        foreign_days: parseInt(obj.foreign_days) || 0,
+        trust_days:   parseInt(obj.trust_days)   || 0,
+        margin_ratio: parseFloat(obj.margin_ratio) || 0,
+        // 投信雷達 tab（單日金額 + 箱型旗標）
         trust_amount_m: parseFloat(obj.trust_amount_m) || 0,
         trust_net_lots: parseInt(obj.trust_net_lots) || 0,
         trust_vwap:     parseFloat(obj.trust_vwap)    || 0,
@@ -1584,54 +1575,12 @@ async function loadScanCSV() {
         box_low:        parseFloat(obj.box_low)       || 0,
         box_amplitude:  parseFloat(obj.box_amplitude) || 0,
         is_box:         parseInt(obj.is_box)          || 0,
-        // 外資雷達（5 視窗 JSON + top3 分點）
-        broker_dir:        obj.broker_dir       || '',
-        // 投信進出（5 視窗 JSON + top3 分點）
-        trust_broker_dir:  obj.trust_broker_dir || '',
-        // 主力分點 tab：突破雷達旗標
+        // 主力分點 tab 突破旗標
         breakout_up:       parseInt(obj.breakout_up)   || 0,
         breakout_down:     parseInt(obj.breakout_down) || 0,
         vol_ratio_5d:      parseFloat(obj.vol_ratio_5d) || 0,
-        foreign_days: parseInt(obj.foreign_days) || 0,
-        trust_days:   parseInt(obj.trust_days) || 0,
-        broker_days:  parseInt(obj.broker_days) || 0,
-        broker_conc:  parseInt(obj.broker_conc) || 0,
-        margin_ratio: parseFloat(obj.margin_ratio) || 0,
-        short_ratio:  parseFloat(obj.short_ratio) || 0,
-        big_chg:      parseFloat(obj.big_chg) || 0,
-        rsi:          parseFloat(obj.rsi) || 50,
-        trust_d1:     parseInt(obj.trust_d1) || 0,
-        trust_d3:     parseInt(obj.trust_d3) || 0,
-        trust_d5:     parseInt(obj.trust_d5) || 0,
-        broker_silent:     parseInt(obj.broker_silent) || 0,
-        broker_known:      parseInt(obj.broker_known) || 0,
-        turnover_pct:      parseFloat(obj.turnover_pct) || 0,
-        holding_rising:    parseInt(obj.holding_rising) || 0,
-        trust_holding_pct: parseFloat(obj.trust_holding_pct) || 0,
-        trust_pullback:    parseInt(obj.trust_pullback) || 0,
-        volume_ratio:      parseFloat(obj.volume_ratio) || 0,
-        ma_trend:          parseInt(obj.ma_trend) || 0,
-        revenue_months:    parseInt(obj.revenue_months) || 0,
-        eps_growth:        parseFloat(obj.eps_growth) || 0,
-        gpm_improving:     parseInt(obj.gpm_improving) || 0,
-        tags:         (obj.tags || '').split(' ').filter(Boolean),
-        signal:       obj.signal || 'NONE',
-        signal_desc:  obj.signal_desc || '',
         scan_date:    obj.scan_date || '',
-        dataDates: {
-          A: obj.scan_date||'', B: obj.scan_date||'',
-          C: obj.scan_date||'', D: obj.scan_date||'',
-          E: obj.scan_date||'', H: obj.scan_date||'',
-          M: obj.scan_date||'',
-        },
       };
-
-      // broker_names JSON 解析
-      try {
-        s.broker_names = JSON.parse(obj.broker_names || '{}');
-      } catch(e) {
-        s.broker_names = {};
-      }
 
       // 外資雷達 5 視窗 JSON
       try {
@@ -2112,9 +2061,6 @@ async function startScan() {
   loadScanHistory().then(h => { scanHistory = h; });
 
   try {
-    // 候選名單（依篩選設定 tab 的條件動態計算）
-    recomputeScanResults();
-
     // 掃描時間（日期+時間）
     const now = new Date();
     const dateStr = now.toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'});
@@ -2156,13 +2102,10 @@ async function startScan() {
     renderMarginRank();
     renderForeignRank();
     renderTrustRadar();
-    renderSignals();
 
     // 統計數字
     document.getElementById('sumTotal').textContent = allStockData.length.toLocaleString();
-    updateFilterCountDisplay();
     document.getElementById('nd0').classList.add('show');
-    document.getElementById('nd2').classList.add('show');
     document.getElementById('statusDot').classList.remove('idle');
   } catch(err) {
     console.error('startScan render 階段錯誤：', err);

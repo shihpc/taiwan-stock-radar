@@ -106,3 +106,26 @@ def compute_trust_io(institutional_df: pd.DataFrame,
                                                   na=False, regex=True)
     ]
     return _compute_io_windows(trust, price_df, windows)
+
+
+def compute_foreign_consec_days(institutional_df: pd.DataFrame) -> int:
+    """外資連續買超天數（從最新日往回算 diff > 0 的天數）"""
+    if institutional_df.empty or "name" not in institutional_df.columns:
+        return 0
+    df = institutional_df.copy()
+    df["diff"] = pd.to_numeric(df.get("diff", 0), errors="coerce").fillna(0)
+    foreign = df[df["name"].str.contains("外資及陸資|Foreign_Investor",
+                                              na=False, regex=True)
+                  & ~df["name"].str.contains("自營|Dealer",
+                                                  na=False, regex=True)]
+    if foreign.empty:
+        return 0
+    foreign["date"] = pd.to_datetime(foreign["date"])
+    foreign = foreign.sort_values("date")
+    consec = 0
+    for v in foreign["diff"].iloc[::-1]:
+        if float(v) > 0:
+            consec += 1
+        else:
+            break
+    return consec

@@ -55,7 +55,9 @@ from data.fetcher import (
     get_last_trading_date,
 )
 from engine.trust_radar import compute_trust_radar
-from engine.foreign_radar import compute_foreign_radar, compute_trust_io
+from engine.foreign_radar import (
+    compute_foreign_radar, compute_trust_io, compute_foreign_consec_days,
+)
 from engine.broker_analysis import compute_top3_brokers
 from engine.breakout_radar import detect_breakout, compute_mainforce_today
 from engine.margin_radar import compute_margin_radar, compute_short_radar
@@ -259,13 +261,18 @@ def run_scan(scan_date: str = None, quick: bool = False,
             inst_hist   = cache.institutional_history_for(stock_id)
             margin_hist = cache.margin_history_for(stock_id)
 
+            tr_radar = compute_trust_radar(inst_hist, price_df)
             result = {
                 "stock_id":      stock_id,
                 "stock_name":    stock_name,
                 "market":        market,
                 "industry":      industry,
-                "margin_ratio":  margin_ratio,
-                "trust_radar":   compute_trust_radar(inst_hist, price_df),
+                # 連買天數（卡片 badge 用）— trust_days 取自 trust_radar，
+                # foreign_days 額外用 helper 算
+                "trust_days":    tr_radar.get("trust_consec_days", 0),
+                "foreign_days":  compute_foreign_consec_days(inst_hist),
+                "margin_ratio_pct": round(margin_ratio * 100, 1) if margin_ratio > 0 else 0,
+                "trust_radar":   tr_radar,
                 "foreign_radar": compute_foreign_radar(inst_hist, price_df),
                 "trust_io":      compute_trust_io(inst_hist, price_df),
                 "breakout":      detect_breakout(price_df),

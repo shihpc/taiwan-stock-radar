@@ -140,6 +140,10 @@ def save_app_csv(results: list, scan_date: str, dataset_dates: dict = None):
             "price":        r.get("price", 0),
             "chg":          r.get("chg", 0),
             "chg_pct":      r.get("chg_pct", 0),
+            # 連買天數 / 融資率（卡片 badge 與個股簡介用）
+            "foreign_days": r.get("foreign_days", 0),
+            "trust_days":   r.get("trust_days",   0),
+            "margin_ratio": r.get("margin_ratio_pct", 0),
             # 投信雷達 tab 用（單日彙總 + 箱型）
             "trust_amount_m": tr.get("trust_amount_m", 0),
             "trust_net_lots": tr.get("trust_net_lots", 0),
