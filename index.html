@@ -804,6 +804,13 @@ body::before{
   font-family:inherit;letter-spacing:1px;font-weight:700;}
 .margin-type-chip:hover{border-color:var(--border3);color:var(--t1);}
 .margin-type-chip.active{background:rgba(0,255,157,.08);border-color:var(--c2);color:var(--c2);}
+/* 方向 chip（外資 / 投信 tab 共用：買超紅 / 賣超綠）*/
+.dir-chip{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:7px;
+  padding:7px;font-size:.7rem;color:var(--t2);cursor:pointer;transition:all .2s;
+  font-family:inherit;letter-spacing:1px;font-weight:700;}
+.dir-chip:hover{border-color:var(--border3);color:var(--t1);}
+.dir-chip.active[data-d="buy"]{background:rgba(255,61,106,.1);border-color:var(--up);color:var(--up);}
+.dir-chip.active[data-d="sell"]{background:rgba(0,255,157,.08);border-color:var(--dn);color:var(--dn);}
 .fr-window-table{width:100%;border-collapse:collapse;font-size:.6rem;font-family:'Space Mono',monospace;margin-top:6px;}
 .fr-window-table th{background:rgba(0,200,255,.04);color:var(--t3);padding:4px 5px;text-align:right;
   font-weight:400;font-size:.55rem;border-bottom:1px solid var(--border);}
@@ -986,15 +993,20 @@ body::before{
         <div style="background:rgba(255,61,106,.06);border:1px solid rgba(255,61,106,.2);border-radius:8px;padding:8px 12px;font-size:.65rem;color:var(--t2);line-height:1.6;">
           🏦 <strong style="color:var(--up)">投信進出</strong>：呈現投信 1/3/5/10/20 日累計買賣超張數與金額（金額=股數×當日加權均價）。前 30 名額外顯示「前三大金額分點」（依該股票 10 日投信方向判定買 / 賣超）。
         </div>
-        <!-- 排序視窗切換 -->
-        <div id="trustIOSortChips" style="display:flex;gap:5px;padding:4px 0 6px;">
+        <!-- 買超 / 賣超 切換 -->
+        <div id="trustIODirChips" style="display:flex;gap:6px;padding:4px 0 4px;">
+          <button class="dir-chip active" data-d="buy"  onclick="setTrustIODir('buy',this)">📈 買超</button>
+          <button class="dir-chip"        data-d="sell" onclick="setTrustIODir('sell',this)">📉 賣超</button>
+        </div>
+        <!-- 視窗切換 -->
+        <div id="trustIOSortChips" style="display:flex;gap:5px;padding:0 0 6px;">
           <button class="trust-io-sort-chip" data-w="1"  onclick="setTrustIOSort('1',this)">1 日</button>
           <button class="trust-io-sort-chip" data-w="3"  onclick="setTrustIOSort('3',this)">3 日</button>
           <button class="trust-io-sort-chip active" data-w="5"  onclick="setTrustIOSort('5',this)">5 日</button>
           <button class="trust-io-sort-chip" data-w="10" onclick="setTrustIOSort('10',this)">10 日</button>
           <button class="trust-io-sort-chip" data-w="20" onclick="setTrustIOSort('20',this)">20 日</button>
         </div>
-        <div class="section-hdr" id="trustIORankHdr">投信 5 日 |金額| 排行</div>
+        <div class="section-hdr" id="trustIORankHdr">投信 5 日買超排行</div>
         <div id="trustIORankList">
           <div class="empty"><div class="empty-icon">🏦</div><div class="empty-title">等待掃描</div><div class="empty-sub">掃描後自動更新</div></div>
         </div>
@@ -1025,15 +1037,20 @@ body::before{
         <div style="background:rgba(0,207,255,.06);border:1px solid rgba(0,207,255,.2);border-radius:8px;padding:8px 12px;font-size:.65rem;color:var(--t2);line-height:1.6;">
           🌊 <strong style="color:var(--c1)">外資進出</strong>：呈現外資 1/3/5/10/20 日累計買賣超張數與金額（金額=股數×當日加權均價）。前 30 名額外顯示「前三大金額分點」（買超個股顯示買超分點、賣超個股顯示賣超分點，依 10 日方向判定）。
         </div>
-        <!-- 排序視窗切換（決定依哪個視窗的 |淨額| 排序）-->
-        <div id="foreignSortChips" style="display:flex;gap:5px;padding:4px 0 6px;">
+        <!-- 買超 / 賣超 切換 -->
+        <div id="foreignDirChips" style="display:flex;gap:6px;padding:4px 0 4px;">
+          <button class="dir-chip active" data-d="buy"  onclick="setForeignDir('buy',this)">📈 買超</button>
+          <button class="dir-chip"        data-d="sell" onclick="setForeignDir('sell',this)">📉 賣超</button>
+        </div>
+        <!-- 視窗切換（決定依哪個視窗的金額排序）-->
+        <div id="foreignSortChips" style="display:flex;gap:5px;padding:0 0 6px;">
           <button class="foreign-sort-chip" data-w="1"  onclick="setForeignSort('1',this)">1 日</button>
           <button class="foreign-sort-chip" data-w="3"  onclick="setForeignSort('3',this)">3 日</button>
           <button class="foreign-sort-chip active" data-w="5"  onclick="setForeignSort('5',this)">5 日</button>
           <button class="foreign-sort-chip" data-w="10" onclick="setForeignSort('10',this)">10 日</button>
           <button class="foreign-sort-chip" data-w="20" onclick="setForeignSort('20',this)">20 日</button>
         </div>
-        <div class="section-hdr" id="foreignRankHdr">外資 5 日 |金額| 排行</div>
+        <div class="section-hdr" id="foreignRankHdr">外資 5 日買超排行</div>
         <div id="foreignRankList">
           <div class="empty"><div class="empty-icon">🌊</div><div class="empty-title">等待掃描</div><div class="empty-sub">掃描後自動更新</div></div>
         </div>
@@ -2635,13 +2652,27 @@ function sampleInfoBar(total, shown, label, color) {
 //                 與外資 tab 同結構但篩投信法人）
 // ══════════════════════════════════════════
 let trustIOSortWindow = '5';
+let trustIODir        = 'buy';   // 'buy' | 'sell'
+
+function _trustIOHdrText() {
+  return `投信 ${trustIOSortWindow} 日${trustIODir === 'buy' ? '買超' : '賣超'}排行`;
+}
 
 function setTrustIOSort(w, btn) {
   trustIOSortWindow = w;
   document.querySelectorAll('.trust-io-sort-chip').forEach(c => c.classList.remove('active'));
   btn.classList.add('active');
   const hdr = document.getElementById('trustIORankHdr');
-  if (hdr) hdr.textContent = `投信 ${w} 日 |金額| 排行`;
+  if (hdr) hdr.textContent = _trustIOHdrText();
+  renderTrustIORank();
+}
+
+function setTrustIODir(d, btn) {
+  trustIODir = d;
+  document.querySelectorAll('#trustIODirChips .dir-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  const hdr = document.getElementById('trustIORankHdr');
+  if (hdr) hdr.textContent = _trustIOHdrText();
   renderTrustIORank();
 }
 
@@ -2649,24 +2680,29 @@ function renderTrustIORank() {
   const w = trustIOSortWindow;
   let qualified = allStockData.filter(s => {
     const ti = s.trust_io || {};
-    const d = ti[w] || {};
-    return Math.abs(d.net_amount_m || 0) > 0;
+    const d  = ti[w] || {};
+    const net = d.net_amount_m || 0;
+    return trustIODir === 'buy' ? net > 0 : net < 0;
   });
 
   qualified.sort((a,b) => {
-    const aw = (a.trust_io && a.trust_io[w]) || {};
-    const bw = (b.trust_io && b.trust_io[w]) || {};
-    return Math.abs(bw.net_amount_m || 0) - Math.abs(aw.net_amount_m || 0);
+    const an = ((a.trust_io && a.trust_io[w]) || {}).net_amount_m || 0;
+    const bn = ((b.trust_io && b.trust_io[w]) || {}).net_amount_m || 0;
+    return trustIODir === 'buy' ? bn - an : an - bn;
   });
   qualified = qualified.slice(0,30);
 
   const total = allStockData.length;
+  const dirText  = trustIODir === 'buy' ? '買超' : '賣超';
+  const dirColor = trustIODir === 'buy' ? 'var(--up)' : 'var(--dn)';
   const bar = sampleInfoBar(total, Math.min(qualified.length,30),
-                              `投信${w}日|金額|`, 'var(--up)');
+                              `投信${w}日${dirText}`, dirColor);
 
   document.getElementById('trustIORankList').innerHTML = bar +
     (qualified.length === 0
-      ? `<div class="empty"><div class="empty-icon">🏦</div><div class="empty-title">本日無投信進出資料</div><div class="empty-sub">休市或法人資料尚未更新</div></div>`
+      ? `<div class="empty"><div class="empty-icon">🏦</div>
+          <div class="empty-title">本日無投信${dirText}個股</div>
+          <div class="empty-sub">休市或法人資料尚未更新</div></div>`
       : qualified.map((s,i) => buildTrustIORankCard(s, i+1)).join('')) +
     `<div style="text-align:center;padding:8px;font-size:.6rem;color:var(--t3)">
       含 ETF；前 30 名顯示前三大金額分點（依 10 日投信方向判定買 / 賣超）
@@ -3070,39 +3106,59 @@ function buildMarginRankCard(s, rank) {
 // ══════════════════════════════════════════
 const FOREIGN_WINDOWS = ['1','3','5','10','20'];
 let foreignSortWindow = '5';
+let foreignDir        = 'buy';   // 'buy' | 'sell'
+
+function _foreignHdrText() {
+  return `外資 ${foreignSortWindow} 日${foreignDir === 'buy' ? '買超' : '賣超'}排行`;
+}
 
 function setForeignSort(w, btn) {
   foreignSortWindow = w;
   document.querySelectorAll('.foreign-sort-chip').forEach(c => c.classList.remove('active'));
   btn.classList.add('active');
   const hdr = document.getElementById('foreignRankHdr');
-  if (hdr) hdr.textContent = `外資 ${w} 日 |金額| 排行`;
+  if (hdr) hdr.textContent = _foreignHdrText();
+  renderForeignRank();
+}
+
+function setForeignDir(d, btn) {
+  foreignDir = d;
+  document.querySelectorAll('#foreignDirChips .dir-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  const hdr = document.getElementById('foreignRankHdr');
+  if (hdr) hdr.textContent = _foreignHdrText();
   renderForeignRank();
 }
 
 function renderForeignRank() {
-  // 入榜：foreign_radar 有資料且該排序視窗 |淨額| > 0
   const w = foreignSortWindow;
+  // 單向過濾：買超 → net > 0；賣超 → net < 0
   let qualified = allStockData.filter(s => {
     const fr = s.foreign_radar || {};
-    const d = fr[w] || {};
-    return Math.abs(d.net_amount_m || 0) > 0;
+    const d  = fr[w] || {};
+    const net = d.net_amount_m || 0;
+    return foreignDir === 'buy' ? net > 0 : net < 0;
   });
 
   qualified.sort((a,b) => {
-    const aw = (a.foreign_radar && a.foreign_radar[w]) || {};
-    const bw = (b.foreign_radar && b.foreign_radar[w]) || {};
-    return Math.abs(bw.net_amount_m || 0) - Math.abs(aw.net_amount_m || 0);
+    const an = ((a.foreign_radar && a.foreign_radar[w]) || {}).net_amount_m || 0;
+    const bn = ((b.foreign_radar && b.foreign_radar[w]) || {}).net_amount_m || 0;
+    // 買超：由大到小；賣超：由小到大（最負）
+    return foreignDir === 'buy' ? bn - an : an - bn;
   });
   qualified = qualified.slice(0,30);
 
   const total = allStockData.length;
+  const dirText  = foreignDir === 'buy' ? '買超' : '賣超';
+  const dirColor = foreignDir === 'buy' ? 'var(--up)' : 'var(--dn)';
   const bar = sampleInfoBar(total, Math.min(qualified.length,30),
-                              `外資${w}日|金額|`, 'var(--c1)');
+                              `外資${w}日${dirText}`, dirColor);
 
   document.getElementById('foreignRankList').innerHTML = bar +
     (qualified.length === 0
-      ? `<div class="empty"><div class="empty-icon">🌊</div><div class="empty-title">本日無外資進出資料</div><div class="empty-sub">休市或法人資料尚未更新</div></div>`
+      ? `<div class="empty"><div class="empty-icon">🌊</div>
+          <div class="empty-title">本日無外資${dirText}個股</div>
+          <div class="empty-sub">休市或法人資料尚未更新</div></div>`
       : qualified.map((s,i) => buildForeignRankCard(s, i+1)).join('')) +
     `<div style="text-align:center;padding:8px;font-size:.6rem;color:var(--t3)">
       含 ETF；前 30 名顯示前三大金額分點（依 10 日方向判定買 / 賣超）
