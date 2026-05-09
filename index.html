@@ -788,6 +788,11 @@ body::before{
   font-family:inherit;letter-spacing:.5px;}
 .foreign-sort-chip:hover{border-color:var(--border3);color:var(--t1);}
 .foreign-sort-chip.active{background:rgba(0,207,255,.1);border-color:var(--c1);color:var(--c1);font-weight:700;}
+.trust-io-sort-chip{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:7px;
+  padding:6px 4px;font-size:.62rem;color:var(--t2);cursor:pointer;transition:all .2s;
+  font-family:inherit;letter-spacing:.5px;}
+.trust-io-sort-chip:hover{border-color:var(--border3);color:var(--t1);}
+.trust-io-sort-chip.active{background:rgba(255,61,106,.1);border-color:var(--up);color:var(--up);font-weight:700;}
 .fr-window-table{width:100%;border-collapse:collapse;font-size:.6rem;font-family:'Space Mono',monospace;margin-top:6px;}
 .fr-window-table th{background:rgba(0,200,255,.04);color:var(--t3);padding:4px 5px;text-align:right;
   font-weight:400;font-size:.55rem;border-bottom:1px solid var(--border);}
@@ -917,7 +922,7 @@ body::before{
     <!-- 子頁籤 -->
     <div class="sub-tabs">
       <button class="sub-tab active" onclick="switchSubTab(0,this)">📋 綜合</button>
-      <button class="sub-tab" onclick="switchSubTab(1,this)">🏦 投信認養</button>
+      <button class="sub-tab" onclick="switchSubTab(1,this)">🏦 投信進出</button>
       <button class="sub-tab" onclick="switchSubTab(2,this)">🎯 主力分點</button>
       <button class="sub-tab" onclick="switchSubTab(3,this)">🌊 外資進出</button>
       <button class="sub-tab" onclick="switchSubTab(4,this)">⚡ 融資券</button>
@@ -943,14 +948,22 @@ body::before{
       </div>
     </div>
 
-    <!-- 子頁1：投信認養排行 -->
+    <!-- 子頁1：投信進出（多視窗金額表 + 前三大分點，與外資 tab 同結構）-->
     <div class="sub-page" id="sp1" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;">
       <div class="pg">
         <div style="background:rgba(255,61,106,.06);border:1px solid rgba(255,61,106,.2);border-radius:8px;padding:8px 12px;font-size:.65rem;color:var(--t2);line-height:1.6;">
-          🏦 <strong style="color:var(--up)">投信認養</strong>：投信連續買超天數越長，代表法人持續加碼意願越強。連買5日以上為認養確認，10日以上視為深度認養。
+          🏦 <strong style="color:var(--up)">投信進出</strong>：呈現投信 1/3/5/10/20 日累計買賣超張數與金額（金額=股數×當日加權均價）。前 30 名額外顯示「前三大金額分點」（依該股票 10 日投信方向判定買 / 賣超）。
         </div>
-        <div class="section-hdr">投信認養排行</div>
-        <div id="trustRankList">
+        <!-- 排序視窗切換 -->
+        <div id="trustIOSortChips" style="display:flex;gap:5px;padding:4px 0 6px;">
+          <button class="trust-io-sort-chip" data-w="1"  onclick="setTrustIOSort('1',this)">1 日</button>
+          <button class="trust-io-sort-chip" data-w="3"  onclick="setTrustIOSort('3',this)">3 日</button>
+          <button class="trust-io-sort-chip active" data-w="5"  onclick="setTrustIOSort('5',this)">5 日</button>
+          <button class="trust-io-sort-chip" data-w="10" onclick="setTrustIOSort('10',this)">10 日</button>
+          <button class="trust-io-sort-chip" data-w="20" onclick="setTrustIOSort('20',this)">20 日</button>
+        </div>
+        <div class="section-hdr" id="trustIORankHdr">投信 5 日 |金額| 排行</div>
+        <div id="trustIORankList">
           <div class="empty"><div class="empty-icon">🏦</div><div class="empty-title">等待掃描</div><div class="empty-sub">掃描後自動更新</div></div>
         </div>
       </div>
@@ -1838,7 +1851,9 @@ async function loadScanCSV() {
         box_amplitude:  parseFloat(obj.box_amplitude) || 0,
         is_box:         parseInt(obj.is_box)          || 0,
         // 外資雷達（5 視窗 JSON + top3 分點）
-        broker_dir:     obj.broker_dir || '',
+        broker_dir:        obj.broker_dir       || '',
+        // 投信進出（5 視窗 JSON + top3 分點）
+        trust_broker_dir:  obj.trust_broker_dir || '',
         foreign_days: parseInt(obj.foreign_days) || 0,
         trust_days:   parseInt(obj.trust_days) || 0,
         broker_days:  parseInt(obj.broker_days) || 0,
@@ -1891,6 +1906,18 @@ async function loadScanCSV() {
         s.broker_top3 = JSON.parse(obj.broker_top3 || '[]');
       } catch(e) {
         s.broker_top3 = [];
+      }
+      // 投信進出 5 視窗 JSON
+      try {
+        s.trust_io = JSON.parse(obj.trust_io || '{}');
+      } catch(e) {
+        s.trust_io = {};
+      }
+      // 投信前 30 名 broker top3 JSON
+      try {
+        s.trust_broker_top3 = JSON.parse(obj.trust_broker_top3 || '[]');
+      } catch(e) {
+        s.trust_broker_top3 = [];
       }
 
       rows.push(s);
@@ -2290,7 +2317,7 @@ async function startScan() {
 
     // 渲染各排行榜（先渲染再關閉 loading）
     renderRankList();
-    renderTrustRank();
+    renderTrustIORank();
     renderBrokerRank();
     renderMarginRank();
     renderForeignRank();
@@ -2526,21 +2553,152 @@ function sampleInfoBar(total, shown, label, color) {
 }
 
 // ══════════════════════════════════════════
-//  TRUST RANK（投信認養：依 B 分 + 連買天數排序，從全市場取）
+//  TRUST IO RANK（投信進出：1/3/5/10/20 日金額表 + top3 分點，
+//                 與外資 tab 同結構但篩投信法人）
 // ══════════════════════════════════════════
-function renderTrustRank() {
-  // 從全市場挑選：投信連買 ≥ 3 天，依 B 分降序
-  const qualified = allStockData
-    .filter(s => s.trust_days >= 3)
-    .sort((a,b) => b.B !== a.B ? b.B - a.B : b.trust_days - a.trust_days)
-    .slice(0,30);
+let trustIOSortWindow = '5';
 
-  const bar = sampleInfoBar(allStockData.length, Math.min(qualified.length,30), '投信連買≥3天', 'var(--up)');
-  document.getElementById('trustRankList').innerHTML = bar +
+function setTrustIOSort(w, btn) {
+  trustIOSortWindow = w;
+  document.querySelectorAll('.trust-io-sort-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  const hdr = document.getElementById('trustIORankHdr');
+  if (hdr) hdr.textContent = `投信 ${w} 日 |金額| 排行`;
+  renderTrustIORank();
+}
+
+function renderTrustIORank() {
+  const w = trustIOSortWindow;
+  let qualified = allStockData.filter(s => {
+    const ti = s.trust_io || {};
+    const d = ti[w] || {};
+    return Math.abs(d.net_amount_m || 0) > 0;
+  });
+
+  qualified.sort((a,b) => {
+    const aw = (a.trust_io && a.trust_io[w]) || {};
+    const bw = (b.trust_io && b.trust_io[w]) || {};
+    return Math.abs(bw.net_amount_m || 0) - Math.abs(aw.net_amount_m || 0);
+  });
+  qualified = qualified.slice(0,30);
+
+  const total = allStockData.length;
+  const bar = sampleInfoBar(total, Math.min(qualified.length,30),
+                              `投信${w}日|金額|`, 'var(--up)');
+
+  document.getElementById('trustIORankList').innerHTML = bar +
     (qualified.length === 0
-      ? `<div class="empty"><div class="empty-icon">🏦</div><div class="empty-title">本日無符合條件個股</div></div>`
-      : qualified.map((s,i) => buildDimRankCard(s, i+1, 'B')).join('')) +
-    `<div style="text-align:center;padding:8px;font-size:.6rem;color:var(--t3)">篩選條件：投信連買≥3天，全市場 ${allStockData.length.toLocaleString()} 支中共 ${qualified.length} 支入榜</div>`;
+      ? `<div class="empty"><div class="empty-icon">🏦</div><div class="empty-title">本日無投信進出資料</div><div class="empty-sub">休市或法人資料尚未更新</div></div>`
+      : qualified.map((s,i) => buildTrustIORankCard(s, i+1)).join('')) +
+    `<div style="text-align:center;padding:8px;font-size:.6rem;color:var(--t3)">
+      含 ETF；前 30 名顯示前三大金額分點（依 10 日投信方向判定買 / 賣超）
+    </div>`;
+}
+
+function buildTrustIORankCard(s, rank) {
+  const isUp = s.chg >= 0;
+  const rankBg = rank===1?'linear-gradient(135deg,#ffd426,#ff8c42)':rank===2?'linear-gradient(135deg,#c0c0c0,#909090)':rank===3?'linear-gradient(135deg,#cd7f32,#8b4513)':'var(--bg3)';
+  const rankColor = rank<=3?'#000':'var(--t2)';
+  const mktBadge = s.type==='ETF' ? `<span style="font-size:.48rem;background:rgba(0,207,255,.1);border:1px solid rgba(0,207,255,.2);color:var(--c1);border-radius:3px;padding:0 3px;margin-left:3px">ETF</span>` : '';
+
+  const ti = s.trust_io || {};
+  const sortW = trustIOSortWindow;
+  const sortNet = (ti[sortW] && ti[sortW].net_amount_m) || 0;
+
+  // 5 視窗縱向表格
+  const rows = FOREIGN_WINDOWS.map(w => {
+    const d = ti[w] || {buy_lots:0, sell_lots:0, net_lots:0,
+                          buy_amount_m:0, sell_amount_m:0, net_amount_m:0};
+    const isCur = w === sortW;
+    const rowStyle = isCur
+      ? 'background:rgba(255,61,106,.06);'
+      : '';
+    return `<tr style="${rowStyle}">
+      <td>${w} 日</td>
+      <td>${(d.buy_lots ||0).toLocaleString()}</td>
+      <td>${(d.sell_lots||0).toLocaleString()}</td>
+      <td class="${amountClass(d.net_lots)}">${fmtSignedLots(d.net_lots)}</td>
+      <td>${fmtAmountAbs(d.buy_amount_m)}</td>
+      <td>${fmtAmountAbs(d.sell_amount_m)}</td>
+      <td class="${amountClass(d.net_amount_m)}"><strong>${fmtAmount(d.net_amount_m)}</strong></td>
+    </tr>`;
+  }).join('');
+
+  // 前三大分點（依 trust_broker_dir 決定買 / 賣超榜）
+  let brokerSection = '';
+  const top3 = s.trust_broker_top3 || [];
+  if (top3.length > 0) {
+    const dirText  = s.trust_broker_dir === 'buy'  ? '買超'
+                    : s.trust_broker_dir === 'sell' ? '賣超' : '';
+    const dirColor = s.trust_broker_dir === 'buy'  ? 'var(--up)'
+                    : s.trust_broker_dir === 'sell' ? 'var(--dn)' : 'var(--t3)';
+    const sign = s.trust_broker_dir === 'sell' ? '' : '+';
+    brokerSection = `
+      <div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(0,200,255,.08);">
+        <div style="font-size:.55rem;color:var(--t3);margin-bottom:5px;">
+          前三大金額${dirText}分點（10 日累計）
+        </div>
+        <div style="display:grid;gap:4px;">
+          ${top3.map((b,i) => {
+            const medal = ['🥇','🥈','🥉'][i] || '';
+            return `<div style="display:flex;align-items:center;gap:6px;
+                font-size:.62rem;background:rgba(255,61,106,.04);
+                border:1px solid rgba(255,61,106,.12);border-radius:5px;
+                padding:4px 7px;">
+              <span>${medal}</span>
+              <span style="flex:1;color:var(--t1);">${b.name}</span>
+              <span style="color:${dirColor};font-family:'Space Mono',monospace;font-weight:700;">
+                ${sign}${(b.lots||0).toLocaleString()} 張
+              </span>
+              <span style="color:var(--t2);font-family:'Space Mono',monospace;
+                font-size:.58rem;min-width:60px;text-align:right;">
+                ${fmtAmount(b.amount_m)}
+              </span>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+  }
+
+  // 副資訊：投信連買天數、外資是否同步
+  const cdBadge = s.trust_days >= 3
+    ? `<span style="font-size:.52rem;background:rgba(255,61,106,.1);border:1px solid rgba(255,61,106,.25);color:var(--up);border-radius:4px;padding:1px 6px;white-space:nowrap;">投信連買 ${s.trust_days} 天</span>`
+    : '';
+  const fdBadge = s.foreign_days >= 3
+    ? `<span style="font-size:.52rem;background:rgba(0,207,255,.1);border:1px solid rgba(0,207,255,.25);color:var(--c1);border-radius:4px;padding:1px 6px;white-space:nowrap;">外資同步 ${s.foreign_days} 天</span>`
+    : '';
+
+  return `<div class="dim-rank-card dim-B" onclick="openDetail('${s.code}')"
+              style="cursor:pointer;">
+    <div class="drc-main">
+      <div class="drc-rank" style="background:${rankBg};color:${rankColor};border:${rank>3?'1px solid var(--border)':'none'}">${rank}</div>
+      <div class="drc-info" style="flex:1;">
+        <div class="drc-name-row">
+          <span class="drc-code" style="color:var(--up)">${s.code}</span>
+          <span class="drc-name">${s.name}</span>${mktBadge}
+          <span class="price-change ${isUp?'up':'dn'}" style="font-size:.65rem;margin-left:auto;font-family:'Space Mono',monospace">${isUp?'▲':'▼'}${Math.abs(s.chg_pct).toFixed(2)}%</span>
+        </div>
+        ${(cdBadge || fdBadge) ? `<div class="drc-sub" style="display:flex;gap:5px;flex-wrap:wrap;">${cdBadge}${fdBadge}</div>` : ''}
+
+        <table class="fr-window-table" onclick="event.stopPropagation()">
+          <thead><tr>
+            <th>視窗</th><th>買張</th><th>賣張</th><th>淨張</th>
+            <th>買額</th><th>賣額</th><th>淨額</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+
+        ${brokerSection}
+      </div>
+      <div class="drc-right">
+        <div class="drc-score ${amountClass(sortNet)}"
+             style="font-size:.95rem;">
+          ${fmtAmount(sortNet).split(' ')[0]}
+        </div>
+        <div class="drc-label">${fmtAmount(sortNet).split(' ')[1] || ''} (${sortW}d)</div>
+      </div>
+    </div>
+  </div>`;
 }
 
 // ══════════════════════════════════════════

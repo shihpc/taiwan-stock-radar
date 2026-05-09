@@ -229,6 +229,13 @@ def save_app_csv(results: list, scan_date: str):
                                           ensure_ascii=False)
         broker_dir         = r.get("broker_dir", "")
 
+        # 投信進出（5 視窗 + 投信方向 top3 分點）
+        trust_io_json      = json.dumps(r.get("trust_io", {}),
+                                          ensure_ascii=False)
+        trust_broker_top3_json = json.dumps(r.get("trust_broker_top3", []),
+                                              ensure_ascii=False)
+        trust_broker_dir   = r.get("trust_broker_dir", "")
+
         # 籌碼數值
         foreign_days  = a_det.get("consec_days", 0)
         trust_days    = b_det.get("consec_days", 0)
@@ -306,9 +313,12 @@ def save_app_csv(results: list, scan_date: str):
             "box_low":         box_low,
             "box_amplitude":   box_amplitude,
             "is_box":          is_box,
-            "foreign_radar":   foreign_radar_json,
-            "broker_top3":     broker_top3_json,
-            "broker_dir":      broker_dir,
+            "foreign_radar":     foreign_radar_json,
+            "broker_top3":       broker_top3_json,
+            "broker_dir":        broker_dir,
+            "trust_io":          trust_io_json,
+            "trust_broker_top3": trust_broker_top3_json,
+            "trust_broker_dir":  trust_broker_dir,
             "foreign_days": foreign_days,
             "trust_days":   trust_days,
             "broker_days":  broker_days,

@@ -53,7 +53,7 @@ from data.fetcher import (
 from engine.scorer import score_stock
 from engine.etf_flow import calc_trust_5d_distribution
 from engine.trust_radar import compute_trust_radar
-from engine.foreign_radar import compute_foreign_radar
+from engine.foreign_radar import compute_foreign_radar, compute_trust_io
 from engine.broker_analysis import compute_top3_brokers
 from engine.filters import (
     filter_stock_list,
@@ -321,6 +321,8 @@ def run_scan(scan_date: str = None, quick: bool = False,
             result["trust_radar"]  = compute_trust_radar(inst_hist, price_df)
             # 外資雷達指標（1/3/5/10/20 日累計買賣超張數與金額）
             result["foreign_radar"] = compute_foreign_radar(inst_hist, price_df)
+            # 投信多視窗（同結構，篩投信列）
+            result["trust_io"]      = compute_trust_io(inst_hist, price_df)
             results.append(result)
 
         except KeyboardInterrupt:
@@ -395,6 +397,31 @@ def run_scan(scan_date: str = None, quick: bool = False,
             r["broker_top3"] = compute_top3_brokers(broker_df, price_df_r, direction)
             r["broker_dir"]  = direction
         logger.info("外資前 30 名分點 top3 完成")
+
+    # ── Step 3.7：對投信 20 日 |淨額| 前 30 名抓 broker top3 分點 ──
+    top30_trust = sorted(
+        [r for r in results if r.get("trust_io")],
+        key=lambda r: abs(r["trust_io"].get("20", {}).get("net_amount_m", 0)),
+        reverse=True,
+    )[:30]
+
+    if use_broker and top30_trust:
+        logger.info(f"Step 3.7：對投信 20 日金額前 {len(top30_trust)} 名"
+                    f"算 broker top3...")
+        for r in top30_trust:
+            sid = r["stock_id"]
+            broker_df = _fetch_broker_multi(sid)   # 與 3.5/3.6 共用 cache
+            if broker_df.empty:
+                r["trust_broker_top3"] = []
+                r["trust_broker_dir"]  = ""
+                continue
+            # 方向：以 10 日投信 net_amount_m 判斷
+            ti10 = r["trust_io"].get("10", {})
+            direction = "buy" if ti10.get("net_amount_m", 0) >= 0 else "sell"
+            price_df_r = cache.price_history_for(sid)
+            r["trust_broker_top3"] = compute_top3_brokers(broker_df, price_df_r, direction)
+            r["trust_broker_dir"]  = direction
+        logger.info("投信前 30 名分點 top3 完成")
 
     # ── Step 4：篩選候選 ──────────────────────────────────────
     logger.info("Step 4/5：篩選候選名單...")
