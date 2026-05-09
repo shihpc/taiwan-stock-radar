@@ -811,6 +811,14 @@ body::before{
 .dir-chip:hover{border-color:var(--border3);color:var(--t1);}
 .dir-chip.active[data-d="buy"]{background:rgba(255,61,106,.1);border-color:var(--up);color:var(--up);}
 .dir-chip.active[data-d="sell"]{background:rgba(0,255,157,.08);border-color:var(--dn);color:var(--dn);}
+.dir-chip.active[data-d="long"]{background:rgba(255,61,106,.1);border-color:var(--up);color:var(--up);}
+.dir-chip.active[data-d="short"]{background:rgba(0,255,157,.08);border-color:var(--dn);color:var(--dn);}
+/* 綜合 tab 視窗 chip */
+.combined-w-chip{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:7px;
+  padding:6px 4px;font-size:.62rem;color:var(--t2);cursor:pointer;transition:all .2s;
+  font-family:inherit;letter-spacing:.5px;}
+.combined-w-chip:hover{border-color:var(--border3);color:var(--t1);}
+.combined-w-chip.active{background:rgba(0,207,255,.1);border-color:var(--c1);color:var(--c1);font-weight:700;}
 .fr-window-table{width:100%;border-collapse:collapse;font-size:.6rem;font-family:'Space Mono',monospace;margin-top:6px;}
 .fr-window-table th{background:rgba(0,200,255,.04);color:var(--t3);padding:4px 5px;text-align:right;
   font-weight:400;font-size:.55rem;border-bottom:1px solid var(--border);}
@@ -968,7 +976,7 @@ body::before{
       <button class="sub-tab" onclick="switchSubTab(5,this)">💧 投信雷達</button>
     </div>
 
-    <!-- 子頁0：綜合排行 -->
+    <!-- 子頁0：綜合（多頭 / 空頭三方共識：外資 + 投信 + 主力分點 同時入榜）-->
     <div class="sub-page active" id="sp0" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;">
       <div class="pg">
         <div class="summary-strip">
@@ -976,7 +984,23 @@ body::before{
           <div class="sum-cell"><div class="sl">候選名單</div><div class="sv cand" id="sumCand">—</div></div>
           <div class="sum-cell"><div class="sl">強烈關注</div><div class="sv strong" id="sumStrong">—</div></div>
         </div>
-        <div class="section-hdr">綜合候選排行榜</div>
+        <div style="background:rgba(0,207,255,.04);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:.62rem;color:var(--t2);line-height:1.55;">
+          📡 <strong>三方共識</strong>：同時為外資進出前 30、投信進出前 30、主力分點突破前 30 的個股，最低門檻金額 5 千萬。
+        </div>
+        <!-- 多頭 / 空頭 chip -->
+        <div id="combinedDirChips" style="display:flex;gap:6px;padding:4px 0 4px;">
+          <button class="dir-chip active" data-d="long"  onclick="setCombinedDir('long',this)">📈 多頭</button>
+          <button class="dir-chip"        data-d="short" onclick="setCombinedDir('short',this)">📉 空頭</button>
+        </div>
+        <!-- 視窗 chip（影響外資 / 投信 該視窗榜，主力分點為當日固定）-->
+        <div id="combinedWindowChips" style="display:flex;gap:5px;padding:0 0 6px;">
+          <button class="combined-w-chip" data-w="1"  onclick="setCombinedWindow('1',this)">1 日</button>
+          <button class="combined-w-chip" data-w="3"  onclick="setCombinedWindow('3',this)">3 日</button>
+          <button class="combined-w-chip active" data-w="5"  onclick="setCombinedWindow('5',this)">5 日</button>
+          <button class="combined-w-chip" data-w="10" onclick="setCombinedWindow('10',this)">10 日</button>
+          <button class="combined-w-chip" data-w="20" onclick="setCombinedWindow('20',this)">20 日</button>
+        </div>
+        <div class="section-hdr" id="combinedHdr">多頭三方共識（5 日）</div>
         <div id="rankList">
           <div class="empty">
             <div class="empty-icon">📡</div>
@@ -2463,63 +2487,208 @@ async function startScan() {
 // ══════════════════════════════════════════
 //  RANK LIST（綜合排行，取候選名單前30）
 // ══════════════════════════════════════════
-function renderRankList() {
-  const display = scanResults.slice(0, userSettings.maxDisplay);
-  const total   = allStockData.length;
-  const cand    = scanResults.length;
+// ══════════════════════════════════════════
+//  COMBINED RANK（綜合：多頭 / 空頭三方共識）
+//  條件：同時為外資前 30 + 投信前 30 + 主力分點突破前 30
+//        各面向金額 ≥ 5 千萬（50 百萬元）
+//  視窗影響外資 / 投信榜（主力分點為當日固定）
+// ══════════════════════════════════════════
+const COMBINED_THRESHOLD_M = 50;     // 5 千萬 = 50 百萬
+let combinedDir    = 'long';   // 'long' | 'short'
+let combinedWindow = '5';
 
-  const sampleBar = `
-    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:7px;
-      padding:7px 12px;display:flex;justify-content:space-between;align-items:center;font-size:.63rem;">
-      <span style="color:var(--t2)">全市場樣本：<span style="color:var(--c1);font-family:'Space Mono',monospace">${total.toLocaleString()}</span> 支（上市+上櫃+ETF，不含權證）</span>
-      <span style="color:var(--t2)">入榜：<span style="color:var(--c4);font-family:'Space Mono',monospace">${cand}</span> 支</span>
-    </div>`;
-
-  document.getElementById('rankList').innerHTML =
-    sampleBar + display.map((s,i) => buildStockCard(s, i+1)).join('') +
-    (cand > userSettings.maxDisplay ? `<div style="text-align:center;padding:12px;font-size:.65rem;color:var(--t3)">顯示前 ${userSettings.maxDisplay} 支，共 ${cand} 支候選股</div>` : '');
+function setCombinedDir(d, btn) {
+  combinedDir = d;
+  document.querySelectorAll('#combinedDirChips .dir-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  renderRankList();
+}
+function setCombinedWindow(w, btn) {
+  combinedWindow = w;
+  document.querySelectorAll('.combined-w-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  renderRankList();
 }
 
+function _topRankCodeSet(field, w, isLong, threshold) {
+  return new Set(
+    allStockData
+      .filter(s => {
+        const r = (s[field] || {})[w] || {};
+        const n = r.net_amount_m || 0;
+        return isLong ? n >= threshold : n <= -threshold;
+      })
+      .sort((a, b) => {
+        const an = ((a[field] || {})[w] || {}).net_amount_m || 0;
+        const bn = ((b[field] || {})[w] || {}).net_amount_m || 0;
+        return isLong ? bn - an : an - bn;
+      })
+      .slice(0, 30)
+      .map(s => s.code)
+  );
+}
+function _breakoutCodeSet(isLong, threshold) {
+  const flag = isLong ? 'breakout_up' : 'breakout_down';
+  return new Set(
+    allStockData
+      .filter(s => {
+        if (s[flag] !== 1) return false;
+        const n = (s.mainforce_today || {}).net_amount_m || 0;
+        return isLong ? n >= threshold : n <= -threshold;
+      })
+      .sort((a, b) => {
+        const am = (a.mainforce_today || {}).net_amount_m || 0;
+        const bm = (b.mainforce_today || {}).net_amount_m || 0;
+        return isLong ? bm - am : am - bm;
+      })
+      .slice(0, 30)
+      .map(s => s.code)
+  );
+}
+
+function renderRankList() {
+  const w        = combinedWindow;
+  const isLong   = combinedDir === 'long';
+  const dirText  = isLong ? '多頭' : '空頭';
+  const dirColor = isLong ? 'var(--up)' : 'var(--dn)';
+
+  // 標題更新
+  const hdr = document.getElementById('combinedHdr');
+  if (hdr) hdr.textContent = `${dirText}三方共識（${w} 日）`;
+
+  // 三個榜單 set（嚴格門檻 ≥ 5 千萬）
+  const foreignSet = _topRankCodeSet('foreign_radar', w, isLong, COMBINED_THRESHOLD_M);
+  const trustSet   = _topRankCodeSet('trust_io',      w, isLong, COMBINED_THRESHOLD_M);
+  const brokerSet  = _breakoutCodeSet(isLong, COMBINED_THRESHOLD_M);
+
+  // 三方交集
+  let overlap = allStockData.filter(s =>
+    foreignSet.has(s.code) && trustSet.has(s.code) && brokerSet.has(s.code)
+  );
+
+  // 排序：依三方總額（多頭由大到小、空頭由小到大）
+  overlap.sort((a, b) => {
+    const aT = ((a.foreign_radar || {})[w] || {}).net_amount_m
+             + ((a.trust_io      || {})[w] || {}).net_amount_m
+             + (a.mainforce_today || {}).net_amount_m;
+    const bT = ((b.foreign_radar || {})[w] || {}).net_amount_m
+             + ((b.trust_io      || {})[w] || {}).net_amount_m
+             + (b.mainforce_today || {}).net_amount_m;
+    return isLong ? bT - aT : aT - bT;
+  });
+
+  const headerBar = `<div style="background:var(--bg3);border:1px solid var(--border);
+    border-radius:7px;padding:7px 12px;display:flex;justify-content:space-between;
+    align-items:center;font-size:.63rem;flex-wrap:wrap;gap:6px;">
+    <span style="color:var(--t2)">榜單規模：
+      外資 <span style="color:var(--c1);font-family:'Space Mono',monospace">${foreignSet.size}</span> /
+      投信 <span style="color:var(--up);font-family:'Space Mono',monospace">${trustSet.size}</span> /
+      主力 <span style="color:var(--c5);font-family:'Space Mono',monospace">${brokerSet.size}</span>
+    </span>
+    <span style="color:${dirColor};font-family:'Space Mono',monospace;font-weight:700;">
+      三方共識：${overlap.length} 支
+    </span>
+  </div>`;
+
+  document.getElementById('rankList').innerHTML =
+    headerBar +
+    (overlap.length === 0
+      ? `<div class="empty">
+          <div class="empty-icon">${isLong?'📈':'📉'}</div>
+          <div class="empty-title">本日無${dirText}三方共識個股</div>
+          <div class="empty-sub">需同時入榜外資 / 投信 / 主力分點${dirText}前 30，<br>
+            且各面向 ${isLong?'買超':'賣超'}金額 ≥ 5 千萬</div>
+        </div>`
+      : overlap.map((s, i) => buildStockCard(s, i+1)).join('')) +
+    (overlap.length > 0
+      ? `<div style="text-align:center;padding:8px;font-size:.6rem;color:var(--t3)">
+          篩選：外資 ${w} 日 + 投信 ${w} 日 + 主力分點當日，三方${dirText}共識（≥ 5 千萬）
+        </div>`
+      : '');
+}
+
+// 綜合 tab 卡片：三方共識（外資 + 投信 + 主力分點）
 function buildStockCard(s, rank) {
-  const rankClass = rank <= 3 ? `rank-${rank}` : 'rank-n';
-  const cardClass = rank <= 3 ? 'stock-card top' : 'stock-card';
-  const scoreColor = s.score>=userSettings.strongScore?'s-high':s.score>=userSettings.strongScore-10?'s-mid':'s-low';
-  const isUp = s.chg >= 0;
-  const tags = (s.tags||[]).slice(0,3).map(t => {
-    let cls = 'tag-law';
-    if (t.includes('主力')||t.includes('分點')) cls='tag-broker';
-    else if (t.includes('籌碼')||t.includes('大戶')||t.includes('融')) cls='tag-chip';
-    else if (t.includes('營收')||t.includes('EPS')) cls='tag-fund';
-    return `<span class="tag ${cls}">${t}</span>`;
-  }).join('');
-  const dimBars = [
-    {l:'外資',v:s.A,m:20,c:'bar-A'},{l:'投信',v:s.B,m:20,c:'bar-B'},
-    {l:'主力',v:s.C,m:20,c:'bar-C'},{l:'技術',v:s.D,m:20,c:'bar-D'},
-    {l:'基本',v:s.E,m:20,c:'bar-E'},
-  ].map(d=>`<div class="bar-col ${d.c}">
-    <div class="bar-lbl">${d.l}</div>
-    <div class="bar-track"><div class="bar-fill" style="width:${d.v/d.m*100}%"></div></div>
-    <div class="bar-val">${d.v}</div>
-  </div>`).join('');
-  const mktBadge = s.type==='ETF' ? `<span style="font-size:.5rem;background:rgba(0,207,255,.1);border:1px solid rgba(0,207,255,.2);color:var(--c1);border-radius:3px;padding:1px 4px;margin-left:3px">ETF</span>` : '';
-  return `<div class="${cardClass}" onclick="openDetail('${s.code}')">
-    <div class="card-main">
-      <div class="rank-badge ${rankClass}">${rank}</div>
-      <div class="card-info">
-        <div class="card-name-row">
-          <span class="card-code">${s.code}</span>
-          <span class="card-name">${s.name}</span>${mktBadge}
-          <span class="price-change ${isUp?'up':'dn'}" style="font-size:.7rem;margin-left:auto;font-family:'Space Mono',monospace">${isUp?'▲':'▼'}${Math.abs(s.chg_pct).toFixed(2)}%</span>
+  const w        = combinedWindow;
+  const isLong   = combinedDir === 'long';
+  const isUp     = s.chg >= 0;
+  const rankBg   = rank===1?'linear-gradient(135deg,#ffd426,#ff8c42)':rank===2?'linear-gradient(135deg,#c0c0c0,#909090)':rank===3?'linear-gradient(135deg,#cd7f32,#8b4513)':'var(--bg3)';
+  const rankColor = rank<=3?'#000':'var(--t2)';
+  const mktBadge = s.type==='ETF' ? `<span style="font-size:.48rem;background:rgba(0,207,255,.1);border:1px solid rgba(0,207,255,.2);color:var(--c1);border-radius:3px;padding:0 3px;margin-left:3px">ETF</span>` : '';
+
+  const fAmt = ((s.foreign_radar || {})[w] || {}).net_amount_m || 0;
+  const tAmt = ((s.trust_io      || {})[w] || {}).net_amount_m || 0;
+  const mAmt = (s.mainforce_today || {}).net_amount_m || 0;
+  const total = fAmt + tAmt + mAmt;
+
+  const dirCardClass = isLong ? 'dim-A' : 'dim-S2m';
+
+  // 三方明細 mini-table（摺疊）
+  const detailRow = `
+    <div class="fr-table-wrap" style="display:none;">
+      <table class="fr-window-table" onclick="event.stopPropagation()">
+        <thead><tr><th>面向</th><th>視窗</th><th>淨額</th></tr></thead>
+        <tbody>
+          <tr><td>🌊 外資</td><td>${w} 日</td>
+              <td class="${amountClass(fAmt)}"><strong>${fmtAmount(fAmt)}</strong></td></tr>
+          <tr><td>🏦 投信</td><td>${w} 日</td>
+              <td class="${amountClass(tAmt)}"><strong>${fmtAmount(tAmt)}</strong></td></tr>
+          <tr><td>🎯 主力分點</td><td>當日</td>
+              <td class="${amountClass(mAmt)}"><strong>${fmtAmount(mAmt)}</strong></td></tr>
+        </tbody>
+      </table>
+    </div>`;
+
+  // 前三大金額分點（用主力分點當日資料；依方向取 buy / sell）
+  const top3 = isLong ? ((s.mainforce_today || {}).top3_buy || [])
+                       : ((s.mainforce_today || {}).top3_sell || []);
+  let brokerSection = '';
+  if (top3.length > 0) {
+    const dirText  = isLong ? '買超' : '賣超';
+    const dirColor = isLong ? 'var(--up)' : 'var(--dn)';
+    const sign     = isLong ? '+' : '';
+    brokerSection = `
+      <div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(0,200,255,.08);">
+        <div style="font-size:.55rem;color:var(--t3);margin-bottom:5px;">
+          前三大金額${dirText}分點（當日）
         </div>
-        <div class="card-tags">${tags||'<span style="font-size:.6rem;color:var(--t3)">無顯著標記</span>'}</div>
-      </div>
-      <div class="card-right">
-        <div class="score-big ${scoreColor}">${s.score}</div>
-        <div class="score-max">/158</div>
-        <div class="score-pct">${(s.pct*100).toFixed(1)}%</div>
+        <div style="display:grid;gap:4px;">
+          ${top3.map((b,i) => {
+            const medal = ['🥇','🥈','🥉'][i] || '';
+            return `<div style="display:flex;align-items:center;gap:6px;
+                font-size:.62rem;background:rgba(0,200,255,.04);
+                border:1px solid rgba(0,200,255,.12);border-radius:5px;
+                padding:4px 7px;">
+              <span>${medal}</span>
+              <span class="broker-name-cell" style="flex:1;color:var(--t1);">${truncateBrokerName(b.name)}</span>
+              <span style="color:${dirColor};font-family:'Space Mono',monospace;font-weight:700;">
+                ${sign}${(b.lots||0).toLocaleString()} 張
+              </span>
+              <span style="color:var(--t2);font-family:'Space Mono',monospace;
+                font-size:.58rem;min-width:60px;text-align:right;">
+                ${fmtAmount(b.amount_m)}
+              </span>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+  }
+
+  return `<div class="dim-rank-card ${dirCardClass}" onclick="openDetail('${s.code}')"
+              style="cursor:pointer;">
+    <div class="drc-main">
+      <div class="drc-rank" style="background:${rankBg};color:${rankColor};border:${rank>3?'1px solid var(--border)':'none'}">${rank}</div>
+      <div class="drc-info" style="flex:1;min-width:0;">
+        <div class="drc-name-row">
+          <span class="drc-code">${s.code}</span>
+          <span class="drc-name">${s.name}</span>${mktBadge}
+          <span class="price-change ${isUp?'up':'dn'}" style="font-size:.65rem;margin-left:auto;font-family:'Space Mono',monospace">${isUp?'▲':'▼'}${Math.abs(s.chg_pct).toFixed(2)}%</span>
+        </div>
+        ${buildAmountTopRow(total, '三方共同' + (isLong?'買超':'賣超') + '總額')}
+        ${detailRow}
+        ${brokerSection}
       </div>
     </div>
-    <div class="card-bars">${dimBars}</div>
   </div>`;
 }
 
