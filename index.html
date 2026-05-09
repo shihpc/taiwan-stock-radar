@@ -736,7 +736,6 @@ body::before{
 .sub-tab.active-C{color:var(--c5);border-bottom-color:var(--c5);}
 .sub-tab.active-M{color:var(--c2);border-bottom-color:var(--c2);}
 .sub-tab.active-F{color:var(--c1);border-bottom-color:var(--c1);}
-.sub-tab.active-EF{color:var(--c4);border-bottom-color:var(--c4);}
 
 .sub-page{display:none;flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
 .sub-page.active{display:block;}
@@ -778,11 +777,6 @@ body::before{
 .dim-F .drc-code{color:var(--c4);}
 .dim-F .drc-score{color:var(--c4);}
 .dim-F .drc-fill{background:linear-gradient(90deg,var(--c4),rgba(255,212,38,.4));}
-.trust-sort-chip{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:7px;
-  padding:6px 8px;font-size:.62rem;color:var(--t2);cursor:pointer;transition:all .2s;
-  font-family:inherit;letter-spacing:.5px;}
-.trust-sort-chip:hover{border-color:var(--border3);color:var(--t1);}
-.trust-sort-chip.active{background:rgba(255,212,38,.1);border-color:var(--c4);color:var(--c4);font-weight:700;}
 .foreign-sort-chip{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:7px;
   padding:6px 4px;font-size:.62rem;color:var(--t2);cursor:pointer;transition:all .2s;
   font-family:inherit;letter-spacing:.5px;}
@@ -836,6 +830,14 @@ body::before{
 .fr-window-table td:first-child{text-align:left;color:var(--t2);font-size:.6rem;}
 .fr-window-table tr:last-child td{border-bottom:none;}
 .fr-pos{color:var(--up);}.fr-neg{color:var(--dn);}.fr-zero{color:var(--t3);}
+/* broker top3 row：兩行 layout — 名稱獨佔第一行、張數 / 金額在第二行 */
+.bk-row{display:flex;flex-direction:column;gap:3px;border-radius:5px;padding:5px 8px;font-size:.62rem;}
+.bk-row .bk-line1{display:flex;align-items:center;gap:6px;color:var(--t1);}
+.bk-row .bk-line2{display:flex;align-items:center;justify-content:flex-end;gap:10px;font-size:.58rem;}
+.bk-row.bk-foreign{background:rgba(0,207,255,.04);border:1px solid rgba(0,207,255,.12);}
+.bk-row.bk-trust  {background:rgba(255,61,106,.04);border:1px solid rgba(255,61,106,.12);}
+.bk-row.bk-broker {background:rgba(167,139,250,.06);border:1px solid rgba(167,139,250,.18);}
+.bk-row.bk-combined{background:rgba(0,200,255,.04);border:1px solid rgba(0,200,255,.12);}
 .fr-toggle-btn{background:rgba(0,200,255,.06);border:1px solid var(--border);
   color:var(--t2);border-radius:5px;padding:3px 8px;font-size:.6rem;
   cursor:pointer;font-family:inherit;letter-spacing:.5px;
@@ -982,7 +984,6 @@ body::before{
       <button class="sub-tab" onclick="switchSubTab(2,this)">🎯 主力分點</button>
       <button class="sub-tab" onclick="switchSubTab(3,this)">🌊 外資進出</button>
       <button class="sub-tab" onclick="switchSubTab(4,this)">⚡ 融資券</button>
-      <button class="sub-tab" onclick="switchSubTab(5,this)">💧 投信雷達</button>
     </div>
 
     <!-- 子頁0：綜合（多頭 / 空頭三方共識：外資 + 投信 + 主力分點 同時入榜）-->
@@ -1105,28 +1106,6 @@ body::before{
         </div>
       </div>
     </div>
-
-    <!-- 子頁5：投信雷達（當日金額排行 + 連買 + 箱型突破）-->
-    <div class="sub-page" id="sp5" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;">
-      <div class="pg">
-        <div style="background:rgba(255,212,38,.06);border:1px solid rgba(255,212,38,.25);border-radius:8px;padding:8px 12px;font-size:.65rem;color:var(--t2);line-height:1.6;">
-          💧 <strong style="color:var(--c4)">投信雷達</strong>：每日抓取投信買賣超股數，乘以當日加權均價換算為實際金額排序。輔助訊號 —
-          <strong>🔥 連買</strong> 觀察投信連續買超天數、
-          <strong>🚀 箱型突破</strong> 過去 5 日振幅 &lt; 5% 且今日收盤突破上緣 1%。
-        </div>
-        <!-- 排序切換 -->
-        <div id="trustSortChips" style="display:flex;gap:6px;padding:4px 0 6px;">
-          <button class="trust-sort-chip active" data-sort="amount" onclick="setTrustSort('amount',this)">📊 金額</button>
-          <button class="trust-sort-chip"        data-sort="consec" onclick="setTrustSort('consec',this)">🔥 連買天數</button>
-          <button class="trust-sort-chip"        data-sort="breakout" onclick="setTrustSort('breakout',this)">🚀 箱型突破</button>
-        </div>
-        <div class="section-hdr" id="trustRadarHdr">投信買賣超金額排行</div>
-        <div id="trustRadarList">
-          <div class="empty"><div class="empty-icon">💧</div><div class="empty-title">等待掃描</div><div class="empty-sub">掃描後自動更新</div></div>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <!-- PAGE 1：個股詳情 -->
   <div class="page" id="p1">
@@ -1746,10 +1725,10 @@ function switchSubTab(idx, btn) {
   currentSubTab = idx;
   document.querySelectorAll('.sub-page').forEach((p,i) => p.classList.toggle('active', i === idx));
   document.querySelectorAll('.sub-tab').forEach(t => {
-    t.classList.remove('active','active-B','active-C','active-M','active-F','active-EF');
+    t.classList.remove('active','active-B','active-C','active-M','active-F');
   });
-  // idx: 0綜合 / 1投信B / 2主力C / 3外資(Foreign 用 active-F) / 4融資M / 5 ETF 用 active-EF
-  const cls = ['active','active-B','active-C','active-F','active-M','active-EF'][idx];
+  // idx: 0 綜合 / 1 投信 (B 紅) / 2 主力 (C 紫) / 3 外資 (F 藍) / 4 融資 (M 綠)
+  const cls = ['active','active-B','active-C','active-F','active-M'][idx];
   btn.classList.add(cls);
 }
 
@@ -1878,7 +1857,6 @@ async function startScan() {
     renderBreakoutRank();
     renderMarginRank();
     renderForeignRank();
-    renderTrustRadar();
 
     // 統計數字
     document.getElementById('sumTotal').textContent = allStockData.length.toLocaleString();
@@ -2068,19 +2046,19 @@ function buildStockCard(s, rank) {
         <div style="display:grid;gap:4px;">
           ${top3.map((b,i) => {
             const medal = ['🥇','🥈','🥉'][i] || '';
-            return `<div style="display:flex;align-items:center;gap:6px;
-                font-size:.62rem;background:rgba(0,200,255,.04);
-                border:1px solid rgba(0,200,255,.12);border-radius:5px;
-                padding:4px 7px;">
-              <span>${medal}</span>
-              <span class="broker-name-cell" style="flex:1;color:var(--t1);">${truncateBrokerName(b.name)}</span>
-              <span style="color:${dirColor};font-family:'Space Mono',monospace;font-weight:700;">
-                ${sign}${(b.lots||0).toLocaleString()} 張
-              </span>
-              <span style="color:var(--t2);font-family:'Space Mono',monospace;
-                font-size:.58rem;min-width:60px;text-align:right;">
-                ${fmtAmount(b.amount_m)}
-              </span>
+            return `<div class="bk-row bk-combined">
+              <div class="bk-line1">
+                <span>${medal}</span>
+                <span>${truncateBrokerName(b.name)}</span>
+              </div>
+              <div class="bk-line2">
+                <span style="color:${dirColor};font-family:'Space Mono',monospace;font-weight:700;">
+                  ${sign}${(b.lots||0).toLocaleString()} 張
+                </span>
+                <span style="color:var(--t2);font-family:'Space Mono',monospace;min-width:70px;text-align:right;">
+                  ${fmtAmount(b.amount_m)}
+                </span>
+              </div>
             </div>`;
           }).join('')}
         </div>
@@ -2224,19 +2202,19 @@ function buildTrustIORankCard(s, rank) {
         <div style="display:grid;gap:4px;">
           ${top3.map((b,i) => {
             const medal = ['🥇','🥈','🥉'][i] || '';
-            return `<div style="display:flex;align-items:center;gap:6px;
-                font-size:.62rem;background:rgba(255,61,106,.04);
-                border:1px solid rgba(255,61,106,.12);border-radius:5px;
-                padding:4px 7px;">
-              <span>${medal}</span>
-              <span class="broker-name-cell" style="flex:1;color:var(--t1);">${truncateBrokerName(b.name)}</span>
-              <span style="color:${dirColor};font-family:'Space Mono',monospace;font-weight:700;">
-                ${sign}${(b.lots||0).toLocaleString()} 張
-              </span>
-              <span style="color:var(--t2);font-family:'Space Mono',monospace;
-                font-size:.58rem;min-width:60px;text-align:right;">
-                ${fmtAmount(b.amount_m)}
-              </span>
+            return `<div class="bk-row bk-trust">
+              <div class="bk-line1">
+                <span>${medal}</span>
+                <span>${truncateBrokerName(b.name)}</span>
+              </div>
+              <div class="bk-line2">
+                <span style="color:${dirColor};font-family:'Space Mono',monospace;font-weight:700;">
+                  ${sign}${(b.lots||0).toLocaleString()} 張
+                </span>
+                <span style="color:var(--t2);font-family:'Space Mono',monospace;min-width:70px;text-align:right;">
+                  ${fmtAmount(b.amount_m)}
+                </span>
+              </div>
             </div>`;
           }).join('')}
         </div>
@@ -2410,19 +2388,19 @@ function buildBreakoutRankCard(s, rank) {
         <div style="display:grid;gap:4px;">
           ${top3.map((b,i) => {
             const medal = ['🥇','🥈','🥉'][i] || '';
-            return `<div style="display:flex;align-items:center;gap:6px;
-                font-size:.62rem;background:rgba(167,139,250,.06);
-                border:1px solid rgba(167,139,250,.18);border-radius:5px;
-                padding:4px 7px;">
-              <span>${medal}</span>
-              <span class="broker-name-cell" style="flex:1;color:var(--t1);">${truncateBrokerName(b.name)}</span>
-              <span style="color:${dirColor};font-family:'Space Mono',monospace;font-weight:700;">
-                ${sign}${(b.lots||0).toLocaleString()} 張
-              </span>
-              <span style="color:var(--t2);font-family:'Space Mono',monospace;
-                font-size:.58rem;min-width:60px;text-align:right;">
-                ${fmtAmount(b.amount_m)}
-              </span>
+            return `<div class="bk-row bk-broker">
+              <div class="bk-line1">
+                <span>${medal}</span>
+                <span>${truncateBrokerName(b.name)}</span>
+              </div>
+              <div class="bk-line2">
+                <span style="color:${dirColor};font-family:'Space Mono',monospace;font-weight:700;">
+                  ${sign}${(b.lots||0).toLocaleString()} 張
+                </span>
+                <span style="color:var(--t2);font-family:'Space Mono',monospace;min-width:70px;text-align:right;">
+                  ${fmtAmount(b.amount_m)}
+                </span>
+              </div>
             </div>`;
           }).join('')}
         </div>
@@ -2827,134 +2805,6 @@ function buildBacktestCard(x, rank) {
   </div>`;
 }
 
-// ══════════════════════════════════════════
-//  TRUST RADAR（投信雷達：當日金額排行 + 連買天數 + 箱型突破）
-//  資料源：FinMind TaiwanStockInstitutionalInvestorsBuySell + TaiwanStockPrice
-//          後端 engine/trust_radar.py 算好寫入 scan_app.csv
-// ══════════════════════════════════════════
-let trustSortMode = 'amount';   // 'amount' | 'consec' | 'breakout'
-
-function setTrustSort(mode, btn) {
-  trustSortMode = mode;
-  document.querySelectorAll('.trust-sort-chip').forEach(c => c.classList.remove('active'));
-  btn.classList.add('active');
-  // 更新標題提示
-  const hdr = document.getElementById('trustRadarHdr');
-  if (hdr) {
-    hdr.textContent = mode === 'amount'   ? '投信買賣超金額排行'
-                    : mode === 'consec'   ? '投信連買天數排行'
-                    :                       '突破箱型整理排行';
-  }
-  renderTrustRadar();
-}
-
-function renderTrustRadar() {
-  // 入榜條件：投信當日有買超（net_lots > 0），讓使用者看「投信進場」訊號
-  let qualified = allStockData.filter(s => (s.trust_net_lots || 0) > 0);
-
-  if (trustSortMode === 'amount') {
-    qualified.sort((a,b) =>
-      (b.trust_amount_m||0) - (a.trust_amount_m||0)
-    );
-  } else if (trustSortMode === 'consec') {
-    qualified.sort((a,b) => {
-      const dc = (b.trust_days||0) - (a.trust_days||0);
-      return dc !== 0 ? dc : (b.trust_amount_m||0) - (a.trust_amount_m||0);
-    });
-  } else if (trustSortMode === 'breakout') {
-    // 先按是否突破，再按金額
-    qualified.sort((a,b) => {
-      const db = (b.box_breakout||0) - (a.box_breakout||0);
-      return db !== 0 ? db : (b.trust_amount_m||0) - (a.trust_amount_m||0);
-    });
-    // 排序後若使用者只想看突破，可進一步篩；保留全部讓使用者比較
-  }
-  qualified = qualified.slice(0, 30);
-
-  const total = allStockData.length;
-  const labelMap = {amount:'投信買超', consec:'連買排行', breakout:'箱型突破'};
-  const bar = sampleInfoBar(total, Math.min(qualified.length,30),
-                              labelMap[trustSortMode], 'var(--c4)');
-
-  document.getElementById('trustRadarList').innerHTML = bar +
-    (qualified.length === 0
-      ? `<div class="empty"><div class="empty-icon">💧</div><div class="empty-title">本日投信無買超</div><div class="empty-sub">休市或法人資料尚未更新</div></div>`
-      : qualified.map((s,i) => buildTrustRadarCard(s, i+1)).join('')) +
-    `<div style="text-align:center;padding:8px;font-size:.6rem;color:var(--t3)">
-      條件：投信當日買超（含 ETF），共 ${qualified.length} 支入榜
-    </div>`;
-}
-
-function buildTrustRadarCard(s, rank) {
-  const isUp = s.chg >= 0;
-  const rankBg = rank===1?'linear-gradient(135deg,#ffd426,#ff8c42)':rank===2?'linear-gradient(135deg,#c0c0c0,#909090)':rank===3?'linear-gradient(135deg,#cd7f32,#8b4513)':'var(--bg3)';
-  const rankColor = rank<=3?'#000':'var(--t2)';
-  const mktBadge = s.type==='ETF' ? `<span style="font-size:.48rem;background:rgba(0,207,255,.1);border:1px solid rgba(0,207,255,.2);color:var(--c1);border-radius:3px;padding:0 3px;margin-left:3px">ETF</span>` : '';
-
-  // 金額顯示（億 / 百萬切換）
-  const amount = s.trust_amount_m || 0;
-  const amountText = amount >= 100
-      ? (amount/100).toFixed(2) + ' 億'
-      : amount.toFixed(2) + ' 百萬';
-  const amountColor = amount > 0 ? 'var(--up)' : (amount < 0 ? 'var(--dn)' : 'var(--t3)');
-
-  // 連買天數 badge — 連買越久顏色越強
-  const cd = s.trust_days || 0;
-  const consecColor = cd >= 5 ? 'var(--up)'
-                    : cd >= 3 ? 'var(--c4)'
-                    : cd >= 1 ? 'var(--c1)'
-                    :           'var(--t3)';
-  const consecBadge = `<span style="font-size:.55rem;background:rgba(255,61,106,.08);
-    border:1px solid ${consecColor}55;color:${consecColor};
-    border-radius:4px;padding:1px 6px;white-space:nowrap;font-weight:700;">
-    🔥 連買 ${cd} 日</span>`;
-
-  // 箱型突破 badge
-  let boxBadge = '';
-  if (s.box_breakout) {
-    boxBadge = `<span style="font-size:.55rem;background:rgba(0,255,157,.08);
-      border:1px solid rgba(0,255,157,.4);color:var(--c2);
-      border-radius:4px;padding:1px 6px;white-space:nowrap;font-weight:700;">
-      🚀 突破 5 日箱型</span>`;
-  } else if (s.is_box) {
-    const ampPct = (s.box_amplitude * 100).toFixed(1);
-    boxBadge = `<span style="font-size:.55rem;background:rgba(45,90,122,.15);
-      border:1px solid var(--border);color:var(--t2);
-      border-radius:4px;padding:1px 6px;white-space:nowrap;">
-      📦 箱型整理 (${ampPct}%)</span>`;
-  }
-
-  // 買賣超張數顯示
-  const lots = s.trust_net_lots || 0;
-  const lotsSign = lots > 0 ? '+' : '';
-  const vwapText = s.trust_vwap > 0 ? `均價 ${s.trust_vwap.toFixed(2)}` : '';
-
-  return `<div class="dim-rank-card dim-F" onclick="openDetail('${s.code}')">
-    <div class="drc-main">
-      <div class="drc-rank" style="background:${rankBg};color:${rankColor};border:${rank>3?'1px solid var(--border)':'none'}">${rank}</div>
-      <div class="drc-info">
-        <div class="drc-name-row">
-          <span class="drc-code">${s.code}</span>
-          <span class="drc-name">${s.name}</span>${mktBadge}
-          <span class="price-change ${isUp?'up':'dn'}" style="font-size:.65rem;margin-left:auto;font-family:'Space Mono',monospace">${isUp?'▲':'▼'}${Math.abs(s.chg_pct).toFixed(2)}%</span>
-        </div>
-        <div class="drc-sub">
-          <span>投信 ${lotsSign}${lots.toLocaleString()} 張</span>
-          ${vwapText ? `<span style="color:var(--t3)">·</span><span>${vwapText}</span>` : ''}
-        </div>
-        <div style="margin-top:5px;display:flex;gap:5px;flex-wrap:wrap;">
-          ${consecBadge}
-          ${boxBadge}
-        </div>
-      </div>
-      <div class="drc-right">
-        <div class="drc-score" style="color:${amountColor}">${amountText.split(' ')[0]}</div>
-        <div class="drc-label">${amountText.split(' ')[1] || '百萬'}</div>
-      </div>
-    </div>
-  </div>`;
-}
-
 // 金額顯示 helper：>= 100 百萬轉億，否則百萬
 function fmtAmount(m) {     // 帶正負號（淨額用）
   if (!m) return '0';
@@ -3078,19 +2928,19 @@ function buildForeignRankCard(s, rank) {
         <div style="display:grid;gap:4px;">
           ${top3.map((b,i) => {
             const medal = ['🥇','🥈','🥉'][i] || '';
-            return `<div style="display:flex;align-items:center;gap:6px;
-                font-size:.62rem;background:rgba(0,207,255,.04);
-                border:1px solid rgba(0,207,255,.12);border-radius:5px;
-                padding:4px 7px;">
-              <span>${medal}</span>
-              <span class="broker-name-cell" style="flex:1;color:var(--t1);">${truncateBrokerName(b.name)}</span>
-              <span style="color:${dirColor};font-family:'Space Mono',monospace;font-weight:700;">
-                ${sign}${(b.lots||0).toLocaleString()} 張
-              </span>
-              <span style="color:var(--t2);font-family:'Space Mono',monospace;
-                font-size:.58rem;min-width:60px;text-align:right;">
-                ${fmtAmount(b.amount_m)}
-              </span>
+            return `<div class="bk-row bk-foreign">
+              <div class="bk-line1">
+                <span>${medal}</span>
+                <span>${truncateBrokerName(b.name)}</span>
+              </div>
+              <div class="bk-line2">
+                <span style="color:${dirColor};font-family:'Space Mono',monospace;font-weight:700;">
+                  ${sign}${(b.lots||0).toLocaleString()} 張
+                </span>
+                <span style="color:var(--t2);font-family:'Space Mono',monospace;min-width:70px;text-align:right;">
+                  ${fmtAmount(b.amount_m)}
+                </span>
+              </div>
             </div>`;
           }).join('')}
         </div>
