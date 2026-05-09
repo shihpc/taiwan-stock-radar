@@ -2717,7 +2717,7 @@ function buildTrustIORankCard(s, rank) {
                 border:1px solid rgba(255,61,106,.12);border-radius:5px;
                 padding:4px 7px;">
               <span>${medal}</span>
-              <span class="broker-name-cell" style="flex:1;color:var(--t1);">${b.name}</span>
+              <span class="broker-name-cell" style="flex:1;color:var(--t1);">${truncateBrokerName(b.name)}</span>
               <span style="color:${dirColor};font-family:'Space Mono',monospace;font-weight:700;">
                 ${sign}${(b.lots||0).toLocaleString()} 張
               </span>
@@ -2743,13 +2743,14 @@ function buildTrustIORankCard(s, rank) {
               style="cursor:pointer;">
     <div class="drc-main">
       <div class="drc-rank" style="background:${rankBg};color:${rankColor};border:${rank>3?'1px solid var(--border)':'none'}">${rank}</div>
-      <div class="drc-info" style="flex:1;">
+      <div class="drc-info" style="flex:1;min-width:0;">
         <div class="drc-name-row">
           <span class="drc-code" style="color:var(--up)">${s.code}</span>
           <span class="drc-name">${s.name}</span>${mktBadge}
           <span class="price-change ${isUp?'up':'dn'}" style="font-size:.65rem;margin-left:auto;font-family:'Space Mono',monospace">${isUp?'▲':'▼'}${Math.abs(s.chg_pct).toFixed(2)}%</span>
         </div>
-        ${(cdBadge || fdBadge) ? `<div class="drc-sub" style="display:flex;gap:5px;flex-wrap:wrap;">${cdBadge}${fdBadge}</div>` : ''}
+        ${buildAmountTopRow(sortNet, `${sortW} 日 |金額|`)}
+        ${(cdBadge || fdBadge) ? `<div class="drc-sub" style="display:flex;gap:5px;flex-wrap:wrap;margin-top:4px;">${cdBadge}${fdBadge}</div>` : ''}
 
         <table class="fr-window-table" onclick="event.stopPropagation()">
           <thead><tr>
@@ -2760,13 +2761,6 @@ function buildTrustIORankCard(s, rank) {
         </table>
 
         ${brokerSection}
-      </div>
-      <div class="drc-right">
-        <div class="drc-score ${amountClass(sortNet)}"
-             style="font-size:.95rem;">
-          ${fmtAmount(sortNet).split(' ')[0]}
-        </div>
-        <div class="drc-label">${fmtAmount(sortNet).split(' ')[1] || ''} (${sortW}d)</div>
       </div>
     </div>
   </div>`;
@@ -2896,7 +2890,7 @@ function buildBreakoutRankCard(s, rank) {
                 border:1px solid rgba(167,139,250,.18);border-radius:5px;
                 padding:4px 7px;">
               <span>${medal}</span>
-              <span class="broker-name-cell" style="flex:1;color:var(--t1);">${b.name}</span>
+              <span class="broker-name-cell" style="flex:1;color:var(--t1);">${truncateBrokerName(b.name)}</span>
               <span style="color:${dirColor};font-family:'Space Mono',monospace;font-weight:700;">
                 ${sign}${(b.lots||0).toLocaleString()} 張
               </span>
@@ -2914,24 +2908,18 @@ function buildBreakoutRankCard(s, rank) {
               style="cursor:pointer;">
     <div class="drc-main">
       <div class="drc-rank" style="background:${rankBg};color:${rankColor};border:${rank>3?'1px solid var(--border)':'none'}">${rank}</div>
-      <div class="drc-info" style="flex:1;">
+      <div class="drc-info" style="flex:1;min-width:0;">
         <div class="drc-name-row">
           <span class="drc-code" style="color:var(--c5)">${s.code}</span>
           <span class="drc-name">${s.name}</span>${mktBadge}
           <span class="price-change ${isUp?'up':'dn'}" style="font-size:.65rem;margin-left:auto;font-family:'Space Mono',monospace">${isUp?'▲':'▼'}${Math.abs(s.chg_pct).toFixed(2)}%</span>
         </div>
-        <div class="drc-sub" style="display:flex;gap:5px;flex-wrap:wrap;">
+        ${buildAmountTopRow(sortNet, '當日')}
+        <div class="drc-sub" style="display:flex;gap:5px;flex-wrap:wrap;margin-top:4px;">
           ${volBadge}
         </div>
         ${summaryRow}
         ${brokerSection}
-      </div>
-      <div class="drc-right">
-        <div class="drc-score ${amountClass(sortNet)}"
-             style="font-size:.95rem;">
-          ${fmtAmount(sortNet).split(' ')[0]}
-        </div>
-        <div class="drc-label">${fmtAmount(sortNet).split(' ')[1] || ''} (當日)</div>
       </div>
     </div>
   </div>`;
@@ -3017,18 +3005,30 @@ function buildMarginRankCard(s, rank) {
     </tr>`;
   }).join('');
 
+  const latestAmtParts = fmtAmountAbs(latestAmt).split(' ');
+  const amountTopRow = `<div style="display:flex;align-items:baseline;gap:8px;
+        margin-top:4px;padding:5px 8px;background:rgba(0,255,157,.05);
+        border:1px solid var(--border);border-radius:6px;">
+      <span style="font-family:'Space Mono',monospace;font-size:1.1rem;
+            font-weight:700;color:var(--c2);letter-spacing:.5px;">${latestAmtParts[0]||'0'}</span>
+      <span style="font-size:.62rem;color:var(--t2);font-family:'Space Mono',monospace;">
+        ${latestAmtParts[1]||''} 最近一日${typeText}餘額
+      </span>
+    </div>`;
+
   return `<div class="dim-rank-card dim-S2m" onclick="openDetail('${s.code}')"
               style="cursor:pointer;">
     <div class="drc-main">
       <div class="drc-rank" style="background:${rankBg};color:${rankColor};border:${rank>3?'1px solid var(--border)':'none'}">${rank}</div>
-      <div class="drc-info" style="flex:1;">
+      <div class="drc-info" style="flex:1;min-width:0;">
         <div class="drc-name-row">
           <span class="drc-code" style="color:var(--c2)">${s.code}</span>
           <span class="drc-name">${s.name}</span>${mktBadge}
           <span class="price-change ${isUp?'up':'dn'}" style="font-size:.65rem;margin-left:auto;font-family:'Space Mono',monospace">${isUp?'▲':'▼'}${Math.abs(s.chg_pct).toFixed(2)}%</span>
         </div>
-        <div class="drc-sub" style="display:flex;gap:8px;flex-wrap:wrap;font-size:.62rem;">
-          <span>最近 ${typeText}餘額：<strong style="color:var(--c2);font-family:'Space Mono',monospace;">${latestLots.toLocaleString()} 張</strong></span>
+        ${amountTopRow}
+        <div class="drc-sub" style="display:flex;gap:8px;flex-wrap:wrap;font-size:.62rem;margin-top:4px;">
+          <span>${latestLots.toLocaleString()} 張</span>
           <span style="color:var(--t3)">·</span>
           <span>收盤 ${latestClose.toFixed(2)}</span>
         </div>
@@ -3040,12 +3040,6 @@ function buildMarginRankCard(s, rank) {
           </tr></thead>
           <tbody>${rows}</tbody>
         </table>
-      </div>
-      <div class="drc-right">
-        <div class="drc-score" style="color:var(--c2);font-size:.95rem;">
-          ${fmtAmountAbs(latestAmt).split(' ')[0]}
-        </div>
-        <div class="drc-label">${fmtAmountAbs(latestAmt).split(' ')[1] || ''} (最近)</div>
       </div>
     </div>
   </div>`;
@@ -3245,6 +3239,27 @@ function fmtSignedLots(n) { // 張數帶 + 號
   n = n || 0;
   return (n > 0 ? '+' : '') + n.toLocaleString();
 }
+function truncateBrokerName(name, maxLen = 6) {
+  if (!name) return '';
+  return name.length > maxLen ? name.substring(0, maxLen) : name;
+}
+// 渲染卡片頂部的金額大字行（替代右側 drc-right）
+function buildAmountTopRow(amountM, labelSuffix) {
+  const cls   = amountClass(amountM);
+  const parts = fmtAmount(amountM).split(' ');
+  const num   = parts[0] || '0';
+  const unit  = parts[1] || '';
+  return `<div style="display:flex;align-items:baseline;gap:8px;
+                     margin-top:4px;padding:5px 8px;
+                     background:rgba(0,200,255,.04);
+                     border:1px solid var(--border);border-radius:6px;">
+    <span class="${cls}" style="font-family:'Space Mono',monospace;
+          font-size:1.1rem;font-weight:700;letter-spacing:.5px;">${num}</span>
+    <span style="font-size:.62rem;color:var(--t2);font-family:'Space Mono',monospace;">
+      ${unit ? unit + ' ' : ''}${labelSuffix}
+    </span>
+  </div>`;
+}
 function amountClass(m) {
   if (m > 0) return 'fr-pos';
   if (m < 0) return 'fr-neg';
@@ -3302,7 +3317,7 @@ function buildForeignRankCard(s, rank) {
                 border:1px solid rgba(0,207,255,.12);border-radius:5px;
                 padding:4px 7px;">
               <span>${medal}</span>
-              <span class="broker-name-cell" style="flex:1;color:var(--t1);">${b.name}</span>
+              <span class="broker-name-cell" style="flex:1;color:var(--t1);">${truncateBrokerName(b.name)}</span>
               <span style="color:${dirColor};font-family:'Space Mono',monospace;font-weight:700;">
                 ${sign}${(b.lots||0).toLocaleString()} 張
               </span>
@@ -3324,13 +3339,14 @@ function buildForeignRankCard(s, rank) {
               style="cursor:pointer;">
     <div class="drc-main">
       <div class="drc-rank" style="background:${rankBg};color:${rankColor};border:${rank>3?'1px solid var(--border)':'none'}">${rank}</div>
-      <div class="drc-info" style="flex:1;">
+      <div class="drc-info" style="flex:1;min-width:0;">
         <div class="drc-name-row">
           <span class="drc-code" style="color:var(--c1)">${s.code}</span>
           <span class="drc-name">${s.name}</span>${mktBadge}
           <span class="price-change ${isUp?'up':'dn'}" style="font-size:.65rem;margin-left:auto;font-family:'Space Mono',monospace">${isUp?'▲':'▼'}${Math.abs(s.chg_pct).toFixed(2)}%</span>
         </div>
-        ${trustBadge ? `<div class="drc-sub">${trustBadge}</div>` : ''}
+        ${buildAmountTopRow(sortNet, `${sortW} 日 |金額|`)}
+        ${trustBadge ? `<div class="drc-sub" style="margin-top:4px;">${trustBadge}</div>` : ''}
 
         <table class="fr-window-table" onclick="event.stopPropagation()">
           <thead><tr>
@@ -3341,13 +3357,6 @@ function buildForeignRankCard(s, rank) {
         </table>
 
         ${brokerSection}
-      </div>
-      <div class="drc-right">
-        <div class="drc-score ${amountClass(sortNet)}"
-             style="font-size:.95rem;">
-          ${fmtAmount(sortNet).split(' ')[0]}
-        </div>
-        <div class="drc-label">${fmtAmount(sortNet).split(' ')[1] || ''} (${sortW}d)</div>
       </div>
     </div>
   </div>`;
