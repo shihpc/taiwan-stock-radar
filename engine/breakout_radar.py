@@ -3,9 +3,9 @@
 #  突破雷達：箱型整理 + 突破 + 爆量 偵測 + 當日分點彙總
 #
 #  入榜條件：
-#    1. 箱型：過去 5 個交易日（不含今日）振幅 < 5%
-#    2. 突破：向上 = 收盤 > 箱型上緣 × 1.05
-#            向下 = 收盤 < 箱型下緣 × 0.95
+#    1. 箱型：過去 5 個交易日（不含今日）振幅 < 7%
+#    2. 突破：向上 = 收盤 > 箱型上緣 × 1.03
+#            向下 = 收盤 < 箱型下緣 × 0.97
 #    3. 爆量：當日成交量 > 過去 5 日平均成交量 × 5
 #    必須同時成立才視為「合格」(qualified_up / qualified_down)
 #
@@ -24,8 +24,8 @@ from engine.broker_analysis import (
 logger = logging.getLogger(__name__)
 
 DEFAULT_BOX_WINDOW         = 5
-DEFAULT_AMPLITUDE_MAX      = 0.05    # 振幅 < 5% 才算箱型
-DEFAULT_BREAKOUT_BUFFER    = 0.05    # 上緣 × 1.05 / 下緣 × 0.95
+DEFAULT_AMPLITUDE_MAX      = 0.07    # 振幅 < 7% 才算箱型
+DEFAULT_BREAKOUT_BUFFER    = 0.03    # 上緣 × 1.03 / 下緣 × 0.97
 DEFAULT_VOLUME_SURGE_MULT  = 5       # 當日量 > 5 日均量 × 5
 
 

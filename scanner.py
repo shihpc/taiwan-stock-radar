@@ -410,20 +410,28 @@ def run_scan(scan_date: str = None, quick: bool = False,
 
     if use_broker and top30_foreign:
         logger.info(f"Step 3.6：對外資 20 日金額前 {len(top30_foreign)} 名"
-                    f"算 broker top3...")
+                    f"算 broker 雙向 top3（當日）...")
         for r in top30_foreign:
             sid = r["stock_id"]
             broker_df = _fetch_broker_multi(sid)
             if broker_df.empty:
-                r["broker_top3"] = []
+                r["broker_top3"] = {"buy": [], "sell": []}
                 r["broker_dir"]  = ""
                 continue
-            # 方向：以 10 日外資 net_amount_m 判斷
-            fr10 = r["foreign_radar"].get("10", {})
-            direction = "buy" if fr10.get("net_amount_m", 0) >= 0 else "sell"
             price_df_r = cache.price_history_for(sid)
-            r["broker_top3"] = compute_top3_brokers(broker_df, price_df_r, direction)
-            r["broker_dir"]  = direction
+            # 取當日 broker（依使用者需求改為當日）
+            broker_today = broker_df.copy()
+            if "date" in broker_today.columns:
+                broker_today["date"] = broker_today["date"].astype(str).str[:10]
+                df_today = broker_today[broker_today["date"] == scan_date]
+                if not df_today.empty:
+                    broker_today = df_today
+            # 雙向 top3：前端依使用者選擇的方向 chip 切換顯示
+            r["broker_top3"] = {
+                "buy":  compute_top3_brokers(broker_today, price_df_r, "buy"),
+                "sell": compute_top3_brokers(broker_today, price_df_r, "sell"),
+            }
+            r["broker_dir"]  = ""   # 保留欄位以兼容舊版前端
         logger.info("外資前 30 名分點 top3 完成")
 
     # ── Step 3.7：對投信 20 日 |淨額| 前 30 名抓 broker top3 分點 ──
@@ -435,20 +443,26 @@ def run_scan(scan_date: str = None, quick: bool = False,
 
     if use_broker and top30_trust:
         logger.info(f"Step 3.7：對投信 20 日金額前 {len(top30_trust)} 名"
-                    f"算 broker top3...")
+                    f"算 broker 雙向 top3（當日）...")
         for r in top30_trust:
             sid = r["stock_id"]
             broker_df = _fetch_broker_multi(sid)   # 與 3.5/3.6 共用 cache
             if broker_df.empty:
-                r["trust_broker_top3"] = []
+                r["trust_broker_top3"] = {"buy": [], "sell": []}
                 r["trust_broker_dir"]  = ""
                 continue
-            # 方向：以 10 日投信 net_amount_m 判斷
-            ti10 = r["trust_io"].get("10", {})
-            direction = "buy" if ti10.get("net_amount_m", 0) >= 0 else "sell"
             price_df_r = cache.price_history_for(sid)
-            r["trust_broker_top3"] = compute_top3_brokers(broker_df, price_df_r, direction)
-            r["trust_broker_dir"]  = direction
+            broker_today = broker_df.copy()
+            if "date" in broker_today.columns:
+                broker_today["date"] = broker_today["date"].astype(str).str[:10]
+                df_today = broker_today[broker_today["date"] == scan_date]
+                if not df_today.empty:
+                    broker_today = df_today
+            r["trust_broker_top3"] = {
+                "buy":  compute_top3_brokers(broker_today, price_df_r, "buy"),
+                "sell": compute_top3_brokers(broker_today, price_df_r, "sell"),
+            }
+            r["trust_broker_dir"]  = ""
         logger.info("投信前 30 名分點 top3 完成")
 
     # ── Step 3.8：對「箱型突破 + 爆量」個股算當日 broker 彙總 ──
