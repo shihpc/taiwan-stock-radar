@@ -783,6 +783,19 @@ body::before{
   font-family:inherit;letter-spacing:.5px;}
 .trust-sort-chip:hover{border-color:var(--border3);color:var(--t1);}
 .trust-sort-chip.active{background:rgba(255,212,38,.1);border-color:var(--c4);color:var(--c4);font-weight:700;}
+.foreign-sort-chip{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:7px;
+  padding:6px 4px;font-size:.62rem;color:var(--t2);cursor:pointer;transition:all .2s;
+  font-family:inherit;letter-spacing:.5px;}
+.foreign-sort-chip:hover{border-color:var(--border3);color:var(--t1);}
+.foreign-sort-chip.active{background:rgba(0,207,255,.1);border-color:var(--c1);color:var(--c1);font-weight:700;}
+.fr-window-table{width:100%;border-collapse:collapse;font-size:.6rem;font-family:'Space Mono',monospace;margin-top:6px;}
+.fr-window-table th{background:rgba(0,200,255,.04);color:var(--t3);padding:4px 5px;text-align:right;
+  font-weight:400;font-size:.55rem;border-bottom:1px solid var(--border);}
+.fr-window-table th:first-child{text-align:left;}
+.fr-window-table td{padding:3px 5px;text-align:right;border-bottom:1px solid rgba(0,200,255,.04);}
+.fr-window-table td:first-child{text-align:left;color:var(--t2);font-size:.6rem;}
+.fr-window-table tr:last-child td{border-bottom:none;}
+.fr-pos{color:var(--up);}.fr-neg{color:var(--dn);}.fr-zero{color:var(--t3);}
 .dim-M .drc-code{color:var(--c2);}
 .dim-M .drc-score{color:var(--c2);}
 .dim-M .drc-fill{background:linear-gradient(90deg,var(--c2),rgba(0,255,157,.4));}
@@ -956,13 +969,21 @@ body::before{
       </div>
     </div>
 
-    <!-- 子頁3：外資進出排行 -->
+    <!-- 子頁3：外資進出排行（多視窗金額表 + 前三大分點）-->
     <div class="sub-page" id="sp3" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;">
       <div class="pg">
         <div style="background:rgba(0,207,255,.06);border:1px solid rgba(0,207,255,.2);border-radius:8px;padding:8px 12px;font-size:.65rem;color:var(--t2);line-height:1.6;">
-          🌊 <strong style="color:var(--c1)">外資進出</strong>：外資連續買超天數越長、買超張數越大，代表國際資金認同度越高。外資同時搭配投信買進，為法人共識強烈訊號。
+          🌊 <strong style="color:var(--c1)">外資進出</strong>：呈現外資 1/3/5/10/20 日累計買賣超張數與金額（金額=股數×當日加權均價）。前 30 名額外顯示「前三大金額分點」（買超個股顯示買超分點、賣超個股顯示賣超分點，依 10 日方向判定）。
         </div>
-        <div class="section-hdr">外資進出排行</div>
+        <!-- 排序視窗切換（決定依哪個視窗的 |淨額| 排序）-->
+        <div id="foreignSortChips" style="display:flex;gap:5px;padding:4px 0 6px;">
+          <button class="foreign-sort-chip" data-w="1"  onclick="setForeignSort('1',this)">1 日</button>
+          <button class="foreign-sort-chip" data-w="3"  onclick="setForeignSort('3',this)">3 日</button>
+          <button class="foreign-sort-chip active" data-w="5"  onclick="setForeignSort('5',this)">5 日</button>
+          <button class="foreign-sort-chip" data-w="10" onclick="setForeignSort('10',this)">10 日</button>
+          <button class="foreign-sort-chip" data-w="20" onclick="setForeignSort('20',this)">20 日</button>
+        </div>
+        <div class="section-hdr" id="foreignRankHdr">外資 5 日 |金額| 排行</div>
         <div id="foreignRankList">
           <div class="empty"><div class="empty-icon">🌊</div><div class="empty-title">等待掃描</div><div class="empty-sub">掃描後自動更新</div></div>
         </div>
@@ -1816,6 +1837,8 @@ async function loadScanCSV() {
         box_low:        parseFloat(obj.box_low)       || 0,
         box_amplitude:  parseFloat(obj.box_amplitude) || 0,
         is_box:         parseInt(obj.is_box)          || 0,
+        // 外資雷達（5 視窗 JSON + top3 分點）
+        broker_dir:     obj.broker_dir || '',
         foreign_days: parseInt(obj.foreign_days) || 0,
         trust_days:   parseInt(obj.trust_days) || 0,
         broker_days:  parseInt(obj.broker_days) || 0,
@@ -1855,6 +1878,19 @@ async function loadScanCSV() {
         s.broker_names = JSON.parse(obj.broker_names || '{}');
       } catch(e) {
         s.broker_names = {};
+      }
+
+      // 外資雷達 5 視窗 JSON
+      try {
+        s.foreign_radar = JSON.parse(obj.foreign_radar || '{}');
+      } catch(e) {
+        s.foreign_radar = {};
+      }
+      // 前 30 名 broker top3 JSON
+      try {
+        s.broker_top3 = JSON.parse(obj.broker_top3 || '[]');
+      } catch(e) {
+        s.broker_top3 = [];
       }
 
       rows.push(s);
@@ -2564,24 +2600,49 @@ function renderMarginRank() {
 }
 
 // ══════════════════════════════════════════
-//  FOREIGN RANK（外資進出：依 A 分 + 連買天數排序，含ETF）
+//  FOREIGN RANK（外資進出：1/3/5/10/20 日累計金額表 + top3 分點）
+//  資料源：FinMind 法人歷史 + 股價歷史（每日 vwap）
+//          後端 engine/foreign_radar.py 算 5 視窗，scanner Step 3.6
+//          對 20 日 |淨額| 前 30 抓 broker 算 top3 分點
 // ══════════════════════════════════════════
+const FOREIGN_WINDOWS = ['1','3','5','10','20'];
+let foreignSortWindow = '5';
+
+function setForeignSort(w, btn) {
+  foreignSortWindow = w;
+  document.querySelectorAll('.foreign-sort-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  const hdr = document.getElementById('foreignRankHdr');
+  if (hdr) hdr.textContent = `外資 ${w} 日 |金額| 排行`;
+  renderForeignRank();
+}
+
 function renderForeignRank() {
-  // 篩選：外資連買 ≥ 1 天，依 A 面向分數→連買天數→買超張數 排序
-  const qualified = allStockData
-    .filter(s => s.foreign_days >= 1)
-    .sort((a,b) => b.A !== a.A ? b.A - a.A : b.foreign_days - a.foreign_days)
-    .slice(0,30);
+  // 入榜：foreign_radar 有資料且該排序視窗 |淨額| > 0
+  const w = foreignSortWindow;
+  let qualified = allStockData.filter(s => {
+    const fr = s.foreign_radar || {};
+    const d = fr[w] || {};
+    return Math.abs(d.net_amount_m || 0) > 0;
+  });
+
+  qualified.sort((a,b) => {
+    const aw = (a.foreign_radar && a.foreign_radar[w]) || {};
+    const bw = (b.foreign_radar && b.foreign_radar[w]) || {};
+    return Math.abs(bw.net_amount_m || 0) - Math.abs(aw.net_amount_m || 0);
+  });
+  qualified = qualified.slice(0,30);
 
   const total = allStockData.length;
-  const bar = sampleInfoBar(total, Math.min(qualified.length,30), '外資連買≥1天', 'var(--c1)');
+  const bar = sampleInfoBar(total, Math.min(qualified.length,30),
+                              `外資${w}日|金額|`, 'var(--c1)');
 
   document.getElementById('foreignRankList').innerHTML = bar +
     (qualified.length === 0
-      ? `<div class="empty"><div class="empty-icon">🌊</div><div class="empty-title">本日無外資買超個股</div></div>`
+      ? `<div class="empty"><div class="empty-icon">🌊</div><div class="empty-title">本日無外資進出資料</div><div class="empty-sub">休市或法人資料尚未更新</div></div>`
       : qualified.map((s,i) => buildForeignRankCard(s, i+1)).join('')) +
     `<div style="text-align:center;padding:8px;font-size:.6rem;color:var(--t3)">
-      篩選條件：外資連買≥1天（含ETF），共 ${qualified.length} 支入榜
+      含 ETF；前 30 名顯示前三大金額分點（依 10 日方向判定買 / 賣超）
     </div>`;
 }
 
@@ -2713,47 +2774,128 @@ function buildTrustRadarCard(s, rank) {
   </div>`;
 }
 
+// 金額顯示 helper：>= 100 百萬轉億，否則百萬
+function fmtAmount(m) {     // 帶正負號（淨額用）
+  if (!m) return '0';
+  const sign = m > 0 ? '+' : '';
+  if (Math.abs(m) >= 100) {
+    return sign + (m / 100).toFixed(2) + ' 億';
+  }
+  return sign + m.toFixed(1) + ' 百萬';
+}
+function fmtAmountAbs(m) {  // 不帶正負號（買額/賣額用，中性顯示）
+  m = Math.abs(m || 0);
+  if (!m) return '0';
+  if (m >= 100) return (m / 100).toFixed(2) + ' 億';
+  return m.toFixed(1) + ' 百萬';
+}
+function fmtSignedLots(n) { // 張數帶 + 號
+  n = n || 0;
+  return (n > 0 ? '+' : '') + n.toLocaleString();
+}
+function amountClass(m) {
+  if (m > 0) return 'fr-pos';
+  if (m < 0) return 'fr-neg';
+  return 'fr-zero';
+}
+
 function buildForeignRankCard(s, rank) {
   const isUp = s.chg >= 0;
   const rankBg = rank===1?'linear-gradient(135deg,#ffd426,#ff8c42)':rank===2?'linear-gradient(135deg,#c0c0c0,#909090)':rank===3?'linear-gradient(135deg,#cd7f32,#8b4513)':'var(--bg3)';
   const rankColor = rank<=3?'#000':'var(--t2)';
-  const pct = (s.A/20*100).toFixed(0);
   const mktBadge = s.type==='ETF' ? `<span style="font-size:.48rem;background:rgba(0,207,255,.1);border:1px solid rgba(0,207,255,.2);color:var(--c1);border-radius:3px;padding:0 3px;margin-left:3px">ETF</span>` : '';
 
-  const fd  = s.foreign_days || 0;
-  // 真實值：buy/sell 佔成交量比例（來自 score_foreign 的 turnover_pct，CSV 已含）
-  const turnover = s.turnover_pct || 0;
+  const fr = s.foreign_radar || {};
+  const sortW = foreignSortWindow;
+  const sortNet = (fr[sortW] && fr[sortW].net_amount_m) || 0;
 
-  // 同步投信狀況
+  // 5 視窗縱向表格
+  const rows = FOREIGN_WINDOWS.map(w => {
+    const d = fr[w] || {buy_lots:0, sell_lots:0, net_lots:0,
+                          buy_amount_m:0, sell_amount_m:0, net_amount_m:0};
+    const isCur = w === sortW;
+    const rowStyle = isCur
+      ? 'background:rgba(0,207,255,.06);'
+      : '';
+    return `<tr style="${rowStyle}">
+      <td>${w} 日</td>
+      <td>${(d.buy_lots ||0).toLocaleString()}</td>
+      <td>${(d.sell_lots||0).toLocaleString()}</td>
+      <td class="${amountClass(d.net_lots)}">${fmtSignedLots(d.net_lots)}</td>
+      <td>${fmtAmountAbs(d.buy_amount_m)}</td>
+      <td>${fmtAmountAbs(d.sell_amount_m)}</td>
+      <td class="${amountClass(d.net_amount_m)}"><strong>${fmtAmount(d.net_amount_m)}</strong></td>
+    </tr>`;
+  }).join('');
+
+  // 前三大分點（依 broker_dir 決定買 / 賣超榜）
+  let brokerSection = '';
+  const top3 = s.broker_top3 || [];
+  if (top3.length > 0) {
+    const dirText  = s.broker_dir === 'buy'  ? '買超'
+                    : s.broker_dir === 'sell' ? '賣超' : '';
+    const dirColor = s.broker_dir === 'buy'  ? 'var(--up)'
+                    : s.broker_dir === 'sell' ? 'var(--dn)' : 'var(--t3)';
+    const sign = s.broker_dir === 'sell' ? '' : '+';
+    brokerSection = `
+      <div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(0,200,255,.08);">
+        <div style="font-size:.55rem;color:var(--t3);margin-bottom:5px;">
+          前三大金額${dirText}分點（10 日累計）
+        </div>
+        <div style="display:grid;gap:4px;">
+          ${top3.map((b,i) => {
+            const medal = ['🥇','🥈','🥉'][i] || '';
+            return `<div style="display:flex;align-items:center;gap:6px;
+                font-size:.62rem;background:rgba(0,207,255,.04);
+                border:1px solid rgba(0,207,255,.12);border-radius:5px;
+                padding:4px 7px;">
+              <span>${medal}</span>
+              <span style="flex:1;color:var(--t1);">${b.name}</span>
+              <span style="color:${dirColor};font-family:'Space Mono',monospace;font-weight:700;">
+                ${sign}${(b.lots||0).toLocaleString()} 張
+              </span>
+              <span style="color:var(--t2);font-family:'Space Mono',monospace;
+                font-size:.58rem;min-width:60px;text-align:right;">
+                ${fmtAmount(b.amount_m)}
+              </span>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+  }
+
   const trustBadge = s.trust_days >= 3
     ? `<span style="font-size:.52rem;background:rgba(255,61,106,.1);border:1px solid rgba(255,61,106,.25);color:var(--up);border-radius:4px;padding:1px 6px;white-space:nowrap;">投信同步 ${s.trust_days}天</span>`
     : '';
 
-  return `<div class="dim-rank-card dim-A" onclick="openDetail('${s.code}')">
+  return `<div class="dim-rank-card dim-A" onclick="openDetail('${s.code}')"
+              style="cursor:pointer;">
     <div class="drc-main">
       <div class="drc-rank" style="background:${rankBg};color:${rankColor};border:${rank>3?'1px solid var(--border)':'none'}">${rank}</div>
-      <div class="drc-info">
+      <div class="drc-info" style="flex:1;">
         <div class="drc-name-row">
           <span class="drc-code" style="color:var(--c1)">${s.code}</span>
           <span class="drc-name">${s.name}</span>${mktBadge}
           <span class="price-change ${isUp?'up':'dn'}" style="font-size:.65rem;margin-left:auto;font-family:'Space Mono',monospace">${isUp?'▲':'▼'}${Math.abs(s.chg_pct).toFixed(2)}%</span>
         </div>
-        <div class="drc-sub">
-          <span>連買 ${fd} 天</span>
-          <span style="color:var(--t3)">·</span>
-          <span>外資A分 ${s.A}/20</span>
-          ${turnover > 0 ? `<span style="color:var(--t3)">·</span><span>佔成交 ${turnover.toFixed(1)}%</span>` : ''}
-          ${trustBadge ? `<span style="color:var(--t3)">·</span>${trustBadge}` : ''}
-        </div>
+        ${trustBadge ? `<div class="drc-sub">${trustBadge}</div>` : ''}
+
+        <table class="fr-window-table" onclick="event.stopPropagation()">
+          <thead><tr>
+            <th>視窗</th><th>買張</th><th>賣張</th><th>淨張</th>
+            <th>買額</th><th>賣額</th><th>淨額</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+
+        ${brokerSection}
       </div>
       <div class="drc-right">
-        <div class="drc-score" style="color:var(--c1)">${s.A}</div>
-        <div class="drc-label">外資評分 /20</div>
-      </div>
-    </div>
-    <div class="drc-bar-wrap">
-      <div class="drc-track">
-        <div class="drc-fill dim-A" style="width:${pct}%;background:linear-gradient(90deg,var(--c1),rgba(0,207,255,.4))"></div>
+        <div class="drc-score ${amountClass(sortNet)}"
+             style="font-size:.95rem;">
+          ${fmtAmount(sortNet).split(' ')[0]}
+        </div>
+        <div class="drc-label">${fmtAmount(sortNet).split(' ')[1] || ''} (${sortW}d)</div>
       </div>
     </div>
   </div>`;

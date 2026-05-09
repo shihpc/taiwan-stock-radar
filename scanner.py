@@ -53,6 +53,8 @@ from data.fetcher import (
 from engine.scorer import score_stock
 from engine.etf_flow import calc_trust_5d_distribution
 from engine.trust_radar import compute_trust_radar
+from engine.foreign_radar import compute_foreign_radar
+from engine.broker_analysis import compute_top3_brokers
 from engine.filters import (
     filter_stock_list,
     filter_by_margin,
@@ -317,6 +319,8 @@ def run_scan(scan_date: str = None, quick: bool = False,
             result["margin_ratio"] = margin_ratio
             # 投信雷達指標（金額 / 連買 / 箱型突破，前端排行用）
             result["trust_radar"]  = compute_trust_radar(inst_hist, price_df)
+            # 外資雷達指標（1/3/5/10/20 日累計買賣超張數與金額）
+            result["foreign_radar"] = compute_foreign_radar(inst_hist, price_df)
             results.append(result)
 
         except KeyboardInterrupt:
@@ -326,27 +330,38 @@ def run_scan(scan_date: str = None, quick: bool = False,
             error_count += 1
             logger.debug(f"  {stock_id} 失敗：{e}")
 
-    # ── Step 3.5：full mode — 對候選股補抓分點資料並重算 C 分 ────
-    # 與 CANDIDATE_THRESHOLD 一致，所有候選股都補抓 broker
+    # ── Step 3.5/3.6 共用：broker 多日資料 in-memory cache ────
     sprint3_threshold = CANDIDATE_THRESHOLD
+    broker_cache_run: dict[str, pd.DataFrame] = {}
+    recent_dates: list = []
+
+    def _fetch_broker_multi(sid: str) -> pd.DataFrame:
+        if sid in broker_cache_run:
+            return broker_cache_run[sid]
+        frames = []
+        for d in recent_dates:
+            df_b = fetch_broker_data(sid, d)
+            if not df_b.empty:
+                frames.append(df_b)
+        out = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+        broker_cache_run[sid] = out
+        return out
+
+    if use_broker:
+        trading_dates = fetch_trading_dates(days_back=30)
+        recent_dates  = sorted(trading_dates)[-10:] if trading_dates else []
+
+    # ── Step 3.5：full mode — 對候選股補抓分點資料並重算 C 分 ────
     if use_broker:
         pre_candidates = [r for r in results
                           if r["total_score"] >= sprint3_threshold]
         logger.info(f"Step 3.5：補抓分點資料（{len(pre_candidates)} 支候選股）...")
-        lookback = 10  # 近 10 交易日
-        trading_dates = fetch_trading_dates(days_back=30)
-        recent_dates  = sorted(trading_dates)[-lookback:] if trading_dates else []
 
         for r in pre_candidates:
             sid = r["stock_id"]
-            frames = []
-            for d in recent_dates:
-                df_b = fetch_broker_data(sid, d)
-                if not df_b.empty:
-                    frames.append(df_b)
-            if not frames:
+            broker_df = _fetch_broker_multi(sid)
+            if broker_df.empty:
                 continue
-            broker_df = pd.concat(frames, ignore_index=True)
             from engine.scorer import score_broker
             c_result = score_broker(broker_df, r.get("_price_df", pd.DataFrame()))
             old_c = r["C_broker"]["score"]
@@ -355,6 +370,31 @@ def run_scan(scan_date: str = None, quick: bool = False,
             r["pct"] = round(r["total_score"] / r["max_score"], 4)
 
         logger.info("分點補抓完成")
+
+    # ── Step 3.6：對外資 20 日 |淨額| 前 30 名抓 broker top3 分點 ──
+    top30_foreign = sorted(
+        [r for r in results if r.get("foreign_radar")],
+        key=lambda r: abs(r["foreign_radar"].get("20", {}).get("net_amount_m", 0)),
+        reverse=True,
+    )[:30]
+
+    if use_broker and top30_foreign:
+        logger.info(f"Step 3.6：對外資 20 日金額前 {len(top30_foreign)} 名"
+                    f"算 broker top3...")
+        for r in top30_foreign:
+            sid = r["stock_id"]
+            broker_df = _fetch_broker_multi(sid)
+            if broker_df.empty:
+                r["broker_top3"] = []
+                r["broker_dir"]  = ""
+                continue
+            # 方向：以 10 日外資 net_amount_m 判斷
+            fr10 = r["foreign_radar"].get("10", {})
+            direction = "buy" if fr10.get("net_amount_m", 0) >= 0 else "sell"
+            price_df_r = cache.price_history_for(sid)
+            r["broker_top3"] = compute_top3_brokers(broker_df, price_df_r, direction)
+            r["broker_dir"]  = direction
+        logger.info("外資前 30 名分點 top3 完成")
 
     # ── Step 4：篩選候選 ──────────────────────────────────────
     logger.info("Step 4/5：篩選候選名單...")

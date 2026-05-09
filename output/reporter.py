@@ -222,6 +222,13 @@ def save_app_csv(results: list, scan_date: str):
         box_amplitude   = tr.get("box_amplitude",   0)
         is_box          = int(tr.get("is_box",      False))
 
+        # 外資雷達（5 視窗法人金額 + top3 分點）
+        foreign_radar_json = json.dumps(r.get("foreign_radar", {}),
+                                          ensure_ascii=False)
+        broker_top3_json   = json.dumps(r.get("broker_top3", []),
+                                          ensure_ascii=False)
+        broker_dir         = r.get("broker_dir", "")
+
         # 籌碼數值
         foreign_days  = a_det.get("consec_days", 0)
         trust_days    = b_det.get("consec_days", 0)
@@ -299,6 +306,9 @@ def save_app_csv(results: list, scan_date: str):
             "box_low":         box_low,
             "box_amplitude":   box_amplitude,
             "is_box":          is_box,
+            "foreign_radar":   foreign_radar_json,
+            "broker_top3":     broker_top3_json,
+            "broker_dir":      broker_dir,
             "foreign_days": foreign_days,
             "trust_days":   trust_days,
             "broker_days":  broker_days,

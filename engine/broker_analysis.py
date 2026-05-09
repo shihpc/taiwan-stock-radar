@@ -399,6 +399,80 @@ def score_broker_full(
     }
 
 
+# ── 前三大金額買賣超分點（外資雷達 tab 用）────────────────────
+
+def compute_top3_brokers(broker_df: pd.DataFrame,
+                          price_df: pd.DataFrame = pd.DataFrame(),
+                          direction: str = "auto") -> list:
+    """
+    從多日 broker 原始資料中找該股票前三大「金額」買賣超分點。
+
+    direction:
+      "buy"   → 取淨買超「金額」前 3 大分點
+      "sell"  → 取淨賣超「金額」前 3 大分點（取最負）
+      "auto"  → 依資料總淨額方向自動判斷
+
+    金額計算：分點 N 日累計淨張 × 該股票同期間加權均價（簡化估算）。
+
+    回傳：list of dict，最多 3 筆
+      [{"name":"摩根...", "lots":5000, "amount_m":320.5}, ...]
+    """
+    if broker_df is None or broker_df.empty:
+        return []
+
+    agg = aggregate_broker_by_trader(broker_df)
+    if agg.empty:
+        return []
+
+    by_trader = agg.groupby(
+        ["securities_trader_id", "securities_trader"], as_index=False
+    ).agg(
+        buy_lots=("buy_lots",   "sum"),
+        sell_lots=("sell_lots", "sum"),
+        diff_lots=("diff_lots", "sum"),
+    )
+
+    # 期間加權均價（用 broker 涵蓋日期的 sum money / sum volume）
+    avg_vwap = 0.0
+    if not price_df.empty:
+        pr = price_df.copy()
+        pr["date"]  = pd.to_datetime(pr["date"])
+        pr["money"] = pd.to_numeric(pr.get("Trading_money",  0), errors="coerce").fillna(0)
+        pr["vol"]   = pd.to_numeric(pr.get("Trading_Volume", 0), errors="coerce").fillna(0)
+        broker_dates = agg["date"].unique()
+        pr_in = pr[pr["date"].isin(broker_dates)]
+        total_money = float(pr_in["money"].sum())
+        total_vol   = float(pr_in["vol"].sum())
+        if total_vol > 0:
+            avg_vwap = total_money / total_vol
+
+    by_trader["amount_m"] = (
+        by_trader["diff_lots"] * 1000 * avg_vwap / 1_000_000
+    )
+
+    if direction == "auto":
+        total_diff = float(by_trader["diff_lots"].sum())
+        direction = "buy" if total_diff >= 0 else "sell"
+
+    if direction == "buy":
+        sorted_df = by_trader.sort_values("diff_lots", ascending=False).head(3)
+    else:
+        sorted_df = by_trader.sort_values("diff_lots", ascending=True).head(3)
+
+    out = []
+    for _, row in sorted_df.iterrows():
+        diff = int(row["diff_lots"])
+        # 方向不一致就停（買超榜上若出現負淨 = 沒有第三名買超分點）
+        if direction == "buy"  and diff <= 0: break
+        if direction == "sell" and diff >= 0: break
+        out.append({
+            "name":     str(row["securities_trader"]),
+            "lots":     diff,
+            "amount_m": round(float(row["amount_m"]), 2),
+        })
+    return out
+
+
 # ── 分點快取管理器（解決資料量大的問題）─────────────────────
 
 class BrokerDataCache:
