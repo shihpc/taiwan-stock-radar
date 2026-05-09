@@ -1049,14 +1049,14 @@ body::before{
     <div class="sub-page" id="sp2" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;">
       <div class="pg">
         <div style="background:rgba(167,139,250,.06);border:1px solid rgba(167,139,250,.2);border-radius:8px;padding:8px 12px;font-size:.65rem;color:var(--t2);line-height:1.6;">
-          🎯 <strong style="color:var(--c5)">主力分點</strong>：篩選「過去 5 日箱型整理（振幅 &lt; 7%）」+「突破上 / 下緣 3%」+「當日成交量 ≥ 5 倍 5 日均量」三個條件同時成立的個股，依當日「前三大買 / 賣超分點」金額加總排序。
+          🎯 <strong style="color:var(--c5)">主力分點</strong>：篩出「同一分點近 5 日連買 / 連賣 ≥ 3 天，累計金額 ≥ 5 千萬」的個股；同時排除「外資 5 日 \|net\| ≥ 3 千萬 OR 投信 5 日 \|net\| ≥ 3 千萬」的股票，凸顯主力色彩。突破 + 爆量股額外標 🚀。
         </div>
         <!-- 突破方向切換 -->
         <div id="breakoutDirChips" style="display:flex;gap:6px;padding:4px 0 6px;">
-          <button class="breakout-chip active" data-d="up"   onclick="setBreakoutDir('up',this)">↗ 向上突破</button>
-          <button class="breakout-chip"        data-d="down" onclick="setBreakoutDir('down',this)">↘ 向下突破</button>
+          <button class="breakout-chip active" data-d="up"   onclick="setBreakoutDir('up',this)">↗ 看好（買超分點）</button>
+          <button class="breakout-chip"        data-d="down" onclick="setBreakoutDir('down',this)">↘ 看空（賣超分點）</button>
         </div>
-        <div class="section-hdr" id="breakoutHdr">向上突破 + 爆量股票（依分點買超金額排序）</div>
+        <div class="section-hdr" id="breakoutHdr">主力買超分點榜（5 日連買 + 排除法人）</div>
         <div id="breakoutRankList">
           <div class="empty"><div class="empty-icon">🎯</div><div class="empty-title">等待掃描</div><div class="empty-sub">需 Sponsor 方案分點資料</div></div>
         </div>
@@ -1591,11 +1591,17 @@ async function loadScanCSV() {
       } catch(e) {
         s.trust_io = {};
       }
-      // 主力分點 tab：當日 broker 彙總 + 雙向 top3
+      // 主力分點 tab：當日 broker 彙總（個股詳情頁用）
       try {
         s.mainforce_today = JSON.parse(obj.mainforce_today || '{}');
       } catch(e) {
         s.mainforce_today = {};
+      }
+      // 主力分點 tab：5 日連續性指標（最大連買 / 連賣分點）
+      try {
+        s.mainforce_consec = JSON.parse(obj.mainforce_consec || '{}');
+      } catch(e) {
+        s.mainforce_consec = {};
       }
       // 融資 / 融券多視窗餘額金額
       try {
@@ -2259,12 +2265,14 @@ function buildTrustIORankCard(s, rank) {
 }
 
 // ══════════════════════════════════════════
-//  BREAKOUT RANK（主力分點：箱型突破 + 5 倍爆量，依當日前三大分點金額加總排序）
-//  資料源：FinMind TaiwanStockPrice（箱型/爆量）
-//          TaiwanStockTradingDailyReport（broker，當日彙總 + top3 雙向）
-//          後端 engine/breakout_radar.py 算 detect_breakout/mainforce_today
+//  BREAKOUT RANK（主力分點：5 日同分點連買 / 連賣 ≥ 3 天 + 累計 ≥ 5 千萬
+//                + 排除外資/投信 5 日 |net| ≥ 3 千萬）
+//  資料源：scan_app.csv 的 mainforce_consec（後端 broker_analysis.py
+//          compute_mainforce_consec 算好寫入）
 // ══════════════════════════════════════════
-let breakoutDir = 'up';   // 'up' | 'down'
+const MAINFORCE_AMOUNT_THRESHOLD_M = 50;   // 5 千萬：分點連買金額門檻
+const LEGAL_PERSON_EXCLUDE_M       = 30;   // 3 千萬：法人 |net| ≥ 此值就排除
+let breakoutDir = 'up';   // 'up' = 看好（買超分點）/ 'down' = 看空（賣超分點）
 
 function setBreakoutDir(d, btn) {
   breakoutDir = d;
@@ -2273,139 +2281,89 @@ function setBreakoutDir(d, btn) {
   const hdr = document.getElementById('breakoutHdr');
   if (hdr) {
     hdr.textContent = d === 'up'
-      ? '向上突破 + 爆量股票（依分點買超金額排序）'
-      : '向下突破 + 爆量股票（依分點賣超金額排序）';
+      ? '主力買超分點榜（5 日連買 + 排除法人）'
+      : '主力賣超分點榜（5 日連賣 + 排除法人）';
   }
   renderBreakoutRank();
 }
 
 function renderBreakoutRank() {
-  const flag = breakoutDir === 'up' ? 'breakout_up' : 'breakout_down';
-  const isUp = breakoutDir === 'up';
+  const isLong = breakoutDir === 'up';
+  const dirKey = isLong ? 'buy' : 'sell';
 
-  // 取「當日前三大買 / 賣超分點」金額加總（依方向）
-  const _top3Sum = (s) => {
-    const mf = s.mainforce_today || {};
-    const list = isUp ? (mf.top3_buy || []) : (mf.top3_sell || []);
-    return list.reduce((sum, b) => sum + (b.amount_m || 0), 0);
-  };
-
-  // 篩：向上突破 → 留 top3_buy 加總 > 0；向下突破 → 留 top3_sell 加總 < 0
+  // 篩選邏輯：
+  //   1. 主力分點：mainforce_consec[buy/sell].is_qualified === true
+  //   2. 排除法人大買 / 大賣：外資 5 日 |net| ≥ 3000萬 OR 投信 5 日 |net| ≥ 3000萬
   let qualified = allStockData.filter(s => {
-    if (s[flag] !== 1) return false;
-    const sum = _top3Sum(s);
-    return isUp ? sum > 0 : sum < 0;
+    const mc = (s.mainforce_consec || {})[dirKey] || {};
+    if (!mc.is_qualified) return false;
+    const fr5 = (s.foreign_radar || {})['5'] || {};
+    const ti5 = (s.trust_io      || {})['5'] || {};
+    if (Math.abs(fr5.net_amount_m || 0) >= LEGAL_PERSON_EXCLUDE_M) return false;
+    if (Math.abs(ti5.net_amount_m || 0) >= LEGAL_PERSON_EXCLUDE_M) return false;
+    return true;
   });
 
-  // 排序：依當日 top3 金額加總（向上由大到小、向下由小到大）
+  // 排序：買超榜依 net_amount_m 由大到小、賣超榜由小到大（最負最前）
   qualified.sort((a, b) => {
-    const aSum = _top3Sum(a);
-    const bSum = _top3Sum(b);
-    return isUp ? bSum - aSum : aSum - bSum;
+    const av = ((a.mainforce_consec || {})[dirKey] || {}).net_amount_m || 0;
+    const bv = ((b.mainforce_consec || {})[dirKey] || {}).net_amount_m || 0;
+    return isLong ? bv - av : av - bv;
   });
   qualified = qualified.slice(0, 30);
 
-  // 全市場符合突破 + 爆量條件的數量（不分方向）
-  const totalUp   = allStockData.filter(s => s.breakout_up   === 1).length;
-  const totalDown = allStockData.filter(s => s.breakout_down === 1).length;
-  const dirColor = breakoutDir === 'up' ? 'var(--up)' : 'var(--dn)';
+  const dirText  = isLong ? '看好（買超分點）' : '看空（賣超分點）';
+  const dirColor = isLong ? 'var(--up)' : 'var(--dn)';
 
-  const bar = `<div style="background:var(--bg3);border:1px solid var(--border);
+  const headerBar = `<div style="background:var(--bg3);border:1px solid var(--border);
     border-radius:7px;padding:7px 12px;display:flex;justify-content:space-between;
-    align-items:center;font-size:.63rem;margin-bottom:2px;">
-    <span style="color:var(--t2)">本日符合條件：
-      <span style="color:var(--up);font-family:'Space Mono',monospace">${totalUp}</span> 支向上 /
-      <span style="color:var(--dn);font-family:'Space Mono',monospace">${totalDown}</span> 支向下</span>
-    <span style="color:${dirColor};font-family:'Space Mono',monospace">
-      ${breakoutDir === 'up' ? '↗ 向上' : '↘ 向下'}: ${qualified.length} 支
+    align-items:center;font-size:.63rem;flex-wrap:wrap;gap:6px;">
+    <span style="color:var(--t2)">主力分點榜（5 日連買 / 連賣 ≥ 3 天，累計 ≥ 5 千萬，排除法人 ≥ 3 千萬）</span>
+    <span style="color:${dirColor};font-family:'Space Mono',monospace;font-weight:700;">
+      ${isLong ? '↗' : '↘'} ${dirText}：${qualified.length} 支
     </span>
   </div>`;
 
-  document.getElementById('breakoutRankList').innerHTML = bar +
+  document.getElementById('breakoutRankList').innerHTML = headerBar +
     (qualified.length === 0
       ? `<div class="empty"><div class="empty-icon">🎯</div>
           <div class="empty-title">本日無符合條件個股</div>
-          <div class="empty-sub">需同時滿足：5 日箱型（振幅 &lt; 7%）+
-            突破 ±3% + 5 倍爆量<br>且當日前三大分點${breakoutDir === 'up' ? '買超' : '賣超'}加總 ${breakoutDir === 'up' ? '> 0' : '< 0'}</div>
+          <div class="empty-sub">需同時滿足：同一分點近 5 日${isLong ? '連買' : '連賣'} ≥ 3 天<br>
+            累計${isLong ? '淨買超' : '淨賣超'}金額 ≥ 5 千萬<br>
+            且外資 / 投信 5 日 |net| 都 &lt; 3 千萬（避免被法人光環蓋過）</div>
         </div>`
-      : qualified.map((s,i) => buildBreakoutRankCard(s, i+1)).join('')) +
+      : qualified.map((s, i) => buildBreakoutRankCard(s, i + 1)).join('')) +
     `<div style="text-align:center;padding:8px;font-size:.6rem;color:var(--t3)">
-      箱型突破 + 爆量；依當日前三大${breakoutDir === 'up' ? '買超' : '賣超'}分點金額加總排序，共 ${qualified.length} 支
+      條件：分點 5 日連${isLong ? '買' : '賣'} ≥ 3 天 + 累計 ≥ 5 千萬 + 排除法人 ≥ 3 千萬，共 ${qualified.length} 支
     </div>`;
 }
 
 function buildBreakoutRankCard(s, rank) {
-  const isUp = s.chg >= 0;
+  const isLong = breakoutDir === 'up';
+  const isUp   = s.chg >= 0;
   const rankBg = rank===1?'linear-gradient(135deg,#ffd426,#ff8c42)':rank===2?'linear-gradient(135deg,#c0c0c0,#909090)':rank===3?'linear-gradient(135deg,#cd7f32,#8b4513)':'var(--bg3)';
   const rankColor = rank<=3?'#000':'var(--t2)';
   const mktBadge = s.type==='ETF' ? `<span style="font-size:.48rem;background:rgba(0,207,255,.1);border:1px solid rgba(0,207,255,.2);color:var(--c1);border-radius:3px;padding:0 3px;margin-left:3px">ETF</span>` : '';
 
-  const mf = s.mainforce_today || {};
-  const isBuyDir = breakoutDir === 'up';
-  // 排序鍵 = 當日前三大買 / 賣超分點 amount_m 加總（依方向）
-  const _sumTop3 = (list) => (list || []).reduce((sum, b) => sum + (b.amount_m || 0), 0);
-  const sortNet  = isBuyDir ? _sumTop3(mf.top3_buy) : _sumTop3(mf.top3_sell);
+  const dirKey = isLong ? 'buy' : 'sell';
+  const mc     = (s.mainforce_consec || {})[dirKey] || {};
+  const sortNet = mc.net_amount_m || 0;
 
-  // 爆量倍數 badge
-  const volRatio = s.vol_ratio_5d || 0;
-  const volBadge = `<span style="font-size:.55rem;background:rgba(255,212,38,.08);
-    border:1px solid rgba(255,212,38,.3);color:var(--c4);
-    border-radius:4px;padding:1px 6px;white-space:nowrap;font-weight:700;">
-    🔥 量比 ${volRatio.toFixed(1)}x</span>`;
+  // 法人 5 日金額（透明顯示為何通過排除）
+  const fr5Net = ((s.foreign_radar || {})['5'] || {}).net_amount_m || 0;
+  const ti5Net = ((s.trust_io      || {})['5'] || {}).net_amount_m || 0;
 
-  // 單行：當日彙總（不是 5 視窗，只有單日）— 包在 fr-table-wrap 中可摺疊
-  const summaryRow = `
-    <div class="fr-table-wrap" style="display:none;margin-top:8px;">
-    <table class="fr-window-table" onclick="event.stopPropagation()">
-      <thead><tr>
-        <th>當日</th><th>買張</th><th>賣張</th><th>淨張</th>
-        <th class="mobile-hide">買額</th><th class="mobile-hide">賣額</th><th>淨額</th>
-      </tr></thead>
-      <tbody><tr style="background:rgba(167,139,250,.06);">
-        <td>分點彙總</td>
-        <td>${(mf.buy_lots ||0).toLocaleString()}</td>
-        <td>${(mf.sell_lots||0).toLocaleString()}</td>
-        <td class="${amountClass(mf.net_lots)}">${fmtSignedLots(mf.net_lots)}</td>
-        <td class="mobile-hide">${fmtAmountAbs(mf.buy_amount_m)}</td>
-        <td class="mobile-hide">${fmtAmountAbs(mf.sell_amount_m)}</td>
-        <td class="${amountClass(mf.net_amount_m)}"><strong>${fmtAmount(mf.net_amount_m)}</strong></td>
-      </tr></tbody>
-    </table>
-    </div>`;
+  // 突破爆量加分標記
+  const bUp   = s.breakout_up   === 1;
+  const bDown = s.breakout_down === 1;
+  const breakoutBadge = (isLong && bUp) || (!isLong && bDown)
+    ? `<span style="font-size:.55rem;background:rgba(255,212,38,.1);border:1px solid rgba(255,212,38,.4);color:var(--c4);border-radius:4px;padding:1px 6px;white-space:nowrap;font-weight:700;">🚀 突破 + 爆量</span>`
+    : '';
 
-  // 前三大分點（依方向：向上 → top3_buy；向下 → top3_sell）
-  const top3 = isBuyDir ? (mf.top3_buy || []) : (mf.top3_sell || []);
-  let brokerSection = '';
-  if (top3.length > 0) {
-    const dirText  = isBuyDir ? '買超' : '賣超';
-    const dirColor = isBuyDir ? 'var(--up)' : 'var(--dn)';
-    const sign     = isBuyDir ? '+' : '';
-    brokerSection = `
-      <div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(0,200,255,.08);">
-        <div style="font-size:.55rem;color:var(--t3);margin-bottom:5px;">
-          前三大金額${dirText}分點（當日）
-        </div>
-        <div style="display:grid;gap:4px;">
-          ${top3.map((b,i) => {
-            const medal = ['🥇','🥈','🥉'][i] || '';
-            return `<div class="bk-row bk-broker">
-              <div class="bk-line1">
-                <span>${medal}</span>
-                <span>${truncateBrokerName(b.name)}</span>
-              </div>
-              <div class="bk-line2">
-                <span style="color:${dirColor};font-family:'Space Mono',monospace;font-weight:700;">
-                  ${sign}${(b.lots||0).toLocaleString()} 張
-                </span>
-                <span style="color:var(--t2);font-family:'Space Mono',monospace;min-width:70px;text-align:right;">
-                  ${fmtAmount(b.amount_m)}
-                </span>
-              </div>
-            </div>`;
-          }).join('')}
-        </div>
-      </div>`;
-  }
+  // 主力分點 badge
+  const dirColor = isLong ? 'var(--up)' : 'var(--dn)';
+  const consecBadge = `<span style="font-size:.55rem;background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.4);color:var(--c5);border-radius:4px;padding:1px 6px;white-space:nowrap;font-weight:700;">
+    🔥 連${isLong ? '買' : '賣'} ${mc.consec_days || 0} 天</span>`;
 
   return `<div class="dim-rank-card dim-C" onclick="openDetail('${s.code}')"
               style="cursor:pointer;">
@@ -2417,25 +2375,36 @@ function buildBreakoutRankCard(s, rank) {
           <span class="drc-name">${s.name}</span>${mktBadge}
           <span class="price-change ${isUp?'up':'dn'}" style="font-size:.65rem;margin-left:auto;font-family:'Space Mono',monospace">${isUp?'▲':'▼'}${Math.abs(s.chg_pct).toFixed(2)}%</span>
         </div>
-        ${buildAmountTopRow(sortNet, '當日前三大分點加總')}
+        ${buildAmountTopRow(sortNet, '主力分點 5 日累計')}
         <div class="drc-sub" style="display:flex;gap:5px;flex-wrap:wrap;margin-top:4px;">
-          ${volBadge}
+          ${consecBadge}${breakoutBadge}
         </div>
-        ${summaryRow}
-        ${brokerSection}
+        <div style="margin-top:6px;padding:5px 8px;background:rgba(167,139,250,.04);
+                    border:1px solid rgba(167,139,250,.15);border-radius:5px;
+                    display:flex;flex-direction:column;gap:2px;font-size:.62rem;">
+          <div style="display:flex;align-items:center;gap:6px;color:var(--t1);">
+            <span>${isLong ? '🥇' : '🥇'}</span>
+            <span>${truncateBrokerName(mc.trader_name || '—')}</span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;font-size:.58rem;">
+            <span style="color:${dirColor};font-family:'Space Mono',monospace;font-weight:700;">
+              ${(mc.net_lots > 0 ? '+' : '')}${(mc.net_lots || 0).toLocaleString()} 張
+            </span>
+            <span style="color:var(--t2);font-family:'Space Mono',monospace;min-width:70px;text-align:right;">
+              ${fmtAmount(mc.net_amount_m)}
+            </span>
+          </div>
+        </div>
+        <div style="margin-top:5px;display:flex;gap:8px;font-size:.55rem;color:var(--t3);
+                    padding:3px 8px;background:rgba(0,200,255,.02);border-radius:4px;">
+          <span>外資 5 日 <span class="${amountClass(fr5Net)}" style="font-family:'Space Mono',monospace;">${fmtAmount(fr5Net)}</span></span>
+          <span style="color:var(--t3)">·</span>
+          <span>投信 5 日 <span class="${amountClass(ti5Net)}" style="font-family:'Space Mono',monospace;">${fmtAmount(ti5Net)}</span></span>
+        </div>
       </div>
     </div>
   </div>`;
 }
-
-// ══════════════════════════════════════════
-//  MARGIN RANK（融資券：多視窗餘額金額 + 增減）
-//  資料源：FinMind TaiwanStockMarginPurchaseShortSale + TaiwanStockPrice
-//          後端 engine/margin_radar.py 算 5 視窗 ago / diff
-// ══════════════════════════════════════════
-const MARGIN_WINDOWS = ['1','3','5','10','20'];   // 融資視窗
-const SHORT_WINDOWS  = ['1','3','5','10','21'];   // 融券視窗（依需求 21 日）
-let marginType = 'margin';   // 'margin' | 'short'
 
 function setMarginType(t, btn) {
   marginType = t;

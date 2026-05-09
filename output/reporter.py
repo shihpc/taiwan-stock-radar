@@ -162,7 +162,8 @@ def save_app_csv(results: list, scan_date: str, dataset_dates: dict = None):
             "breakout_up":     int(bo.get("qualified_up",   False)),
             "breakout_down":   int(bo.get("qualified_down", False)),
             "vol_ratio_5d":    bo.get("vol_ratio", 0),
-            "mainforce_today": json.dumps(r.get("mainforce_today", {}), ensure_ascii=False),
+            "mainforce_today":  json.dumps(r.get("mainforce_today", {}),  ensure_ascii=False),
+            "mainforce_consec": json.dumps(r.get("mainforce_consec", {}), ensure_ascii=False),
             # 融資 / 融券 5 視窗
             "margin_radar":   json.dumps(r.get("margin_radar", {}), ensure_ascii=False),
             "short_radar":    json.dumps(r.get("short_radar",  {}), ensure_ascii=False),

@@ -58,7 +58,7 @@ from engine.trust_radar import compute_trust_radar
 from engine.foreign_radar import (
     compute_foreign_radar, compute_trust_io, compute_foreign_consec_days,
 )
-from engine.broker_analysis import compute_top3_brokers
+from engine.broker_analysis import compute_top3_brokers, compute_mainforce_consec
 from engine.breakout_radar import detect_breakout, compute_mainforce_today
 from engine.margin_radar import compute_margin_radar, compute_short_radar
 from engine.backtest_radar import (
@@ -374,17 +374,24 @@ def run_scan(scan_date: str = None, quick: bool = False,
 
         logger.info(f"Step 3.5：對 {len(broker_targets)} 支股票抓 broker（"
                     f"外資/投信 5 視窗前 30 聯集 + 突破股）...")
+        empty_mfc = {"buy":  {"trader_name": "", "consec_days": 0, "net_lots": 0,
+                                  "net_amount_m": 0.0, "is_qualified": False},
+                     "sell": {"trader_name": "", "consec_days": 0, "net_lots": 0,
+                                  "net_amount_m": 0.0, "is_qualified": False}}
         for r in results:
             sid = r["stock_id"]
             if sid not in broker_targets:
-                r["broker_top3"]      = {str(n): {"buy": [], "sell": []}
-                                            for n in BROKER_TOP3_WINDOWS}
-                r["mainforce_today"]  = {}
+                r["broker_top3"]        = {str(n): {"buy": [], "sell": []}
+                                              for n in BROKER_TOP3_WINDOWS}
+                r["mainforce_today"]    = {}
+                r["mainforce_consec"]   = empty_mfc
                 continue
             broker_df = _fetch_broker_multi(sid)
             price_df_r = cache.price_history_for(sid)
             r["broker_top3"] = _compute_windowed_top3(broker_df, price_df_r)
-            # 突破股額外算當日彙總（主力分點 tab）
+            # 主力分點 tab：每股算 5 日連續性指標
+            r["mainforce_consec"] = compute_mainforce_consec(broker_df, price_df_r, days=5)
+            # 突破股額外算當日彙總（保留：個股詳情頁可能用、加分提示用）
             bo = r.get("breakout") or {}
             if bo.get("qualified_up") or bo.get("qualified_down"):
                 broker_today_df = pd.DataFrame()
@@ -395,7 +402,6 @@ def run_scan(scan_date: str = None, quick: bool = False,
                     if not df_today.empty:
                         broker_today_df = df_today
                     else:
-                        # fallback：用最近一日
                         last_day = bd["date_str"].max()
                         broker_today_df = bd[bd["date_str"] == last_day]
                 r["mainforce_today"] = compute_mainforce_today(
@@ -405,10 +411,15 @@ def run_scan(scan_date: str = None, quick: bool = False,
         logger.info(f"broker 補抓完成，cache 命中 {len(broker_cache_run)} 支")
     else:
         # --no-broker 模式：所有股 broker 欄位都空
+        empty_mfc_nob = {"buy":  {"trader_name": "", "consec_days": 0, "net_lots": 0,
+                                       "net_amount_m": 0.0, "is_qualified": False},
+                         "sell": {"trader_name": "", "consec_days": 0, "net_lots": 0,
+                                       "net_amount_m": 0.0, "is_qualified": False}}
         for r in results:
-            r["broker_top3"]     = {str(n): {"buy": [], "sell": []}
-                                       for n in BROKER_TOP3_WINDOWS}
-            r["mainforce_today"] = {}
+            r["broker_top3"]      = {str(n): {"buy": [], "sell": []}
+                                        for n in BROKER_TOP3_WINDOWS}
+            r["mainforce_today"]  = {}
+            r["mainforce_consec"] = empty_mfc_nob
 
     logger.info(f"處理 {len(results)} 支｜跳過 {skip_count}｜錯誤 {error_count}")
 

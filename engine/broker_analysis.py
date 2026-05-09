@@ -473,6 +473,126 @@ def compute_top3_brokers(broker_df: pd.DataFrame,
     return out
 
 
+# ── 主力分點連續性分析（主力分點 tab 用）────────────────────
+
+def compute_mainforce_consec(broker_df: pd.DataFrame,
+                              price_df: pd.DataFrame = pd.DataFrame(),
+                              days: int = 5) -> dict:
+    """
+    對該股近 N 日 broker，找最大連續買超 / 賣超分點及其累計金額。
+
+    回傳：
+    {
+      "buy": {
+          "trader_name":  str,    # 最大連買分點名稱
+          "consec_days":  int,    # 從最新日起連續買超天數
+          "net_lots":     int,    # 該分點 N 日累計淨買超張數
+          "net_amount_m": float,  # 該分點 N 日累計淨買超金額（百萬）
+          "is_qualified": bool,   # consec_days >= 3 且 net_amount_m >= 50
+      },
+      "sell": { 同上但方向相反 }
+    }
+
+    若沒有任何分點符合「至少連買 / 連賣 1 天」，對應方向回傳空 entry。
+    """
+    empty_entry = {
+        "trader_name":  "",
+        "consec_days":  0,
+        "net_lots":     0,
+        "net_amount_m": 0.0,
+        "is_qualified": False,
+    }
+    empty = {"buy": dict(empty_entry), "sell": dict(empty_entry)}
+
+    if broker_df is None or broker_df.empty:
+        return empty
+
+    agg = aggregate_broker_by_trader(broker_df)
+    if agg.empty:
+        return empty
+
+    # 取近 N 日（含當日）
+    agg = agg.copy()
+    agg["date"]  = pd.to_datetime(agg["date"])
+    sorted_dates = sorted(agg["date"].unique(), reverse=True)
+    target_dates = set(sorted_dates[:days])
+    df = agg[agg["date"].isin(target_dates)]
+    if df.empty:
+        return empty
+
+    # 期間加權均價（用於估算金額）
+    avg_vwap = 0.0
+    if not price_df.empty:
+        pr = price_df.copy()
+        pr["date"]  = pd.to_datetime(pr["date"])
+        pr["money"] = pd.to_numeric(pr.get("Trading_money",  0), errors="coerce").fillna(0)
+        pr["vol"]   = pd.to_numeric(pr.get("Trading_Volume", 0), errors="coerce").fillna(0)
+        pr_in = pr[pr["date"].isin(target_dates)]
+        total_money = float(pr_in["money"].sum())
+        total_vol   = float(pr_in["vol"].sum())
+        if total_vol > 0:
+            avg_vwap = total_money / total_vol
+
+    # 對每分點計算：連買天數、連賣天數、總淨張
+    best_buy  = None   # (consec_days, net_lots, name)
+    best_sell = None
+    for tid, group in df.groupby("securities_trader_id"):
+        g = group.sort_values("date", ascending=False)   # 從最新往回
+        diffs = g["diff_lots"].tolist()
+        name  = str(g["securities_trader"].iloc[0])
+        total_net = int(g["diff_lots"].sum())
+
+        # 從最新日起連續同方向天數
+        consec_buy = 0
+        for d in diffs:
+            if int(d) > 0:
+                consec_buy += 1
+            else:
+                break
+        consec_sell = 0
+        for d in diffs:
+            if int(d) < 0:
+                consec_sell += 1
+            else:
+                break
+
+        # 買方候選（連買 ≥ 1 + 該分點期間總淨 > 0）
+        if consec_buy >= 1 and total_net > 0:
+            cand = (consec_buy, total_net, name)
+            # 排序鍵：先連買天數，再淨張數
+            if best_buy is None or cand > best_buy:
+                best_buy = cand
+        # 賣方候選（連賣 ≥ 1 + 該分點期間總淨 < 0）
+        if consec_sell >= 1 and total_net < 0:
+            cand = (consec_sell, -total_net, name)   # 用 -total_net 排絕對值
+            if best_sell is None or cand > best_sell:
+                best_sell = cand
+
+    out = {"buy": dict(empty_entry), "sell": dict(empty_entry)}
+
+    if best_buy is not None:
+        consec, lots, name = best_buy
+        amt_m = round(lots * 1000 * avg_vwap / 1_000_000, 2)
+        out["buy"] = {
+            "trader_name":  name,
+            "consec_days":  consec,
+            "net_lots":     lots,
+            "net_amount_m": amt_m,
+            "is_qualified": (consec >= 3 and amt_m >= 50),
+        }
+    if best_sell is not None:
+        consec, abs_lots, name = best_sell
+        amt_m = round(-abs_lots * 1000 * avg_vwap / 1_000_000, 2)   # 負值
+        out["sell"] = {
+            "trader_name":  name,
+            "consec_days":  consec,
+            "net_lots":     -abs_lots,
+            "net_amount_m": amt_m,
+            "is_qualified": (consec >= 3 and amt_m <= -50),
+        }
+    return out
+
+
 # ── 分點快取管理器（解決資料量大的問題）─────────────────────
 
 class BrokerDataCache:
