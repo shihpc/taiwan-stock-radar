@@ -812,6 +812,20 @@ body::before{
 .fr-window-table td:first-child{text-align:left;color:var(--t2);font-size:.6rem;}
 .fr-window-table tr:last-child td{border-bottom:none;}
 .fr-pos{color:var(--up);}.fr-neg{color:var(--dn);}.fr-zero{color:var(--t3);}
+
+/* 手機（< 600px）：表格緊湊 + 隱藏買額/賣額（中間欄） */
+@media (max-width: 600px) {
+  .fr-window-table{font-size:.5rem;}
+  .fr-window-table th{padding:3px 2px;font-size:.48rem;white-space:nowrap;}
+  .fr-window-table td{padding:2px 2px;white-space:nowrap;}
+  .fr-window-table td:first-child{font-size:.5rem;}
+  .mobile-hide{display:none !important;}
+  /* broker 分點名稱過長截斷 */
+  .broker-name-cell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+  /* 卡片右側分數區字級壓縮 */
+  .drc-right .drc-score{font-size:.85rem !important;}
+  .drc-right .drc-label{font-size:.5rem;}
+}
 .dim-M .drc-code{color:var(--c2);}
 .dim-M .drc-score{color:var(--c2);}
 .dim-M .drc-fill{background:linear-gradient(90deg,var(--c2),rgba(0,255,157,.4));}
@@ -2675,8 +2689,8 @@ function buildTrustIORankCard(s, rank) {
       <td>${(d.buy_lots ||0).toLocaleString()}</td>
       <td>${(d.sell_lots||0).toLocaleString()}</td>
       <td class="${amountClass(d.net_lots)}">${fmtSignedLots(d.net_lots)}</td>
-      <td>${fmtAmountAbs(d.buy_amount_m)}</td>
-      <td>${fmtAmountAbs(d.sell_amount_m)}</td>
+      <td class="mobile-hide">${fmtAmountAbs(d.buy_amount_m)}</td>
+      <td class="mobile-hide">${fmtAmountAbs(d.sell_amount_m)}</td>
       <td class="${amountClass(d.net_amount_m)}"><strong>${fmtAmount(d.net_amount_m)}</strong></td>
     </tr>`;
   }).join('');
@@ -2703,7 +2717,7 @@ function buildTrustIORankCard(s, rank) {
                 border:1px solid rgba(255,61,106,.12);border-radius:5px;
                 padding:4px 7px;">
               <span>${medal}</span>
-              <span style="flex:1;color:var(--t1);">${b.name}</span>
+              <span class="broker-name-cell" style="flex:1;color:var(--t1);">${b.name}</span>
               <span style="color:${dirColor};font-family:'Space Mono',monospace;font-weight:700;">
                 ${sign}${(b.lots||0).toLocaleString()} 張
               </span>
@@ -2740,7 +2754,7 @@ function buildTrustIORankCard(s, rank) {
         <table class="fr-window-table" onclick="event.stopPropagation()">
           <thead><tr>
             <th>視窗</th><th>買張</th><th>賣張</th><th>淨張</th>
-            <th>買額</th><th>賣額</th><th>淨額</th>
+            <th class="mobile-hide">買額</th><th class="mobile-hide">賣額</th><th>淨額</th>
           </tr></thead>
           <tbody>${rows}</tbody>
         </table>
@@ -2856,8 +2870,8 @@ function buildBreakoutRankCard(s, rank) {
         <td>${(mf.buy_lots ||0).toLocaleString()}</td>
         <td>${(mf.sell_lots||0).toLocaleString()}</td>
         <td class="${amountClass(mf.net_lots)}">${fmtSignedLots(mf.net_lots)}</td>
-        <td>${fmtAmountAbs(mf.buy_amount_m)}</td>
-        <td>${fmtAmountAbs(mf.sell_amount_m)}</td>
+        <td class="mobile-hide">${fmtAmountAbs(mf.buy_amount_m)}</td>
+        <td class="mobile-hide">${fmtAmountAbs(mf.sell_amount_m)}</td>
         <td class="${amountClass(mf.net_amount_m)}"><strong>${fmtAmount(mf.net_amount_m)}</strong></td>
       </tr></tbody>
     </table>`;
@@ -2882,7 +2896,7 @@ function buildBreakoutRankCard(s, rank) {
                 border:1px solid rgba(167,139,250,.18);border-radius:5px;
                 padding:4px 7px;">
               <span>${medal}</span>
-              <span style="flex:1;color:var(--t1);">${b.name}</span>
+              <span class="broker-name-cell" style="flex:1;color:var(--t1);">${b.name}</span>
               <span style="color:${dirColor};font-family:'Space Mono',monospace;font-weight:700;">
                 ${sign}${(b.lots||0).toLocaleString()} 張
               </span>
@@ -3260,8 +3274,8 @@ function buildForeignRankCard(s, rank) {
       <td>${(d.buy_lots ||0).toLocaleString()}</td>
       <td>${(d.sell_lots||0).toLocaleString()}</td>
       <td class="${amountClass(d.net_lots)}">${fmtSignedLots(d.net_lots)}</td>
-      <td>${fmtAmountAbs(d.buy_amount_m)}</td>
-      <td>${fmtAmountAbs(d.sell_amount_m)}</td>
+      <td class="mobile-hide">${fmtAmountAbs(d.buy_amount_m)}</td>
+      <td class="mobile-hide">${fmtAmountAbs(d.sell_amount_m)}</td>
       <td class="${amountClass(d.net_amount_m)}"><strong>${fmtAmount(d.net_amount_m)}</strong></td>
     </tr>`;
   }).join('');
@@ -3288,7 +3302,7 @@ function buildForeignRankCard(s, rank) {
                 border:1px solid rgba(0,207,255,.12);border-radius:5px;
                 padding:4px 7px;">
               <span>${medal}</span>
-              <span style="flex:1;color:var(--t1);">${b.name}</span>
+              <span class="broker-name-cell" style="flex:1;color:var(--t1);">${b.name}</span>
               <span style="color:${dirColor};font-family:'Space Mono',monospace;font-weight:700;">
                 ${sign}${(b.lots||0).toLocaleString()} 張
               </span>
@@ -3321,7 +3335,7 @@ function buildForeignRankCard(s, rank) {
         <table class="fr-window-table" onclick="event.stopPropagation()">
           <thead><tr>
             <th>視窗</th><th>買張</th><th>賣張</th><th>淨張</th>
-            <th>買額</th><th>賣額</th><th>淨額</th>
+            <th class="mobile-hide">買額</th><th class="mobile-hide">賣額</th><th>淨額</th>
           </tr></thead>
           <tbody>${rows}</tbody>
         </table>
