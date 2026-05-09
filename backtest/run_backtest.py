@@ -90,7 +90,7 @@ def main():
     parser.add_argument("--hold",       type=int,   default=20)
     parser.add_argument("--stop-loss",  type=float, default=-0.08)
     parser.add_argument("--take-profit",type=float, default=0.20)
-    parser.add_argument("--threshold",  type=int,   default=77)
+    parser.add_argument("--threshold",  type=int,   default=88)
     parser.add_argument("--max-pos",    type=int,   default=10)
     parser.add_argument("--freq",       choices=["daily","weekly","monthly"],
                         default="weekly")

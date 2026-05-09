@@ -51,6 +51,7 @@ from data.fetcher import (
     get_last_trading_date,
 )
 from engine.scorer import score_stock
+from engine.etf_flow import calc_trust_5d_distribution
 from engine.filters import (
     filter_stock_list,
     filter_by_margin,
@@ -128,7 +129,7 @@ def print_single_stock_detail(result: dict):
     pct   = result["pct"]
 
     print(f"\n{'='*60}")
-    print(f"  {sid} {name}｜總分 {total}/98（{pct*100:.1f}%）")
+    print(f"  {sid} {name}｜總分 {total}/{result.get('max_score', 158)}（{pct*100:.1f}%）")
     print(f"{'='*60}")
 
     sections = [
@@ -137,10 +138,11 @@ def print_single_stock_detail(result: dict):
         ("C. 主力分點  ", result["C_broker"]),
         ("D. 技術面    ", result["D_technical"]),
         ("E. 基本面    ", result["E_fundamental"]),
+        ("F. ETF資金流", result.get("F_etf_flow", {"score": 0, "detail": {}})),
         ("S2. 股權分散 ", result.get("S2_holding", {"score": 0, "detail": {}})),
         ("S2. 融資券   ", result.get("S2_margin",  {"score": 0, "detail": {}})),
     ]
-    maxs = [20, 20, 20, 20, 20, 10, 8]
+    maxs = [20, 20, 20, 20, 20, 20, 25, 13]
     for (label, sec), mx in zip(sections, maxs):
         score     = sec["score"]
         breakdown = sec.get("detail", {}).get("breakdown", {})
@@ -247,6 +249,17 @@ def run_scan(scan_date: str = None, quick: bool = False,
 
     # full mode：分點資料在候選股確定後才逐支補抓（Step 3.5）
 
+    # F1 需要的全市場投信5日買超分布（強制觸發批次法人歷史拉取）
+    inst_hist_all = cache.get_institutional_history(20)
+    market_trust_dist = calc_trust_5d_distribution(inst_hist_all)
+    if market_trust_dist:
+        logger.info(f"投信5日買超分布｜p90={market_trust_dist['p90']:.0f}張 "
+                    f"p80={market_trust_dist['p80']:.0f}張 "
+                    f"p70={market_trust_dist['p70']:.0f}張 "
+                    f"(N={market_trust_dist['n']})")
+    else:
+        logger.warning("無法計算投信買超分布，F1 將為 0 分")
+
     # ── Step 3：逐支評分 ──────────────────────────────────────
     logger.info("Step 3/5：開始評分...")
     results = []
@@ -297,6 +310,7 @@ def run_scan(scan_date: str = None, quick: bool = False,
                 holding_df=holding_df,
                 margin_history_df=margin_hist,
                 broker_df=broker_df,
+                market_trust_dist=market_trust_dist,
             )
             result["stock_name"]   = stock_name
             result["margin_ratio"] = margin_ratio

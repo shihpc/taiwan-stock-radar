@@ -38,7 +38,7 @@ class BacktestConfig:
     hold_days:        int   = 20             # 持有天數（交易日）
     stop_loss_pct:    float = -0.08          # 停損：-8%
     take_profit_pct:  float = 0.20           # 停利：+20%
-    score_threshold:  int   = 77             # 最低進場分數（65% of 118）
+    score_threshold:  int   = 88             # 最低進場分數（~55% of 158）
     max_positions:    int   = 10             # 最多同時持有幾支
     capital_per_trade:float = 100_000.0      # 每筆投入金額（元）
     use_adj_price:    bool  = True           # 使用還原股價（除權息調整）
@@ -204,7 +204,7 @@ def calc_stats(trades: list[Trade],
     }
 
     # 依分數區間
-    bands = [(77, 85, "77-85"), (85, 95, "85-95"), (95, 118, "95-118")]
+    bands = [(88, 100, "88-100"), (100, 115, "100-115"), (115, 158, "115-158")]
     for lo, hi, label in bands:
         band_trades = [t for t in completed if lo <= t.score < hi]
         if band_trades:

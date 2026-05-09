@@ -31,6 +31,7 @@ from engine.indicators import get_technical_summary, prepare_price_df
 from engine.shareholding import score_shareholding, get_total_shares_from_holding
 from engine.margin_analysis import analyze_margin, score_margin
 from engine.broker_analysis import score_broker_full
+from engine.etf_flow import score_etf_flow
 
 logger = logging.getLogger(__name__)
 
@@ -426,6 +427,7 @@ def score_stock(
     holding_df: pd.DataFrame = pd.DataFrame(),       # Sprint 2：股權分散表
     margin_history_df: pd.DataFrame = pd.DataFrame(), # Sprint 2：融資券歷史
     total_shares: Optional[float] = None,
+    market_trust_dist: Optional[dict] = None,        # F 面向：全市場投信5日分布
 ) -> dict:
     """
     對單支股票執行全面評分，回傳結構化結果。
@@ -470,19 +472,28 @@ def score_stock(
         margin_analysis = analyze_margin(margin_history_df)
         result_s2_margin = score_margin(margin_analysis)
 
+        # ── F 面向：ETF 資金流強度（須在 S2_holding 之後算，
+        #    因為 F2 要用 holding_trend）─────────────────────
+        holding_trend = result_s2_holding["detail"].get("trend", {})
+        result_f = score_etf_flow(
+            institutional_df=institutional_df,
+            shareholding_df=shareholding_df,
+            holding_trend=holding_trend,
+            price_df=price_df,
+            market_trust_dist=market_trust_dist,
+        )
+
         # ── 加總 ─────────────────────────────────────────────
         base_score = (result_a["score"] + result_b["score"] +
                       result_c["score"] +
-                      result_d["score"] + result_e["score"])
+                      result_d["score"] + result_e["score"] +
+                      result_f["score"])
         bonus_score = result_s2_holding["score"] + result_s2_margin["score"]
         total = max(base_score + bonus_score, 0)
 
-        # 新滿分計算：
-        #   A(20) + B(10+15+10=35→上限20) + C(20) + D(6+5+4+10=25→上限20+5超出原上限)
-        #   實際各面向仍各自 min(...,20) 上限
-        #   A(20)+B(20)+C(20)+D(20)+E(20)+股權(25)+融資(13) = 138
-        # 候選門檻 65% = 90 分；強烈關注 80% = 110 分
-        max_score = 138
+        # 滿分計算：
+        #   A(20)+B(20)+C(20)+D(20)+E(20)+F(20)+股權(25)+融資(13) = 158
+        max_score = 158
         pct = round(total / max_score, 4)
 
         # ── 標記 ─────────────────────────────────────────────
@@ -523,6 +534,7 @@ def score_stock(
             "C_broker":        result_c,
             "D_technical":     result_d,
             "E_fundamental":   result_e,
+            "F_etf_flow":      result_f,
             "S2_holding":      result_s2_holding,
             "S2_margin":       result_s2_margin,
             "margin_analysis": margin_analysis,
@@ -535,13 +547,14 @@ def score_stock(
         return {
             "stock_id":        stock_id,
             "total_score":     0,
-            "max_score":       118,
+            "max_score":       158,
             "pct":             0,
             "A_foreign":       {"score": 0, "detail": {}},
             "B_trust":         {"score": 0, "detail": {}},
             "C_broker":        {"score": 0, "detail": {}},
             "D_technical":     {"score": 0, "detail": {}},
             "E_fundamental":   {"score": 0, "detail": {}},
+            "F_etf_flow":      {"score": 0, "detail": {}},
             "S2_holding":      {"score": 0, "detail": {}},
             "S2_margin":       {"score": 0, "detail": {}},
             "margin_analysis": {},

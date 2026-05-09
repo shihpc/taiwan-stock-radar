@@ -31,6 +31,11 @@ def build_summary_df(results: list) -> pd.DataFrame:
         holding_trend  = s2h.get("detail", {}).get("trend", {})
         broker_analysis = r["C_broker"].get("detail", {}).get("broker_analysis", {})
 
+        f_etf = r.get("F_etf_flow", {})
+        f_det = f_etf.get("detail", {})
+        f1_d  = f_det.get("F1_detail", {})
+        f2_d  = f_det.get("F2_detail", {})
+
         rows.append({
             "代碼":       r["stock_id"],
             "名稱":       r.get("stock_name", ""),
@@ -42,6 +47,9 @@ def build_summary_df(results: list) -> pd.DataFrame:
             "主力(C)":    r["C_broker"]["score"],          # Sprint 3
             "技術(D)":    r["D_technical"]["score"],
             "基本面(E)":  r["E_fundamental"]["score"],
+            "ETF(F)":     f_etf.get("score", 0),
+            "F1排名":     f1_d.get("rank", "N/A"),
+            "F2三方":     f2_d.get("count", 0),
             "股權分散":   s2h.get("score", 0),
             "融資券":     s2m.get("score", 0),
             "外資連買":   r["A_foreign"]["detail"].get("consec_days", 0),
@@ -72,17 +80,17 @@ def print_console_report(df: pd.DataFrame, scan_date: str,
     if not OUTPUT_CONSOLE:
         return
 
-    # Sprint 3 滿分 118，候選門檻 65% = 77，強烈關注 80% = 95
-    threshold = 77
-    strong    = 95
+    # 滿分 158（含 F 面向）｜候選門檻 ~55% = 88，強烈關注 ~70% = 110
+    threshold = 88
+    strong    = 110
 
     candidates = df[df["總分"] >= threshold]
     strong_df  = df[df["總分"] >= strong]
 
-    sep = "=" * 105
+    sep = "=" * 110
 
     print(f"\n{sep}")
-    print(f"  台股主力選股掃描器 Sprint 3（完整版）｜{scan_date}")
+    print(f"  台股主力選股掃描器（含 F 面向 ETF 資金流）｜{scan_date}")
     print(f"  掃描：{total_scanned:,} 支｜耗時：{elapsed:.1f}s｜"
           f"候選（≥{threshold}）：{len(candidates)} 支｜"
           f"強烈關注（≥{strong}）：{len(strong_df)} 支")
@@ -96,17 +104,18 @@ def print_console_report(df: pd.DataFrame, scan_date: str,
     display = df.head(TOP_N_DISPLAY)
 
     print(f"{'排':>3} {'代碼':>6} {'名稱':<9} "
-          f"{'總':>4} {'A外':>3} {'B投':>3} {'C主':>3} {'D技':>3} {'E基':>3} "
+          f"{'總':>4} {'A外':>3} {'B投':>3} {'C主':>3} {'D技':>3} {'E基':>3} {'F流':>3} "
           f"{'股權':>3} {'融':>3} "
           f"{'外資':>4} {'投信':>4} {'主力':>4} {'分點':>4} "
           f"{'RSI':>5} {'融資':>5} {'大戶':>6}  標記")
-    print("-" * 105)
+    print("-" * 110)
 
     for rank, row in display.iterrows():
         flag = "🔥" if row["總分"] >= strong else "  "
         print(f"{flag}{rank:>2} {row['代碼']:>6} {row['名稱']:<9} "
               f"{row['總分']:>4} {row['外資(A)']:>3} {row['投信(B)']:>3} "
               f"{row['主力(C)']:>3} {row['技術(D)']:>3} {row['基本面(E)']:>3} "
+              f"{row['ETF(F)']:>3} "
               f"{row['股權分散']:>3} {row['融資券']:>3} "
               f"{int(row['外資連買']):>3}天 {int(row['投信連買']):>3}天 "
               f"{int(row['主力連進']):>3}天 {row['分點集中']:>4} "
@@ -188,8 +197,19 @@ def save_app_csv(results: list, scan_date: str):
         C   = r["C_broker"]["score"]
         D   = r["D_technical"]["score"]
         E   = r["E_fundamental"]["score"]
+        F   = r.get("F_etf_flow", {}).get("score", 0)
         S2h = s2h.get("score", 0)
         S2m = s2m.get("score", 0)
+
+        # F 面向子細節（前端可選用）
+        f_det  = r.get("F_etf_flow", {}).get("detail", {})
+        f1_det = f_det.get("F1_detail", {})
+        f2_det = f_det.get("F2_detail", {})
+        f3_det = f_det.get("F3_detail", {})
+        etf_trust_5d  = f1_det.get("trust_5d_lots", 0)
+        etf_rank      = f1_det.get("rank", "N/A")
+        etf_chip_cnt  = f2_det.get("count", 0)
+        etf_vol_ratio = f3_det.get("vol_ratio_10_60", 0)
 
         # 籌碼數值
         foreign_days  = a_det.get("consec_days", 0)
@@ -232,7 +252,7 @@ def save_app_csv(results: list, scan_date: str):
 
         # 標記與訊號
         tags       = " ".join(r.get("tags", []))
-        signal     = "BUY" if r["total_score"] >= 90 else ("WATCH" if r["total_score"] >= 77 else "NONE")
+        signal     = "BUY" if r["total_score"] >= 110 else ("WATCH" if r["total_score"] >= 88 else "NONE")
         signal_desc = r.get("signal_desc", "")
 
         # 資料日期
@@ -253,8 +273,13 @@ def save_app_csv(results: list, scan_date: str):
             "C":            C,
             "D":            D,
             "E":            E,
+            "F":            F,
             "S2h":          S2h,
             "S2m":          S2m,
+            "etf_trust_5d":  etf_trust_5d,
+            "etf_rank":      etf_rank,
+            "etf_chip_cnt":  etf_chip_cnt,
+            "etf_vol_ratio": etf_vol_ratio,
             "foreign_days": foreign_days,
             "trust_days":   trust_days,
             "broker_days":  broker_days,
