@@ -55,6 +55,7 @@ from engine.etf_flow import calc_trust_5d_distribution
 from engine.trust_radar import compute_trust_radar
 from engine.foreign_radar import compute_foreign_radar, compute_trust_io
 from engine.broker_analysis import compute_top3_brokers
+from engine.breakout_radar import detect_breakout, compute_mainforce_today
 from engine.filters import (
     filter_stock_list,
     filter_by_margin,
@@ -323,6 +324,8 @@ def run_scan(scan_date: str = None, quick: bool = False,
             result["foreign_radar"] = compute_foreign_radar(inst_hist, price_df)
             # 投信多視窗（同結構，篩投信列）
             result["trust_io"]      = compute_trust_io(inst_hist, price_df)
+            # 突破雷達（5 日箱型 + 突破 ±5% + 5 倍爆量）
+            result["breakout"]      = detect_breakout(price_df)
             results.append(result)
 
         except KeyboardInterrupt:
@@ -422,6 +425,34 @@ def run_scan(scan_date: str = None, quick: bool = False,
             r["trust_broker_top3"] = compute_top3_brokers(broker_df, price_df_r, direction)
             r["trust_broker_dir"]  = direction
         logger.info("投信前 30 名分點 top3 完成")
+
+    # ── Step 3.8：對「箱型突破 + 爆量」個股算當日 broker 彙總 ──
+    breakout_stocks = [
+        r for r in results
+        if r.get("breakout", {}).get("qualified_up")
+        or r.get("breakout", {}).get("qualified_down")
+    ]
+    if use_broker and breakout_stocks:
+        logger.info(f"Step 3.8：對箱型突破+爆量 {len(breakout_stocks)} 支"
+                    f"算當日 broker 彙總（主力分點 tab 用）...")
+        for r in breakout_stocks:
+            sid = r["stock_id"]
+            # 拉「scan_date」當日的 broker 資料
+            df_b = fetch_broker_data(sid, scan_date)
+            if df_b.empty:
+                # fallback：若當日無資料（盤中未更新），用 cache 中最近一日
+                cached_multi = broker_cache_run.get(sid, pd.DataFrame())
+                if not cached_multi.empty:
+                    cached_multi = cached_multi.copy()
+                    cached_multi["date"] = cached_multi["date"].astype(str).str[:10]
+                    last_day = cached_multi["date"].max()
+                    df_b = cached_multi[cached_multi["date"] == last_day]
+            if df_b.empty:
+                r["mainforce_today"] = {}
+                continue
+            price_df_r = cache.price_history_for(sid)
+            r["mainforce_today"] = compute_mainforce_today(df_b, price_df_r)
+        logger.info("主力分點當日彙總完成")
 
     # ── Step 4：篩選候選 ──────────────────────────────────────
     logger.info("Step 4/5：篩選候選名單...")

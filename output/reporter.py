@@ -236,6 +236,14 @@ def save_app_csv(results: list, scan_date: str):
                                               ensure_ascii=False)
         trust_broker_dir   = r.get("trust_broker_dir", "")
 
+        # 突破雷達（主力分點 tab 用）
+        bo = r.get("breakout", {})
+        breakout_up_qual    = int(bo.get("qualified_up",   False))
+        breakout_down_qual  = int(bo.get("qualified_down", False))
+        vol_ratio_5d        = bo.get("vol_ratio", 0)
+        mainforce_today_json = json.dumps(r.get("mainforce_today", {}),
+                                              ensure_ascii=False)
+
         # 籌碼數值
         foreign_days  = a_det.get("consec_days", 0)
         trust_days    = b_det.get("consec_days", 0)
@@ -319,6 +327,10 @@ def save_app_csv(results: list, scan_date: str):
             "trust_io":          trust_io_json,
             "trust_broker_top3": trust_broker_top3_json,
             "trust_broker_dir":  trust_broker_dir,
+            "breakout_up":       breakout_up_qual,
+            "breakout_down":     breakout_down_qual,
+            "vol_ratio_5d":      vol_ratio_5d,
+            "mainforce_today":   mainforce_today_json,
             "foreign_days": foreign_days,
             "trust_days":   trust_days,
             "broker_days":  broker_days,
