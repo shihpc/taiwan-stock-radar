@@ -332,6 +332,20 @@ def run_scan(scan_date: str = None, quick: bool = False,
             # 融資 / 融券多視窗餘額金額 + 增減
             result["margin_radar"]  = compute_margin_radar(margin_hist, price_df)
             result["short_radar"]   = compute_short_radar(margin_hist, price_df)
+            # 最新收盤 / 漲跌（讓前端卡片顯示用）
+            if not price_df.empty:
+                pr_sort = price_df.copy()
+                pr_sort["date"] = pd.to_datetime(pr_sort["date"])
+                pr_sort = pr_sort.sort_values("date")
+                closes = pd.to_numeric(pr_sort["close"], errors="coerce").dropna()
+                if len(closes) >= 1:
+                    today_close = float(closes.iloc[-1])
+                    result["price"] = round(today_close, 2)
+                    if len(closes) >= 2:
+                        prev_close = float(closes.iloc[-2])
+                        if prev_close > 0:
+                            result["chg"]     = round(today_close - prev_close, 2)
+                            result["chg_pct"] = round((today_close - prev_close) / prev_close * 100, 2)
             results.append(result)
 
         except KeyboardInterrupt:

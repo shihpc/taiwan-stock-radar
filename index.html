@@ -3241,6 +3241,18 @@ function fmtSignedLots(n) { // 張數帶 + 號
 }
 function truncateBrokerName(name, maxLen = 6) {
   if (!name) return '';
+  // 含「-」（分公司分隔）：dash 前取 4 字、dash 後取 2 字
+  // 例：「凱基證券-台北分公司」→「凱基證券-台北」
+  //     「美商高盛證券股份有限公司-台北分公司」→「美商高盛-台北」
+  const dashIdx = name.indexOf('-');
+  if (dashIdx >= 0) {
+    const before = name.substring(0, dashIdx);
+    const after  = name.substring(dashIdx + 1);
+    const b = before.length > 4 ? before.substring(0, 4) : before;
+    const a = after.length  > 2 ? after.substring(0, 2)  : after;
+    return b + '-' + a;
+  }
+  // 不含「-」：取前 maxLen 字
   return name.length > maxLen ? name.substring(0, maxLen) : name;
 }
 // 渲染卡片頂部的金額大字行（替代右側 drc-right）
