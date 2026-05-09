@@ -211,6 +211,17 @@ def save_app_csv(results: list, scan_date: str):
         etf_chip_cnt  = f2_det.get("count", 0)
         etf_vol_ratio = f3_det.get("vol_ratio_10_60", 0)
 
+        # 投信雷達（前端「投信雷達」tab 用）
+        tr = r.get("trust_radar", {})
+        trust_amount_m  = tr.get("trust_amount_m",  0)
+        trust_net_lots  = tr.get("trust_net_lots",  0)
+        trust_vwap      = tr.get("trust_vwap",      0)
+        box_breakout    = int(tr.get("box_breakout", False))
+        box_high        = tr.get("box_high",        0)
+        box_low         = tr.get("box_low",         0)
+        box_amplitude   = tr.get("box_amplitude",   0)
+        is_box          = int(tr.get("is_box",      False))
+
         # 籌碼數值
         foreign_days  = a_det.get("consec_days", 0)
         trust_days    = b_det.get("consec_days", 0)
@@ -280,6 +291,14 @@ def save_app_csv(results: list, scan_date: str):
             "etf_rank":      etf_rank,
             "etf_chip_cnt":  etf_chip_cnt,
             "etf_vol_ratio": etf_vol_ratio,
+            "trust_amount_m":  trust_amount_m,
+            "trust_net_lots":  trust_net_lots,
+            "trust_vwap":      trust_vwap,
+            "box_breakout":    box_breakout,
+            "box_high":        box_high,
+            "box_low":         box_low,
+            "box_amplitude":   box_amplitude,
+            "is_box":          is_box,
             "foreign_days": foreign_days,
             "trust_days":   trust_days,
             "broker_days":  broker_days,

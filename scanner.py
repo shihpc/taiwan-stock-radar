@@ -52,6 +52,7 @@ from data.fetcher import (
 )
 from engine.scorer import score_stock
 from engine.etf_flow import calc_trust_5d_distribution
+from engine.trust_radar import compute_trust_radar
 from engine.filters import (
     filter_stock_list,
     filter_by_margin,
@@ -314,6 +315,8 @@ def run_scan(scan_date: str = None, quick: bool = False,
             )
             result["stock_name"]   = stock_name
             result["margin_ratio"] = margin_ratio
+            # 投信雷達指標（金額 / 連買 / 箱型突破，前端排行用）
+            result["trust_radar"]  = compute_trust_radar(inst_hist, price_df)
             results.append(result)
 
         except KeyboardInterrupt:
