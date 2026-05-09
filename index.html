@@ -736,6 +736,7 @@ body::before{
 .sub-tab.active-C{color:var(--c5);border-bottom-color:var(--c5);}
 .sub-tab.active-M{color:var(--c2);border-bottom-color:var(--c2);}
 .sub-tab.active-F{color:var(--c1);border-bottom-color:var(--c1);}
+.sub-tab.active-EF{color:var(--c4);border-bottom-color:var(--c4);}
 
 .sub-page{display:none;flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
 .sub-page.active{display:block;}
@@ -774,6 +775,9 @@ body::before{
 .dim-C .drc-code{color:var(--c5);}
 .dim-C .drc-score{color:var(--c5);}
 .dim-C .drc-fill{background:linear-gradient(90deg,var(--c5),rgba(167,139,250,.4));}
+.dim-F .drc-code{color:var(--c4);}
+.dim-F .drc-score{color:var(--c4);}
+.dim-F .drc-fill{background:linear-gradient(90deg,var(--c4),rgba(255,212,38,.4));}
 .dim-M .drc-code{color:var(--c2);}
 .dim-M .drc-score{color:var(--c2);}
 .dim-M .drc-fill{background:linear-gradient(90deg,var(--c2),rgba(0,255,157,.4));}
@@ -899,6 +903,7 @@ body::before{
       <button class="sub-tab" onclick="switchSubTab(2,this)">🎯 主力分點</button>
       <button class="sub-tab" onclick="switchSubTab(3,this)">🌊 外資進出</button>
       <button class="sub-tab" onclick="switchSubTab(4,this)">⚡ 融資券</button>
+      <button class="sub-tab" onclick="switchSubTab(5,this)">💧 ETF資金</button>
     </div>
 
     <!-- 子頁0：綜合排行 -->
@@ -968,6 +973,22 @@ body::before{
         <div class="section-hdr">融券軋空潛力排行</div>
         <div id="marginRankList">
           <div class="empty"><div class="empty-icon">⚡</div><div class="empty-title">等待掃描</div><div class="empty-sub">掃描後自動更新</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 子頁5：ETF 資金流排行（F 面向）-->
+    <div class="sub-page" id="sp5" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;">
+      <div class="pg">
+        <div style="background:rgba(255,212,38,.06);border:1px solid rgba(255,212,38,.25);border-radius:8px;padding:8px 12px;font-size:.65rem;color:var(--t2);line-height:1.6;">
+          💧 <strong style="color:var(--c4)">ETF 資金流</strong>：F 面向以三個代理指標衡量被動資金鎖碼強度 —
+          <strong>F1</strong> 投信 5 日買超在全市場前 10/20/30%、
+          <strong>F2</strong> 大戶 / 外資 / 投信三方同步加碼、
+          <strong>F3</strong> 換手率縮量但股價上漲。三項合計滿分 20。
+        </div>
+        <div class="section-hdr">ETF 資金流強度排行</div>
+        <div id="etfRankList">
+          <div class="empty"><div class="empty-icon">💧</div><div class="empty-title">等待掃描</div><div class="empty-sub">掃描後自動更新</div></div>
         </div>
       </div>
     </div>
@@ -1142,19 +1163,19 @@ body::before{
         <div style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid rgba(0,200,255,.05);">
           <span style="font-size:.65rem;color:var(--t2);flex:1;">候選名單門檻</span>
           <div style="display:flex;align-items:center;gap:8px;">
-            <input type="range" id="f-minScore" min="0" max="118" step="1" value="52"
+            <input type="range" id="f-minScore" min="0" max="158" step="1" value="52"
               style="width:110px;accent-color:var(--c1);cursor:pointer;"
               oninput="updateFilter('minScore',this.value)"/>
-            <span id="fv-minScore" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:36px;text-align:right;">52 <span style="font-size:.55rem;color:var(--t3);">/118</span></span>
+            <span id="fv-minScore" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:36px;text-align:right;">52 <span style="font-size:.55rem;color:var(--t3);">/158</span></span>
           </div>
         </div>
         <div style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid rgba(0,200,255,.05);">
           <span style="font-size:.65rem;color:var(--t2);flex:1;">強烈關注門檻</span>
           <div style="display:flex;align-items:center;gap:8px;">
-            <input type="range" id="f-strongScore" min="0" max="118" step="1" value="95"
+            <input type="range" id="f-strongScore" min="0" max="158" step="1" value="95"
               style="width:110px;accent-color:var(--c1);cursor:pointer;"
               oninput="updateFilter('strongScore',this.value)"/>
-            <span id="fv-strongScore" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:36px;text-align:right;">95 <span style="font-size:.55rem;color:var(--t3);">/118</span></span>
+            <span id="fv-strongScore" style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--c1);font-weight:700;min-width:36px;text-align:right;">95 <span style="font-size:.55rem;color:var(--t3);">/158</span></span>
           </div>
         </div>
         <div style="display:flex;align-items:center;padding:8px 0;">
@@ -1763,14 +1784,19 @@ async function loadScanCSV() {
         chg:          parseFloat(obj.chg) || 0,
         chg_pct:      parseFloat(obj.chg_pct) || 0,
         score:        parseInt(obj.score) || 0,
-        pct:          parseFloat(obj.score || 0) / 138,
+        pct:          parseFloat(obj.score || 0) / 158,
         A:            parseInt(obj.A) || 0,
         B:            parseInt(obj.B) || 0,
         C:            parseInt(obj.C) || 0,
         D:            parseInt(obj.D) || 0,
         E:            parseInt(obj.E) || 0,
+        F:            parseInt(obj.F) || 0,
         S2h:          parseInt(obj.S2h) || 0,
         S2m:          parseInt(obj.S2m) || 0,
+        etf_trust_5d: parseFloat(obj.etf_trust_5d) || 0,
+        etf_rank:     obj.etf_rank || 'N/A',
+        etf_chip_cnt: parseInt(obj.etf_chip_cnt) || 0,
+        etf_vol_ratio: parseFloat(obj.etf_vol_ratio) || 0,
         foreign_days: parseInt(obj.foreign_days) || 0,
         trust_days:   parseInt(obj.trust_days) || 0,
         broker_days:  parseInt(obj.broker_days) || 0,
@@ -1884,9 +1910,10 @@ function switchSubTab(idx, btn) {
   currentSubTab = idx;
   document.querySelectorAll('.sub-page').forEach((p,i) => p.classList.toggle('active', i === idx));
   document.querySelectorAll('.sub-tab').forEach(t => {
-    t.classList.remove('active','active-B','active-C','active-M','active-F');
+    t.classList.remove('active','active-B','active-C','active-M','active-F','active-EF');
   });
-  const cls = ['active','active-B','active-C','active-F','active-M'][idx];
+  // idx: 0綜合 / 1投信B / 2主力C / 3外資(Foreign 用 active-F) / 4融資M / 5 ETF 用 active-EF
+  const cls = ['active','active-B','active-C','active-F','active-M','active-EF'][idx];
   btn.classList.add(cls);
 }
 
@@ -1988,8 +2015,8 @@ function saveFilterSettings() {
 
 function applySettingsToUI() {
   const fmtMap = {
-    minScore:       v => `${v} <span style="font-size:.55rem;color:var(--t3);">/118</span>`,
-    strongScore:    v => `${v} <span style="font-size:.55rem;color:var(--t3);">/118</span>`,
+    minScore:       v => `${v} <span style="font-size:.55rem;color:var(--t3);">/158</span>`,
+    strongScore:    v => `${v} <span style="font-size:.55rem;color:var(--t3);">/158</span>`,
     maxDisplay:     v => `${v} <span style="font-size:.55rem;color:var(--t3);">支</span>`,
     minA:           v => `${v} <span style="font-size:.55rem;color:var(--t3);">/20</span>`,
     minB:           v => `${v} <span style="font-size:.55rem;color:var(--t3);">/20</span>`,
@@ -2029,8 +2056,8 @@ function applySettingsToUI() {
 function updateFilter(key, rawVal) {
   userSettings[key] = parseFloat(rawVal);
   const fmtMap = {
-    minScore:       v => `${v} <span style="font-size:.55rem;color:var(--t3);">/118</span>`,
-    strongScore:    v => `${v} <span style="font-size:.55rem;color:var(--t3);">/118</span>`,
+    minScore:       v => `${v} <span style="font-size:.55rem;color:var(--t3);">/158</span>`,
+    strongScore:    v => `${v} <span style="font-size:.55rem;color:var(--t3);">/158</span>`,
     maxDisplay:     v => `${v} <span style="font-size:.55rem;color:var(--t3);">支</span>`,
     minA:           v => `${v} <span style="font-size:.55rem;color:var(--t3);">/20</span>`,
     minB:           v => `${v} <span style="font-size:.55rem;color:var(--t3);">/20</span>`,
@@ -2212,6 +2239,7 @@ async function startScan() {
     renderBrokerRank();
     renderMarginRank();
     renderForeignRank();
+    renderETFRank();
     renderSignals();
 
     // 統計數字
@@ -2291,7 +2319,7 @@ function buildStockCard(s, rank) {
       </div>
       <div class="card-right">
         <div class="score-big ${scoreColor}">${s.score}</div>
-        <div class="score-max">/118</div>
+        <div class="score-max">/158</div>
         <div class="score-pct">${(s.pct*100).toFixed(1)}%</div>
       </div>
     </div>
@@ -2536,6 +2564,102 @@ function renderForeignRank() {
     `<div style="text-align:center;padding:8px;font-size:.6rem;color:var(--t3)">
       篩選條件：外資連買≥1天（含ETF），共 ${qualified.length} 支入榜
     </div>`;
+}
+
+// ══════════════════════════════════════════
+//  ETF FLOW RANK（F 面向：ETF 資金流強度，含 ETF 本身）
+// ══════════════════════════════════════════
+function renderETFRank() {
+  // 篩選：F > 0，依 F 分→5日投信買超→F2 三方計數 排序
+  const qualified = allStockData
+    .filter(s => s.F > 0)
+    .sort((a,b) => {
+      if (b.F !== a.F) return b.F - a.F;
+      if (b.etf_trust_5d !== a.etf_trust_5d) return b.etf_trust_5d - a.etf_trust_5d;
+      return b.etf_chip_cnt - a.etf_chip_cnt;
+    })
+    .slice(0,30);
+
+  const total = allStockData.length;
+  const bar = sampleInfoBar(total, Math.min(qualified.length,30), 'F面向>0', 'var(--c4)');
+
+  document.getElementById('etfRankList').innerHTML = bar +
+    (qualified.length === 0
+      ? `<div class="empty"><div class="empty-icon">💧</div><div class="empty-title">本日無 ETF 資金流訊號</div><div class="empty-sub">F 面向需投信買超 / 三方加碼 / 量縮上漲<br>任一條件成立才會給分</div></div>`
+      : qualified.map((s,i) => buildETFRankCard(s, i+1)).join('')) +
+    `<div style="text-align:center;padding:8px;font-size:.6rem;color:var(--t3)">
+      篩選條件：F 面向 > 0（含 ETF），共 ${qualified.length} 支入榜
+    </div>`;
+}
+
+function buildETFRankCard(s, rank) {
+  const isUp = s.chg >= 0;
+  const rankBg = rank===1?'linear-gradient(135deg,#ffd426,#ff8c42)':rank===2?'linear-gradient(135deg,#c0c0c0,#909090)':rank===3?'linear-gradient(135deg,#cd7f32,#8b4513)':'var(--bg3)';
+  const rankColor = rank<=3?'#000':'var(--t2)';
+  const pct = (s.F/20*100).toFixed(0);
+  const mktBadge = s.type==='ETF' ? `<span style="font-size:.48rem;background:rgba(0,207,255,.1);border:1px solid rgba(0,207,255,.2);color:var(--c1);border-radius:3px;padding:0 3px;margin-left:3px">ETF</span>` : '';
+
+  // F1 排名 badge — 處理 '<前30%' 字串避免 HTML 解析衝突
+  const rankColorMap = {
+    '前10%':  'var(--up)',
+    '前20%':  'var(--c4)',
+    '前30%':  'var(--c1)',
+    '<前30%': 'var(--t3)',
+    '賣超':   'var(--t3)',
+    'N/A':    'var(--t3)',
+    '無分布': 'var(--t3)',
+  };
+  const f1Color = rankColorMap[s.etf_rank] || 'var(--t3)';
+  const f1Text  = (s.etf_rank === '<前30%') ? '排名外' : s.etf_rank;
+  const f1Badge = `<span style="font-size:.55rem;background:rgba(255,212,38,.08);border:1px solid rgba(255,212,38,.25);color:${f1Color};border-radius:4px;padding:1px 6px;white-space:nowrap;">${f1Text}</span>`;
+
+  // F3 量縮比顯示
+  const volRatioColor = (s.etf_vol_ratio > 0 && s.etf_vol_ratio < 0.85) ? 'var(--c4)' : 'var(--t3)';
+  const volRatioText  = s.etf_vol_ratio > 0 ? s.etf_vol_ratio.toFixed(2) + 'x' : '—';
+
+  // 5 日投信買超張數顯示（可能負值代表賣超）
+  const trustLotsSign  = s.etf_trust_5d > 0 ? '+' : '';
+  const trustLotsColor = s.etf_trust_5d > 0 ? 'var(--up)' : (s.etf_trust_5d < 0 ? 'var(--dn)' : 'var(--t3)');
+
+  return `<div class="dim-rank-card dim-F" onclick="openDetail('${s.code}')">
+    <div class="drc-main">
+      <div class="drc-rank" style="background:${rankBg};color:${rankColor};border:${rank>3?'1px solid var(--border)':'none'}">${rank}</div>
+      <div class="drc-info">
+        <div class="drc-name-row">
+          <span class="drc-code">${s.code}</span>
+          <span class="drc-name">${s.name}</span>${mktBadge}
+          <span class="price-change ${isUp?'up':'dn'}" style="font-size:.65rem;margin-left:auto;font-family:'Space Mono',monospace">${isUp?'▲':'▼'}${Math.abs(s.chg_pct).toFixed(2)}%</span>
+        </div>
+        <div class="drc-sub">
+          <span style="color:${trustLotsColor}">5日投信 ${trustLotsSign}${s.etf_trust_5d.toLocaleString()} 張</span>
+          <span style="color:var(--t3)">·</span>
+          ${f1Badge}
+        </div>
+        <div style="margin-top:5px;padding-top:5px;border-top:1px solid rgba(0,200,255,.08);
+                    display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+          <div style="background:rgba(255,212,38,.05);border:1px solid rgba(255,212,38,.15);
+                      border-radius:5px;padding:4px 6px;">
+            <div style="font-size:.48rem;color:var(--t3);margin-bottom:2px;">F2 三方加碼</div>
+            <div style="font-size:.62rem;font-family:'Space Mono',monospace;
+                        color:${s.etf_chip_cnt>=2?'var(--c4)':'var(--t3)'};font-weight:700;">
+              ${s.etf_chip_cnt}/3 方上升
+            </div>
+          </div>
+          <div style="background:rgba(255,212,38,.05);border:1px solid rgba(255,212,38,.15);
+                      border-radius:5px;padding:4px 6px;">
+            <div style="font-size:.48rem;color:var(--t3);margin-bottom:2px;">F3 量縮比 (10/60d)</div>
+            <div style="font-size:.62rem;font-family:'Space Mono',monospace;
+                        color:${volRatioColor};font-weight:700;">${volRatioText}</div>
+          </div>
+        </div>
+      </div>
+      <div class="drc-right">
+        <div class="drc-score">${s.F}</div>
+        <div class="drc-label">ETF資金 /20</div>
+      </div>
+    </div>
+    <div class="drc-bar-wrap"><div class="drc-track"><div class="drc-fill" style="width:${pct}%"></div></div></div>
+  </div>`;
 }
 
 function buildForeignRankCard(s, rank) {
@@ -2783,7 +2907,7 @@ function renderDetail(s) {
         </div>
         <div class="dh-score-wrap">
           <div class="dh-score">${s.score}</div>
-          <div class="dh-scoremax">/138</div>
+          <div class="dh-scoremax">/158</div>
           <div class="dh-pct">${(s.pct*100).toFixed(1)}%</div>
         </div>
       </div>
@@ -3156,7 +3280,7 @@ function renderSignals() {
             <div class="sig-desc">${s.signal_desc}</div>
             <div class="card-tags" style="margin-top:4px">${s.tags.slice(0,2).map(t=>`<span class="tag tag-law" style="font-size:.5rem">${t}</span>`).join('')}</div>
           </div>
-          <div class="sig-score-badge"><div class="sv" style="color:var(--up)">${s.score}</div><div class="sl">/118</div></div>
+          <div class="sig-score-badge"><div class="sv" style="color:var(--up)">${s.score}</div><div class="sl">/158</div></div>
         </div>`).join('')}
     </div>
     <div class="signal-card">
@@ -3168,7 +3292,7 @@ function renderSignals() {
             <div class="sig-code">${s.code} ${s.name}</div>
             <div class="sig-desc">${s.signal_desc}</div>
           </div>
-          <div class="sig-score-badge"><div class="sv" style="color:var(--c1)">${s.score}</div><div class="sl">/118</div></div>
+          <div class="sig-score-badge"><div class="sv" style="color:var(--c1)">${s.score}</div><div class="sl">/158</div></div>
         </div>`).join('')}
     </div>`;
 }
@@ -3219,7 +3343,7 @@ function selectChartStock(code, btn) {
   document.getElementById('tvPrice').style.color = isUp ? 'var(--up)' : 'var(--dn)';
   document.getElementById('tvChg').textContent   = `${isUp?'▲':'▼'}${Math.abs(s.chg_pct).toFixed(2)}%`;
   document.getElementById('tvChg').style.color   = isUp ? 'var(--up)' : 'var(--dn)';
-  document.getElementById('tvScore').textContent = `${s.score}/138`;
+  document.getElementById('tvScore').textContent = `${s.score}/158`;
   document.getElementById('tvSignal').textContent = s.signal === 'BUY' ? '📈 買進' : '👀 觀察';
   document.getElementById('tvSignal').style.color = s.signal === 'BUY' ? 'var(--up)' : 'var(--c1)';
 
