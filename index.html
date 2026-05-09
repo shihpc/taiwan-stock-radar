@@ -990,8 +990,6 @@ body::before{
       <div class="pg">
         <div class="summary-strip">
           <div class="sum-cell"><div class="sl">掃描檔數</div><div class="sv watch" id="sumTotal">—</div></div>
-          <div class="sum-cell"><div class="sl">候選名單</div><div class="sv cand" id="sumCand">—</div></div>
-          <div class="sum-cell"><div class="sl">強烈關注</div><div class="sv strong" id="sumStrong">—</div></div>
         </div>
         <div style="background:rgba(0,207,255,.04);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:.62rem;color:var(--t2);line-height:1.55;">
           📡 <strong>三方共識</strong>：同時為外資進出前 30、投信進出前 30、主力分點突破前 30 的個股，最低門檻金額 5 千萬。
@@ -2162,8 +2160,6 @@ async function startScan() {
 
     // 統計數字
     document.getElementById('sumTotal').textContent = allStockData.length.toLocaleString();
-    document.getElementById('sumCand').textContent  = scanResults.length;
-    document.getElementById('sumStrong').textContent = scanResults.filter(s=>s.score>=userSettings.strongScore).length;
     updateFilterCountDisplay();
     document.getElementById('nd0').classList.add('show');
     document.getElementById('nd2').classList.add('show');
@@ -3168,8 +3164,9 @@ function renderBacktest() {
     return { s, entryOpen, exitOpen, pnl, pnlPct };
   }).filter(x => x !== null);
 
-  // 排序：多頭 / 買超 / 向上 → 漲幅由大到小；空頭 / 賣超 / 向下 → 跌幅由大到小
-  items.sort((a, b) => isLong ? b.pnlPct - a.pnlPct : a.pnlPct - b.pnlPct);
+  // 排序：保持 ranking list 原始順序（即 T-N 當時的買賣超金額排序）
+  // 不依漲跌 % 重排，方便驗證「N 日前看好的榜單，N 日後表現如何」
+  // items 已是 ranking.map(...) 的順序，無需 sort
 
   // 統計
   const winCount = items.filter(x => isLong ? x.pnlPct > 0 : x.pnlPct < 0).length;
