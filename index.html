@@ -1520,7 +1520,7 @@ function checkLockPassword() {
 let currentSubTab = 0;
 let selectedStock = null;
 let charts        = {};
-// allStockData 與 scanResults 宣告在 MOCK DATA 區塊
+// allStockData 全域變數宣告於下方
 
 Chart.defaults.color = '#6a9dbf';
 Chart.defaults.borderColor = 'rgba(0,200,255,0.1)';
@@ -1785,214 +1785,8 @@ function updateMarketStatus() {
 updateMarketStatus();
 setInterval(updateMarketStatus, 60000);
 
-// ══════════════════════════════════════════
-//  USER SETTINGS（篩選設定，存入 localStorage）
-// ══════════════════════════════════════════
-const SETTINGS_DEFAULTS = {
-  minScore:       52,
-  strongScore:    95,
-  maxDisplay:     30,
-  minA:           0,
-  minB:           0,
-  minC:           0,
-  minD:           0,
-  minE:           0,
-  minS2h:         0,
-  minS2m:         0,
-  minForeignDays: 0,
-  minTrustDays:   0,
-  minBrokerDays:  0,
-  minBrokerConc:  0,
-  rsiMin:         0,
-  rsiMax:         100,
-  minBigChg:      -5,
-  minBrokerSilent:  0,
-  reqBrokerKnown:   0,
-  minTurnoverPct:   0,
-  reqHoldingRising: 0,
-  minTrustHoldPct:  0,
-  reqTrustPullback: 0,
-  minVolumeRatio:   0,
-  minMaTrend:       0,
-  minRevMonths:     0,
-  minEpsGrowth:     -50,
-  reqGpmImproving:  0,
-};
-let userSettings = { ...SETTINGS_DEFAULTS };
 let allStockData = [];
-let scanResults  = [];
 
-// 設定版本 — 升一版會把 SETTINGS_MIGRATIONS[版號] 列出的 key 強制套用新預設
-const SETTINGS_VERSION = 3;
-const SETTINGS_MIGRATIONS = {
-  // v2：minScore 預設由 77 改為 52
-  2: ['minScore'],
-  // v3：新增 strongScore 預設 95
-  3: ['strongScore'],
-};
-
-function loadFilterSettings() {
-  try {
-    const stored = localStorage.getItem('radarSettings');
-    const oldVer = parseInt(localStorage.getItem('radarSettingsVer') || '1', 10);
-    if (stored) {
-      const merged = { ...SETTINGS_DEFAULTS, ...JSON.parse(stored) };
-      // 套用 migration：把指定 key 強制換回新預設
-      if (oldVer < SETTINGS_VERSION) {
-        const reset = [];
-        for (let v = oldVer + 1; v <= SETTINGS_VERSION; v++) {
-          (SETTINGS_MIGRATIONS[v] || []).forEach(k => {
-            merged[k] = SETTINGS_DEFAULTS[k];
-            reset.push(k);
-          });
-        }
-        if (reset.length) {
-          console.log(`[settings] 升級至 v${SETTINGS_VERSION}，重置：${reset.join(', ')}`);
-        }
-      }
-      userSettings = merged;
-    }
-  } catch (_) {}
-  // 寫回新版本號（即使 stored 為空也標記，避免下次又跑一次 migration）
-  try { localStorage.setItem('radarSettingsVer', String(SETTINGS_VERSION)); } catch (_) {}
-  saveFilterSettings();
-  applySettingsToUI();
-}
-
-function saveFilterSettings() {
-  try {
-    localStorage.setItem('radarSettings', JSON.stringify(userSettings));
-    localStorage.setItem('radarSettingsVer', String(SETTINGS_VERSION));
-  } catch (_) {}
-}
-
-function applySettingsToUI() {
-  const fmtMap = {
-    minScore:       v => `${v} <span style="font-size:.55rem;color:var(--t3);">/158</span>`,
-    strongScore:    v => `${v} <span style="font-size:.55rem;color:var(--t3);">/158</span>`,
-    maxDisplay:     v => `${v} <span style="font-size:.55rem;color:var(--t3);">支</span>`,
-    minA:           v => `${v} <span style="font-size:.55rem;color:var(--t3);">/20</span>`,
-    minB:           v => `${v} <span style="font-size:.55rem;color:var(--t3);">/20</span>`,
-    minC:           v => `${v} <span style="font-size:.55rem;color:var(--t3);">/20</span>`,
-    minD:           v => `${v} <span style="font-size:.55rem;color:var(--t3);">/20</span>`,
-    minE:           v => `${v} <span style="font-size:.55rem;color:var(--t3);">/20</span>`,
-    minS2h:         v => `${v} <span style="font-size:.55rem;color:var(--t3);">/10</span>`,
-    minS2m:         v => `${v} <span style="font-size:.55rem;color:var(--t3);">/8</span>`,
-    minForeignDays: v => `${v} <span style="font-size:.55rem;color:var(--t3);">天</span>`,
-    minTrustDays:   v => `${v} <span style="font-size:.55rem;color:var(--t3);">天</span>`,
-    minBrokerDays:  v => `${v} <span style="font-size:.55rem;color:var(--t3);">天</span>`,
-    minBrokerConc:  v => `${v} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
-    rsiMin:         v => `${v}`,
-    rsiMax:         v => `${v}`,
-    minBigChg:      v => `${parseFloat(v)>0?'+':''}${parseFloat(v).toFixed(1)} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
-    minBrokerSilent:  v => `${v} <span style="font-size:.55rem;color:var(--t3);">天</span>`,
-    reqBrokerKnown:   v => v == 1 ? '<span style="color:var(--c4);">必須</span>' : '不限',
-    minTurnoverPct:   v => `${v} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
-    reqHoldingRising: v => v == 1 ? '<span style="color:var(--c4);">必須</span>' : '不限',
-    minTrustHoldPct:  v => `${v} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
-    reqTrustPullback: v => v == 1 ? '<span style="color:var(--c4);">必須</span>' : '不限',
-    minVolumeRatio:   v => `${parseFloat(v).toFixed(1)}<span style="font-size:.55rem;color:var(--t3);">x</span>`,
-    minMaTrend:       v => ['不限','部分多頭','完全多頭'][parseInt(v)] || '不限',
-    minRevMonths:     v => `${v} <span style="font-size:.55rem;color:var(--t3);">月</span>`,
-    minEpsGrowth:     v => `${parseFloat(v)>0?'+':''}${parseFloat(v).toFixed(0)} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
-    reqGpmImproving:  v => v == 1 ? '<span style="color:var(--c4);">必須</span>' : '不限',
-  };
-  Object.keys(SETTINGS_DEFAULTS).forEach(key => {
-    const slider = document.getElementById('f-' + key);
-    const val    = document.getElementById('fv-' + key);
-    if (slider) slider.value = userSettings[key];
-    if (val)    val.innerHTML = (fmtMap[key] || (v => v))(userSettings[key]);
-  });
-  updateFilterCountDisplay();
-}
-
-function updateFilter(key, rawVal) {
-  userSettings[key] = parseFloat(rawVal);
-  const fmtMap = {
-    minScore:       v => `${v} <span style="font-size:.55rem;color:var(--t3);">/158</span>`,
-    strongScore:    v => `${v} <span style="font-size:.55rem;color:var(--t3);">/158</span>`,
-    maxDisplay:     v => `${v} <span style="font-size:.55rem;color:var(--t3);">支</span>`,
-    minA:           v => `${v} <span style="font-size:.55rem;color:var(--t3);">/20</span>`,
-    minB:           v => `${v} <span style="font-size:.55rem;color:var(--t3);">/20</span>`,
-    minC:           v => `${v} <span style="font-size:.55rem;color:var(--t3);">/20</span>`,
-    minD:           v => `${v} <span style="font-size:.55rem;color:var(--t3);">/20</span>`,
-    minE:           v => `${v} <span style="font-size:.55rem;color:var(--t3);">/20</span>`,
-    minS2h:         v => `${v} <span style="font-size:.55rem;color:var(--t3);">/10</span>`,
-    minS2m:         v => `${v} <span style="font-size:.55rem;color:var(--t3);">/8</span>`,
-    minForeignDays: v => `${v} <span style="font-size:.55rem;color:var(--t3);">天</span>`,
-    minTrustDays:   v => `${v} <span style="font-size:.55rem;color:var(--t3);">天</span>`,
-    minBrokerDays:  v => `${v} <span style="font-size:.55rem;color:var(--t3);">天</span>`,
-    minBrokerConc:  v => `${v} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
-    rsiMin:         v => `${v}`,
-    rsiMax:         v => `${v}`,
-    minBigChg:      v => `${parseFloat(v)>0?'+':''}${parseFloat(v).toFixed(1)} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
-    minBrokerSilent:  v => `${v} <span style="font-size:.55rem;color:var(--t3);">天</span>`,
-    reqBrokerKnown:   v => v == 1 ? '<span style="color:var(--c4);">必須</span>' : '不限',
-    minTurnoverPct:   v => `${v} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
-    reqHoldingRising: v => v == 1 ? '<span style="color:var(--c4);">必須</span>' : '不限',
-    minTrustHoldPct:  v => `${v} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
-    reqTrustPullback: v => v == 1 ? '<span style="color:var(--c4);">必須</span>' : '不限',
-    minVolumeRatio:   v => `${parseFloat(v).toFixed(1)}<span style="font-size:.55rem;color:var(--t3);">x</span>`,
-    minMaTrend:       v => ['不限','部分多頭','完全多頭'][parseInt(v)] || '不限',
-    minRevMonths:     v => `${v} <span style="font-size:.55rem;color:var(--t3);">月</span>`,
-    minEpsGrowth:     v => `${parseFloat(v)>0?'+':''}${parseFloat(v).toFixed(0)} <span style="font-size:.55rem;color:var(--t3);">%</span>`,
-    reqGpmImproving:  v => v == 1 ? '<span style="color:var(--c4);">必須</span>' : '不限',
-  };
-  const val = document.getElementById('fv-' + key);
-  if (val) val.innerHTML = (fmtMap[key] || (v => v))(userSettings[key]);
-  saveFilterSettings();
-  if (allStockData.length > 0) { recomputeScanResults(); renderRankList(); }
-  updateFilterCountDisplay();
-}
-
-function recomputeScanResults() {
-  const s = userSettings;
-  scanResults = allStockData.filter(x =>
-    x.score        >= s.minScore       &&
-    x.A            >= s.minA           &&
-    x.B            >= s.minB           &&
-    x.C            >= s.minC           &&
-    x.D            >= s.minD           &&
-    x.E            >= s.minE           &&
-    x.S2h          >= s.minS2h         &&
-    x.S2m          >= s.minS2m         &&
-    x.foreign_days >= s.minForeignDays &&
-    x.trust_days   >= s.minTrustDays   &&
-    x.broker_days  >= s.minBrokerDays  &&
-    x.broker_conc  >= s.minBrokerConc  &&
-    x.rsi          >= s.rsiMin         &&
-    x.rsi          <= s.rsiMax         &&
-    x.big_chg      >= s.minBigChg      &&
-    x.broker_silent     >= s.minBrokerSilent &&
-    (s.reqBrokerKnown   ? x.broker_known === 1 : true) &&
-    x.turnover_pct      >= s.minTurnoverPct  &&
-    (s.reqHoldingRising ? x.holding_rising === 1 : true) &&
-    x.trust_holding_pct >= s.minTrustHoldPct &&
-    (s.reqTrustPullback ? x.trust_pullback === 1 : true) &&
-    x.volume_ratio      >= s.minVolumeRatio  &&
-    x.ma_trend          >= s.minMaTrend      &&
-    x.revenue_months    >= s.minRevMonths    &&
-    x.eps_growth        >= s.minEpsGrowth    &&
-    (s.reqGpmImproving  ? x.gpm_improving === 1 : true)
-  ).sort((a, b) => b.score - a.score);
-}
-
-function updateFilterCountDisplay() {
-  const el = document.getElementById('filterPassCount');
-  if (!el) return;
-  el.textContent = allStockData.length === 0
-    ? '尚未掃描'
-    : `${scanResults.length} 支通過篩選`;
-}
-
-function resetSettings() {
-  userSettings = { ...SETTINGS_DEFAULTS };
-  saveFilterSettings();
-  applySettingsToUI();
-  if (allStockData.length > 0) { recomputeScanResults(); renderRankList(); }
-}
-
-loadFilterSettings();
 
 // ══════════════════════════════════════════
 //  UPDATE DATA DATE CHIPS
@@ -2114,9 +1908,8 @@ async function startScan() {
   // 關閉 loading — 無論是否有錯都要關閉
   hideLoading();
 
-  // Chart 延遲初始化（不阻塞排行榜顯示）
+  // K 線延遲初始化（不阻塞排行榜顯示）
   setTimeout(() => {
-    renderChartSelector();
     if (typeof KLINE !== 'undefined') KLINE.renderSwitcher();
   }, 300);
 }
@@ -2332,138 +2125,6 @@ function buildStockCard(s, rank) {
 // ══════════════════════════════════════════
 //  DIM RANK CARD BUILDER
 // ══════════════════════════════════════════
-function buildDimRankCard(s, rank, dim) {
-  const bn = s.broker_names || {};
-  const buyList  = bn.buy  || [];
-  const sellItem = bn.sell || null;
-
-  // 共用的期間張數表格 helper
-  const lotsTable = (rows) => `
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-top:5px;
-                padding-top:5px;border-top:1px solid rgba(0,200,255,.08);">
-      ${['近1日','近3日','近5日'].map((lbl,i) => `
-        <div style="text-align:center;">
-          <div style="font-size:.48rem;color:var(--t3);margin-bottom:2px;">${lbl}</div>
-          ${rows.map(r => `
-            <div style="font-size:.6rem;font-family:'Space Mono',monospace;
-                        color:${r.color};white-space:nowrap;">
-              ${r.sign}${[r.d1,r.d3,r.d5][i].toLocaleString()}
-            </div>`).join('')}
-        </div>`).join('')}
-    </div>`;
-
-  const configs = {
-    B: {
-      score: s.B, max: 20, label: '投信評分',
-      sub1: `連買 ${s.trust_days} 天`,
-      sub2: `外資同步 ${s.foreign_days} 天`,
-      extra: (s.trust_days > 0 && s.trust_d1 != null) ? 'trust' : null,
-    },
-    C: {
-      score: s.C, max: 20, label: '主力分點',
-      sub1: `連進 ${s.broker_days} 天`,
-      sub2: `集中度 ${s.broker_conc}%`,
-      extra: s.broker_days > 0 ? 'broker' : null,
-    },
-    M: {
-      score: s.S2m, max: 8, label: '融資券評分',
-      sub1: `融資率 ${s.margin_ratio}%`,
-      sub2: `融券率 ${s.short_ratio}%`,
-      extra: null,
-    },
-  };
-  const cfg = configs[dim];
-  const isUp = s.chg >= 0;
-  const rankBg = rank===1?'linear-gradient(135deg,#ffd426,#ff8c42)':rank===2?'linear-gradient(135deg,#c0c0c0,#909090)':rank===3?'linear-gradient(135deg,#cd7f32,#8b4513)':'var(--bg3)';
-  const rankColor = rank<=3?'#000':'var(--t2)';
-  const pct = (cfg.score/cfg.max*100).toFixed(0);
-  const mktBadge = s.type==='ETF' ? `<span style="font-size:.48rem;background:rgba(0,207,255,.1);border:1px solid rgba(0,207,255,.2);color:var(--c1);border-radius:3px;padding:0 3px;margin-left:3px">ETF</span>` : '';
-
-  // ── B 面向：投信近1/3/5日買超張數
-  const trustBlock = (dim === 'B' && cfg.extra === 'trust') ? `
-    <div style="margin-top:5px;padding-top:5px;border-top:1px solid rgba(0,200,255,.08);">
-      <div style="font-size:.5rem;color:var(--t3);margin-bottom:3px;">投信累計買超（張）</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;text-align:center;">
-        ${[['近1日', s.trust_d1], ['近3日', s.trust_d3], ['近5日', s.trust_d5]].map(([lbl, val]) => `
-          <div style="background:rgba(255,61,106,.08);border:1px solid rgba(255,61,106,.2);
-                      border-radius:5px;padding:4px 2px;">
-            <div style="font-size:.48rem;color:var(--t3);margin-bottom:2px;">${lbl}</div>
-            <div style="font-size:.68rem;font-family:'Space Mono',monospace;
-                        color:var(--up);font-weight:700;">+${(val||0).toLocaleString()}</div>
-          </div>`).join('')}
-      </div>
-    </div>` : '';
-
-  // ── C 面向：分點名稱 + 近1/3/5日買賣超張數
-  const brokerBlock = (dim === 'C' && cfg.extra === 'broker') ? `
-    <div style="margin-top:5px;padding-top:5px;border-top:1px solid rgba(0,200,255,.08);">
-
-      ${buyList.map((b, bi) => `
-        <div style="margin-bottom:5px;">
-          <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px;">
-            <span style="font-size:.48rem;color:var(--t3);">買超${bi===0?'主力':'次力'}</span>
-            <span style="font-size:.58rem;background:rgba(167,139,250,.12);
-                         border:1px solid rgba(167,139,250,.3);color:var(--c5);
-                         border-radius:4px;padding:1px 6px;">${b.name}</span>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;text-align:center;">
-            ${[['近1日',b.d1],['近3日',b.d3],['近5日',b.d5]].map(([lbl,val])=>`
-              <div style="background:rgba(167,139,250,.06);border:1px solid rgba(167,139,250,.15);
-                          border-radius:4px;padding:3px 2px;">
-                <div style="font-size:.45rem;color:var(--t3);margin-bottom:1px;">${lbl}</div>
-                <div style="font-size:.62rem;font-family:'Space Mono',monospace;
-                            color:var(--c4);">+${(val||0).toLocaleString()}</div>
-              </div>`).join('')}
-          </div>
-        </div>`).join('')}
-
-      ${sellItem ? `
-        <div>
-          <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px;">
-            <span style="font-size:.48rem;color:var(--t3);">賣超</span>
-            <span style="font-size:.58rem;background:rgba(45,90,122,.2);
-                         border:1px solid var(--border);color:var(--t2);
-                         border-radius:4px;padding:1px 6px;">${sellItem.name}</span>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;text-align:center;">
-            ${[['近1日',sellItem.d1],['近3日',sellItem.d3],['近5日',sellItem.d5]].map(([lbl,val])=>`
-              <div style="background:rgba(255,61,106,.05);border:1px solid rgba(255,61,106,.15);
-                          border-radius:4px;padding:3px 2px;">
-                <div style="font-size:.45rem;color:var(--t3);margin-bottom:1px;">${lbl}</div>
-                <div style="font-size:.62rem;font-family:'Space Mono',monospace;
-                            color:var(--c3);">-${(val||0).toLocaleString()}</div>
-              </div>`).join('')}
-          </div>
-        </div>` : ''}
-    </div>` : '';
-
-  return `<div class="dim-rank-card dim-${dim}" onclick="openDetail('${s.code}')">
-    <div class="drc-main">
-      <div class="drc-rank" style="background:${rankBg};color:${rankColor};border:${rank>3?'1px solid var(--border)':'none'}">${rank}</div>
-      <div class="drc-info">
-        <div class="drc-name-row">
-          <span class="drc-code">${s.code}</span>
-          <span class="drc-name">${s.name}</span>${mktBadge}
-          <span class="price-change ${isUp?'up':'dn'}" style="font-size:.65rem;margin-left:auto;font-family:'Space Mono',monospace">${isUp?'▲':'▼'}${Math.abs(s.chg_pct).toFixed(2)}%</span>
-        </div>
-        <div class="drc-sub">
-          <span>${cfg.sub1}</span>
-          <span style="color:var(--t3)">·</span>
-          <span>${cfg.sub2}</span>
-        </div>
-        ${brokerBlock}
-        ${trustBlock}
-      </div>
-      <div class="drc-right">
-        <div class="drc-score">${cfg.score}</div>
-        <div class="drc-label">${cfg.label} /${cfg.max}</div>
-      </div>
-    </div>
-    <div class="drc-bar-wrap"><div class="drc-track"><div class="drc-fill" style="width:${pct}%"></div></div></div>
-  </div>`;
-}
-
-// 樣本說明列（各面向排行用）
 function sampleInfoBar(total, shown, label, color) {
   return `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:7px;
     padding:7px 12px;display:flex;justify-content:space-between;align-items:center;font-size:.63rem;margin-bottom:2px;">
@@ -3486,8 +3147,7 @@ function buildForeignRankCard(s, rank) {
   </div>`;
 }
 function openDetail(code) {
-  const s = allStockData.find(x => x.code === code) ||
-            scanResults.find(x => x.code === code);
+  const s = allStockData.find(x => x.code === code);
   if (!s) return;
   selectedStock = s;
   renderDetail(s);
@@ -3514,86 +3174,6 @@ function viewChartFromDetail(code) {
 }
 
 // 圖表頁代碼搜尋
-function chartSearch() {
-  const inp = document.getElementById('chartCodeInput');
-  if (!inp) return;
-  const code = inp.value.trim().toUpperCase().replace(/[^0-9A-Z]/g,'');
-  if (!code) return;
-
-  // 關閉提示下拉
-  const hint = document.getElementById('chartHintList');
-  if (hint) hint.style.display = 'none';
-
-  // 先從已掃描資料查，查不到就直接用代碼推算交易所
-  const s = allStockData.find(x => x.code === code) ||
-            scanResults.find(x => x.code === code);
-
-  if (s) {
-    selectChartStock(code, null);
-  } else {
-    // 未在掃描資料中，根據代碼規則推算交易所
-    // 0 開頭 = ETF = TWSE；4位數 1xxx-6xxx 通常上市；其他試 TWSE
-    const exchange = code.startsWith('0') ? 'TWSE'
-                   : (parseInt(code) >= 3000 && parseInt(code) <= 9999) ? 'TPEX'
-                   : 'TWSE';
-    const tvSymbol = `${exchange}:${code}`;
-    document.getElementById('tvTitle').textContent = `${code}`;
-    document.getElementById('tvSub').textContent   = `${exchange} · 代碼查詢（非候選股）`;
-    const lnk1 = document.getElementById('tvLink'); if (lnk1) lnk1.href = `https://www.tradingview.com/symbols/${exchange}-${code}/`;
-    document.getElementById('tvInfoBar').style.display = 'none';
-    loadTVChart(tvSymbol);
-  }
-  inp.blur();  // 收起手機鍵盤
-}
-
-// 代碼輸入提示（從已掃描資料搜尋）
-function chartCodeHint(val) {
-  const hint = document.getElementById('chartHintList');
-  if (!hint) return;
-  const q = val.trim();
-  if (!q || allStockData.length === 0) { hint.style.display='none'; return; }
-
-  const matched = allStockData
-    .filter(s => s.code.startsWith(q) || s.name.includes(q))
-    .slice(0, 6);
-
-  if (!matched.length) { hint.style.display='none'; return; }
-
-  hint.innerHTML = matched.map(s => `
-    <div onclick="pickChartHint('${s.code}')"
-      style="padding:7px 12px;font-size:.7rem;cursor:pointer;
-             display:flex;justify-content:space-between;align-items:center;
-             border-bottom:1px solid var(--border);">
-      <span>
-        <span style="font-family:'Space Mono',monospace;color:var(--c1);margin-right:6px;">${s.code}</span>
-        <span style="color:var(--t1);">${s.name}</span>
-      </span>
-      <span style="font-size:.6rem;color:var(--t3);">${s.market||''}</span>
-    </div>`).join('');
-  hint.style.display = 'block';
-}
-
-function pickChartHint(code) {
-  const inp = document.getElementById('chartCodeInput');
-  if (inp) inp.value = code;
-  const hint = document.getElementById('chartHintList');
-  if (hint) hint.style.display = 'none';
-  chartSearch();
-}
-
-// 點擊其他地方關閉提示下拉
-document.addEventListener('click', e => {
-  if (!e.target.closest('#chartCodeInput') && !e.target.closest('#chartHintList')) {
-    const h = document.getElementById('chartHintList');
-    if (h) h.style.display = 'none';
-  }
-  if (!e.target.closest('#detailCodeInput') && !e.target.closest('#detailHintList')) {
-    const h = document.getElementById('detailHintList');
-    if (h) h.style.display = 'none';
-  }
-});
-
-// 個股詳情頁搜尋
 function detailSearch() {
   const inp = document.getElementById('detailCodeInput');
   if (!inp) return;
@@ -3603,8 +3183,7 @@ function detailSearch() {
   const hint = document.getElementById('detailHintList');
   if (hint) hint.style.display = 'none';
 
-  const s = allStockData.find(x => x.code === code) ||
-            scanResults.find(x => x.code === code);
+  const s = allStockData.find(x => x.code === code);
 
   if (s) {
     selectedStock = s;
@@ -3963,89 +3542,6 @@ async function fetchStockNews(s) {
 // ══════════════════════════════════════════
 //  SIGNALS
 // ══════════════════════════════════════════
-function renderSignals() {
-  const time = new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
-  document.getElementById('signalList').innerHTML = `
-    <div class="signal-card">
-      <div class="signal-hdr"><div class="signal-title">買進候選</div><div class="signal-time">${time}</div></div>
-      ${scanResults.filter(s=>s.signal==='BUY').map(s=>`
-        <div class="signal-row" onclick="openDetail('${s.code}')">
-          <div class="sig-type sig-buy">📈</div>
-          <div class="sig-info">
-            <div class="sig-code">${s.code} ${s.name}</div>
-            <div class="sig-desc">${s.signal_desc}</div>
-            <div class="card-tags" style="margin-top:4px">${s.tags.slice(0,2).map(t=>`<span class="tag tag-law" style="font-size:.5rem">${t}</span>`).join('')}</div>
-          </div>
-          <div class="sig-score-badge"><div class="sv" style="color:var(--up)">${s.score}</div><div class="sl">/158</div></div>
-        </div>`).join('')}
-    </div>
-    <div class="signal-card">
-      <div class="signal-hdr"><div class="signal-title">觀察候選</div><div class="signal-time">${time}</div></div>
-      ${scanResults.filter(s=>s.signal==='WATCH').map(s=>`
-        <div class="signal-row" onclick="openDetail('${s.code}')">
-          <div class="sig-type sig-watch">👀</div>
-          <div class="sig-info">
-            <div class="sig-code">${s.code} ${s.name}</div>
-            <div class="sig-desc">${s.signal_desc}</div>
-          </div>
-          <div class="sig-score-badge"><div class="sv" style="color:var(--c1)">${s.score}</div><div class="sl">/158</div></div>
-        </div>`).join('')}
-    </div>`;
-}
-
-// ══════════════════════════════════════════
-//  CHARTS
-// ══════════════════════════════════════════
-// ══════════════════════════════════════════
-//  CHART PAGE — TradingView Widget
-// ══════════════════════════════════════════
-
-let currentChartStock = null;
-
-function renderChartSelector() {
-  const stocks = scanResults.slice(0, 10);
-  if (!stocks.length) return;
-  const sw = document.getElementById('stockSwitcher');
-  if (!sw) return;
-  sw.innerHTML = stocks.map((s, i) => {
-    const isUp = s.chg >= 0;
-    return `<div class="stock-btn ${i===0?'active':''}" onclick="selectChartStock('${s.code}',this)">
-      <div class="sb-code">${s.code}</div>
-      <div class="sb-name">${s.name}</div>
-      <div class="sb-chg ${isUp?'up':'dn'}">${isUp?'▲':'▼'}${Math.abs(s.chg_pct).toFixed(1)}%</div>
-    </div>`;
-  }).join('');
-  selectChartStock(stocks[0].code, sw.querySelector('.stock-btn'));
-}
-
-function selectChartStock(code, btn) {
-  document.querySelectorAll('.stock-btn').forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
-  const s = allStockData.find(x => x.code === code) || scanResults.find(x => x.code === code);
-  if (!s) return;
-  currentChartStock = s;
-
-  const exchange = s.market === '上櫃' ? 'TPEX' : 'TWSE';
-  const tvSymbol = `${exchange}:${code}`;
-  const tvUrl = `https://www.tradingview.com/symbols/${exchange}-${code}/`;
-
-  document.getElementById('tvTitle').textContent = `${code} ${s.name}`;
-  document.getElementById('tvSub').textContent   = `${s.market||''} · ${s.industry} · ${tvSymbol}`;
-  const lnk2 = document.getElementById('tvLink'); if (lnk2) lnk2.href = tvUrl;
-
-  const isUp = s.chg >= 0;
-  document.getElementById('tvInfoBar').style.display = 'grid';
-  document.getElementById('tvPrice').textContent = s.price.toLocaleString();
-  document.getElementById('tvPrice').style.color = isUp ? 'var(--up)' : 'var(--dn)';
-  document.getElementById('tvChg').textContent   = `${isUp?'▲':'▼'}${Math.abs(s.chg_pct).toFixed(2)}%`;
-  document.getElementById('tvChg').style.color   = isUp ? 'var(--up)' : 'var(--dn)';
-  document.getElementById('tvScore').textContent = `${s.score}/158`;
-  document.getElementById('tvSignal').textContent = s.signal === 'BUY' ? '📈 買進' : '👀 觀察';
-  document.getElementById('tvSignal').style.color = s.signal === 'BUY' ? 'var(--up)' : 'var(--c1)';
-
-  loadTVChart(tvSymbol);
-}
-
 function loadTVChart(symbol) {
   const wrap = document.getElementById('tvIframeWrap');
   if (!wrap) return;
