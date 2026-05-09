@@ -1612,23 +1612,6 @@ async function loadScanCSV() {
       } catch(e) {
         s.trust_io = {};
       }
-      // 投信前 30 名 broker top3（最新視窗化；兼容中間版/舊版）
-      try {
-        const raw = JSON.parse(obj.trust_broker_top3 || '{}');
-        if (Array.isArray(raw)) {
-          const dir = obj.trust_broker_dir || 'buy';
-          const single = (dir === 'sell')
-            ? { buy: [], sell: raw } : { buy: raw, sell: [] };
-          s.trust_broker_top3 = { '1': single, '3': single, '5': single, '10': single, '20': single };
-        } else if (raw && (raw.buy !== undefined || raw.sell !== undefined)) {
-          const single = { buy: raw.buy || [], sell: raw.sell || [] };
-          s.trust_broker_top3 = { '1': single, '3': single, '5': single, '10': single, '20': single };
-        } else {
-          s.trust_broker_top3 = raw || {};
-        }
-      } catch(e) {
-        s.trust_broker_top3 = {};
-      }
       // 主力分點 tab：當日 broker 彙總 + 雙向 top3
       try {
         s.mainforce_today = JSON.parse(obj.mainforce_today || '{}');
@@ -2227,7 +2210,7 @@ function buildTrustIORankCard(s, rank) {
   // 前三大分點（依「視窗 chip」+「方向 chip」取對應 top3）
   let brokerSection = '';
   const isBuyDir = trustIODir === 'buy';
-  const top3 = ((s.trust_broker_top3 || {})[trustIOSortWindow] || {})[isBuyDir ? 'buy' : 'sell'] || [];
+  const top3 = ((s.broker_top3 || {})[trustIOSortWindow] || {})[isBuyDir ? 'buy' : 'sell'] || [];
   const winLabel = trustIOSortWindow === '1' ? '當日' : `${trustIOSortWindow} 日累計`;
   if (top3.length > 0) {
     const dirText  = isBuyDir ? '買超' : '賣超';
