@@ -56,6 +56,7 @@ from engine.trust_radar import compute_trust_radar
 from engine.foreign_radar import compute_foreign_radar, compute_trust_io
 from engine.broker_analysis import compute_top3_brokers
 from engine.breakout_radar import detect_breakout, compute_mainforce_today
+from engine.margin_radar import compute_margin_radar, compute_short_radar
 from engine.filters import (
     filter_stock_list,
     filter_by_margin,
@@ -256,6 +257,8 @@ def run_scan(scan_date: str = None, quick: bool = False,
     # F1 需要的全市場投信5日買超分布（強制觸發批次法人歷史拉取）
     inst_hist_all = cache.get_institutional_history(20)
     market_trust_dist = calc_trust_5d_distribution(inst_hist_all)
+    # 融資券雷達需要 ≥ 21 日歷史（融券 21 日視窗）
+    cache.get_margin_history(22)
     if market_trust_dist:
         logger.info(f"投信5日買超分布｜p90={market_trust_dist['p90']:.0f}張 "
                     f"p80={market_trust_dist['p80']:.0f}張 "
@@ -326,6 +329,9 @@ def run_scan(scan_date: str = None, quick: bool = False,
             result["trust_io"]      = compute_trust_io(inst_hist, price_df)
             # 突破雷達（5 日箱型 + 突破 ±5% + 5 倍爆量）
             result["breakout"]      = detect_breakout(price_df)
+            # 融資 / 融券多視窗餘額金額 + 增減
+            result["margin_radar"]  = compute_margin_radar(margin_hist, price_df)
+            result["short_radar"]   = compute_short_radar(margin_hist, price_df)
             results.append(result)
 
         except KeyboardInterrupt:

@@ -244,6 +244,12 @@ def save_app_csv(results: list, scan_date: str):
         mainforce_today_json = json.dumps(r.get("mainforce_today", {}),
                                               ensure_ascii=False)
 
+        # 融資 / 融券多視窗餘額金額（融資券 tab 用）
+        margin_radar_json   = json.dumps(r.get("margin_radar", {}),
+                                              ensure_ascii=False)
+        short_radar_json    = json.dumps(r.get("short_radar", {}),
+                                              ensure_ascii=False)
+
         # 籌碼數值
         foreign_days  = a_det.get("consec_days", 0)
         trust_days    = b_det.get("consec_days", 0)
@@ -331,6 +337,8 @@ def save_app_csv(results: list, scan_date: str):
             "breakout_down":     breakout_down_qual,
             "vol_ratio_5d":      vol_ratio_5d,
             "mainforce_today":   mainforce_today_json,
+            "margin_radar":      margin_radar_json,
+            "short_radar":       short_radar_json,
             "foreign_days": foreign_days,
             "trust_days":   trust_days,
             "broker_days":  broker_days,

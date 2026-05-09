@@ -799,6 +799,11 @@ body::before{
 .breakout-chip:hover{border-color:var(--border3);color:var(--t1);}
 .breakout-chip.active[data-d="up"]{background:rgba(255,61,106,.1);border-color:var(--up);color:var(--up);}
 .breakout-chip.active[data-d="down"]{background:rgba(0,255,157,.08);border-color:var(--dn);color:var(--dn);}
+.margin-type-chip{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:7px;
+  padding:8px;font-size:.7rem;color:var(--t2);cursor:pointer;transition:all .2s;
+  font-family:inherit;letter-spacing:1px;font-weight:700;}
+.margin-type-chip:hover{border-color:var(--border3);color:var(--t1);}
+.margin-type-chip.active{background:rgba(0,255,157,.08);border-color:var(--c2);color:var(--c2);}
 .fr-window-table{width:100%;border-collapse:collapse;font-size:.6rem;font-family:'Space Mono',monospace;margin-top:6px;}
 .fr-window-table th{background:rgba(0,200,255,.04);color:var(--t3);padding:4px 5px;text-align:right;
   font-weight:400;font-size:.55rem;border-bottom:1px solid var(--border);}
@@ -1014,13 +1019,18 @@ body::before{
       </div>
     </div>
 
-    <!-- 子頁4：融資券排行 -->
+    <!-- 子頁4：融資券（多視窗餘額金額 + 增減）-->
     <div class="sub-page" id="sp4" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;">
       <div class="pg">
         <div style="background:rgba(0,255,157,.05);border:1px solid rgba(0,255,157,.2);border-radius:8px;padding:8px 12px;font-size:.65rem;color:var(--t2);line-height:1.6;">
-          ⚡ <strong style="color:var(--c2)">融資券</strong>：融券率高代表空頭部位積累，若股價持續不跌或上漲，空單被迫回補將形成軋空行情，帶來快速漲幅。融券率 > 30% 視為潛在軋空標的。
+          ⚡ <strong style="color:var(--c2)">融資 / 融券</strong>：呈現個股每日餘額金額（餘額張數 × 收盤價）與多視窗增減 — 可觀察散戶資金進出（融資）與空頭壓力（融券）變化。
         </div>
-        <div class="section-hdr">融券軋空潛力排行</div>
+        <!-- 融資 / 融券二選一 -->
+        <div id="marginTypeChips" style="display:flex;gap:6px;padding:4px 0 6px;">
+          <button class="margin-type-chip active" data-t="margin" onclick="setMarginType('margin',this)">📊 融資</button>
+          <button class="margin-type-chip"        data-t="short"  onclick="setMarginType('short',this)">📉 融券</button>
+        </div>
+        <div class="section-hdr" id="marginRankHdr">融資餘額排行（依最近一日金額由大到小）</div>
         <div id="marginRankList">
           <div class="empty"><div class="empty-icon">⚡</div><div class="empty-title">等待掃描</div><div class="empty-sub">掃描後自動更新</div></div>
         </div>
@@ -1939,6 +1949,17 @@ async function loadScanCSV() {
         s.mainforce_today = JSON.parse(obj.mainforce_today || '{}');
       } catch(e) {
         s.mainforce_today = {};
+      }
+      // 融資 / 融券多視窗餘額金額
+      try {
+        s.margin_radar = JSON.parse(obj.margin_radar || '{}');
+      } catch(e) {
+        s.margin_radar = {};
+      }
+      try {
+        s.short_radar = JSON.parse(obj.short_radar || '{}');
+      } catch(e) {
+        s.short_radar = {};
       }
 
       rows.push(s);
@@ -2888,22 +2909,117 @@ function buildBreakoutRankCard(s, rank) {
 }
 
 // ══════════════════════════════════════════
-//  MARGIN RANK（融資券：籌碼乾淨排行，含ETF）
-//  排序邏輯：融資率低 + S2m高 = 最乾淨
+//  MARGIN RANK（融資券：多視窗餘額金額 + 增減）
+//  資料源：FinMind TaiwanStockMarginPurchaseShortSale + TaiwanStockPrice
+//          後端 engine/margin_radar.py 算 5 視窗 ago / diff
 // ══════════════════════════════════════════
-function renderMarginRank() {
-  // 篩選：融券率 > 30%（軋空潛力），依融券率由高到低排序
-  const qualified = allStockData
-    .filter(s => s.short_ratio > 30)
-    .sort((a,b) => b.short_ratio - a.short_ratio)
-    .slice(0,30);
+const MARGIN_WINDOWS = ['1','3','5','10','20'];   // 融資視窗
+const SHORT_WINDOWS  = ['1','3','5','10','21'];   // 融券視窗（依需求 21 日）
+let marginType = 'margin';   // 'margin' | 'short'
 
-  const bar = sampleInfoBar(allStockData.length, Math.min(qualified.length,30), '融券率>30%', 'var(--c2)');
+function setMarginType(t, btn) {
+  marginType = t;
+  document.querySelectorAll('.margin-type-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  const hdr = document.getElementById('marginRankHdr');
+  if (hdr) {
+    hdr.textContent = t === 'margin'
+      ? '融資餘額排行（依最近一日金額由大到小）'
+      : '融券餘額排行（依最近一日金額由大到小）';
+  }
+  renderMarginRank();
+}
+
+function renderMarginRank() {
+  const radarField = marginType === 'margin' ? 'margin_radar' : 'short_radar';
+
+  let qualified = allStockData.filter(s => {
+    const r = s[radarField] || {};
+    return (r.latest_amt_m || 0) > 0;
+  });
+  qualified.sort((a,b) => {
+    const am = (a[radarField] || {}).latest_amt_m || 0;
+    const bm = (b[radarField] || {}).latest_amt_m || 0;
+    return bm - am;
+  });
+  qualified = qualified.slice(0,30);
+
+  const total = allStockData.length;
+  const labelMap = {margin:'融資餘額', short:'融券餘額'};
+  const bar = sampleInfoBar(total, Math.min(qualified.length,30),
+                              labelMap[marginType], 'var(--c2)');
+
   document.getElementById('marginRankList').innerHTML = bar +
     (qualified.length === 0
-      ? `<div class="empty"><div class="empty-icon">⚡</div><div class="empty-title">本日無符合條件個股</div></div>`
-      : qualified.map((s,i) => buildDimRankCard(s, i+1, 'M')).join('')) +
-    `<div style="text-align:center;padding:8px;font-size:.6rem;color:var(--t3)">篩選條件：融券率>30%（含ETF），共 ${qualified.length} 支入榜</div>`;
+      ? `<div class="empty"><div class="empty-icon">⚡</div>
+          <div class="empty-title">本日無${marginType==='margin'?'融資':'融券'}資料</div>
+          <div class="empty-sub">休市或資料尚未更新</div>
+        </div>`
+      : qualified.map((s,i) => buildMarginRankCard(s, i+1)).join('')) +
+    `<div style="text-align:center;padding:8px;font-size:.6rem;color:var(--t3)">
+      含 ETF；共 ${qualified.length} 支入榜（依最近一日餘額金額排序）
+    </div>`;
+}
+
+function buildMarginRankCard(s, rank) {
+  const isUp = s.chg >= 0;
+  const rankBg = rank===1?'linear-gradient(135deg,#ffd426,#ff8c42)':rank===2?'linear-gradient(135deg,#c0c0c0,#909090)':rank===3?'linear-gradient(135deg,#cd7f32,#8b4513)':'var(--bg3)';
+  const rankColor = rank<=3?'#000':'var(--t2)';
+  const mktBadge = s.type==='ETF' ? `<span style="font-size:.48rem;background:rgba(0,207,255,.1);border:1px solid rgba(0,207,255,.2);color:var(--c1);border-radius:3px;padding:0 3px;margin-left:3px">ETF</span>` : '';
+
+  const isMargin = marginType === 'margin';
+  const radar    = (isMargin ? s.margin_radar : s.short_radar) || {};
+  const winList  = isMargin ? MARGIN_WINDOWS : SHORT_WINDOWS;
+  const typeText = isMargin ? '融資' : '融券';
+
+  const latestAmt   = radar.latest_amt_m || 0;
+  const latestLots  = radar.latest_lots  || 0;
+  const latestClose = radar.latest_close || 0;
+
+  // 5 視窗縱向表格：視窗 / 前 X 日餘額 / 增減（張數 + 金額）
+  const rows = winList.map(w => {
+    const d = (radar.windows && radar.windows[w]) || {};
+    return `<tr>
+      <td>前 ${w} 日</td>
+      <td>${(d.ago_lots||0).toLocaleString()}</td>
+      <td>${fmtAmountAbs(d.ago_amt_m)}</td>
+      <td class="${amountClass(d.diff_lots)}">${fmtSignedLots(d.diff_lots)}</td>
+      <td class="${amountClass(d.diff_amt_m)}"><strong>${fmtAmount(d.diff_amt_m)}</strong></td>
+    </tr>`;
+  }).join('');
+
+  return `<div class="dim-rank-card dim-S2m" onclick="openDetail('${s.code}')"
+              style="cursor:pointer;">
+    <div class="drc-main">
+      <div class="drc-rank" style="background:${rankBg};color:${rankColor};border:${rank>3?'1px solid var(--border)':'none'}">${rank}</div>
+      <div class="drc-info" style="flex:1;">
+        <div class="drc-name-row">
+          <span class="drc-code" style="color:var(--c2)">${s.code}</span>
+          <span class="drc-name">${s.name}</span>${mktBadge}
+          <span class="price-change ${isUp?'up':'dn'}" style="font-size:.65rem;margin-left:auto;font-family:'Space Mono',monospace">${isUp?'▲':'▼'}${Math.abs(s.chg_pct).toFixed(2)}%</span>
+        </div>
+        <div class="drc-sub" style="display:flex;gap:8px;flex-wrap:wrap;font-size:.62rem;">
+          <span>最近 ${typeText}餘額：<strong style="color:var(--c2);font-family:'Space Mono',monospace;">${latestLots.toLocaleString()} 張</strong></span>
+          <span style="color:var(--t3)">·</span>
+          <span>收盤 ${latestClose.toFixed(2)}</span>
+        </div>
+
+        <table class="fr-window-table" onclick="event.stopPropagation()" style="margin-top:6px;">
+          <thead><tr>
+            <th>視窗</th><th>前 X 日張數</th><th>前 X 日金額</th>
+            <th>張數增減</th><th>金額增減</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <div class="drc-right">
+        <div class="drc-score" style="color:var(--c2);font-size:.95rem;">
+          ${fmtAmountAbs(latestAmt).split(' ')[0]}
+        </div>
+        <div class="drc-label">${fmtAmountAbs(latestAmt).split(' ')[1] || ''} (最近)</div>
+      </div>
+    </div>
+  </div>`;
 }
 
 // ══════════════════════════════════════════
