@@ -481,6 +481,38 @@ def run_scan(scan_date: str = None, quick: bool = False,
     logger.info(f"評分 {len(results)} 支｜跳過 {skip_count}｜"
                 f"錯誤 {error_count}｜候選 {len(candidates)} 支")
 
+    # ── 各面向實際最後資料日（前端 chip 顯示用）─────────────
+    def _max_date(df, col="date"):
+        if df is None or df.empty or col not in df.columns:
+            return ""
+        try:
+            d = pd.to_datetime(df[col], errors="coerce").max()
+            return d.strftime("%Y-%m-%d") if pd.notna(d) else ""
+        except Exception:
+            return ""
+
+    # 從 cache 已批次拉好的 dataset 取最大日期
+    inst_max    = _max_date(cache.get_institutional_history())
+    margin_max  = _max_date(cache.get_margin_history())
+    price_max   = _max_date(cache.get_price_history())
+    holding_max = _max_date(cache.get_holding_distribution_history())
+    revenue_max = _max_date(cache.get_revenue_history())
+    # 主力分點：Step 3.5/3.6/3.7/3.8 抓的 broker 涵蓋 recent_dates
+    broker_max  = recent_dates[-1] if recent_dates else scan_date
+
+    dataset_dates = {
+        "A": inst_max    or scan_date,   # 外資（同法人 dataset）
+        "B": inst_max    or scan_date,   # 投信
+        "C": broker_max  or scan_date,   # 主力分點
+        "D": price_max   or scan_date,   # 技術面
+        "E": revenue_max or "",          # 月營收（每月 10 日公布）
+        "H": holding_max or "",          # 股權分散（每週公布）
+        "M": margin_max  or scan_date,   # 融資券
+    }
+    logger.info(f"資料日期：A/B={dataset_dates['A']} C={dataset_dates['C']} "
+                f"D={dataset_dates['D']} E={dataset_dates['E']} "
+                f"H={dataset_dates['H']} M={dataset_dates['M']}")
+
     # ── Step 5：輸出報告 ──────────────────────────────────────
     logger.info("Step 5/5：產生報告...")
     elapsed = time.time() - start_time
@@ -489,6 +521,7 @@ def run_scan(scan_date: str = None, quick: bool = False,
         scan_date=scan_date,
         total_scanned=total,
         elapsed=elapsed,
+        dataset_dates=dataset_dates,
     )
     return summary_df
 

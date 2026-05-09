@@ -159,13 +159,23 @@ def save_detail_json(results: list, scan_date: str):
     logger.info(f"明細 JSON 已儲存：{filepath}")
 
 
-def save_app_csv(results: list, scan_date: str):
+def save_app_csv(results: list, scan_date: str, dataset_dates: dict = None):
     """
     輸出 App 專用 CSV（scan_app.csv）。
     欄位與前端 App 的 generateMockData() 完全對應，
     讓 App 可直接載入取代 Mock 資料。
+    dataset_dates：各面向實際最後資料日（每行 row 重複寫入，前端讀第一筆即可）
     """
     import json
+
+    dd = dataset_dates or {}
+    dd_A = dd.get("A", "")
+    dd_B = dd.get("B", "")
+    dd_C = dd.get("C", "")
+    dd_D = dd.get("D", "")
+    dd_E = dd.get("E", "")
+    dd_H = dd.get("H", "")
+    dd_M = dd.get("M", "")
 
     rows = []
     for r in results:
@@ -339,6 +349,14 @@ def save_app_csv(results: list, scan_date: str):
             "mainforce_today":   mainforce_today_json,
             "margin_radar":      margin_radar_json,
             "short_radar":       short_radar_json,
+            # 各面向實際最後資料日（每行重複寫入，前端讀第一筆）
+            "dataset_date_A":    dd_A,
+            "dataset_date_B":    dd_B,
+            "dataset_date_C":    dd_C,
+            "dataset_date_D":    dd_D,
+            "dataset_date_E":    dd_E,
+            "dataset_date_H":    dd_H,
+            "dataset_date_M":    dd_M,
             "foreign_days": foreign_days,
             "trust_days":   trust_days,
             "broker_days":  broker_days,
@@ -380,21 +398,23 @@ def save_app_csv(results: list, scan_date: str):
 
 
 def generate_report(results: list, scan_date: str,
-                    total_scanned: int, elapsed: float):
+                    total_scanned: int, elapsed: float,
+                    dataset_dates: dict = None):
     """
     主輸出入口：產生所有輸出格式。
+    dataset_dates：各面向實際最後資料日（傳給 save_app_csv 寫入 CSV）
     """
     df = build_summary_df(results)
-    
+
     if df.empty:
         logger.warning("候選名單為空（休市或資料未更新），跳過報告")
         return df
-        
+
     print_console_report(df, scan_date, total_scanned, elapsed)
 
     if OUTPUT_CSV:
         save_csv(df, scan_date)
-        save_app_csv(results, scan_date)   # App 專用 CSV
+        save_app_csv(results, scan_date, dataset_dates)   # App 專用 CSV
 
     save_detail_json(results, scan_date)
 

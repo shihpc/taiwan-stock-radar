@@ -1999,6 +1999,16 @@ async function loadScanCSV() {
       } catch(e) {
         s.short_radar = {};
       }
+      // 各面向實際最後資料日（每筆都相同，前端取第一筆即可）
+      s.__ds = {
+        A: obj.dataset_date_A || '',
+        B: obj.dataset_date_B || '',
+        C: obj.dataset_date_C || '',
+        D: obj.dataset_date_D || '',
+        E: obj.dataset_date_E || '',
+        H: obj.dataset_date_H || '',
+        M: obj.dataset_date_M || '',
+      };
 
       rows.push(s);
     }
@@ -2391,24 +2401,33 @@ async function startScan() {
     const timeStr = now.toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
     document.getElementById('lastScanTime').textContent = `最後掃描：${dateStr} ${timeStr}`;
 
-    // 各面向資料日期（全市場共用，不從個別股票取）
-    const now2 = new Date();
-    const d0 = now2.toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'});
-    const d1 = new Date(now2); d1.setDate(d1.getDate()-1);
-    const d1s = d1.toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'});
-    const d7 = new Date(now2); d7.setDate(d7.getDate()-7);
-    const d7s = d7.toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'});
-    const d25 = new Date(now2); d25.setDate(d25.getDate()-25);
-    const d25s = d25.toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'});
-    updateDataDates({
-      A: d0,    // 外資：每日更新
-      B: d0,    // 投信：每日更新
-      C: d1s,   // 主力分點：前一交易日（Sponsor資料）
-      D: d0,    // 技術面：每日更新
-      E: d25s,  // 基本面：月營收（每月10日）
-      H: d7s,   // 股權分散：每週更新
-      M: d0,    // 融資券：每日更新
-    });
+    // 各面向資料日期（優先從 CSV 取，後端已算實際最後資料日）
+    // CSV 寫的是 'YYYY-MM-DD'，前端轉 'YYYY/MM/DD' 顯示，匹配 chip today 比對邏輯
+    const csvDs = (allStockData[0] && allStockData[0].__ds) || {};
+    const toDisplayDate = (iso) => iso ? iso.replace(/-/g, '/') : '';
+    if (Object.values(csvDs).some(v => v)) {
+      updateDataDates({
+        A: toDisplayDate(csvDs.A),
+        B: toDisplayDate(csvDs.B),
+        C: toDisplayDate(csvDs.C),
+        D: toDisplayDate(csvDs.D),
+        E: toDisplayDate(csvDs.E),
+        H: toDisplayDate(csvDs.H),
+        M: toDisplayDate(csvDs.M),
+      });
+    } else {
+      // Fallback：CSV 沒帶 dataset_date_*（舊版 CSV），用本機時間相對推算
+      const now2 = new Date();
+      const fmt = (dt) => dt.toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'});
+      const d0  = fmt(now2);
+      const d1  = new Date(now2); d1.setDate(d1.getDate()-1);
+      const d7  = new Date(now2); d7.setDate(d7.getDate()-7);
+      const d25 = new Date(now2); d25.setDate(d25.getDate()-25);
+      updateDataDates({
+        A: d0, B: d0, C: fmt(d1), D: d0,
+        E: fmt(d25), H: fmt(d7), M: d0,
+      });
+    }
 
     // 渲染各排行榜（先渲染再關閉 loading）
     renderRankList();
