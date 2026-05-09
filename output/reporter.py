@@ -259,6 +259,9 @@ def save_app_csv(results: list, scan_date: str, dataset_dates: dict = None):
                                               ensure_ascii=False)
         short_radar_json    = json.dumps(r.get("short_radar", {}),
                                               ensure_ascii=False)
+        # 過去 21 日開盤價（回測 tab 用：opens[N] = T-N 開盤）
+        opens_history_json  = json.dumps(r.get("opens_history", []),
+                                              ensure_ascii=False)
 
         # 籌碼數值
         foreign_days  = a_det.get("consec_days", 0)
@@ -349,6 +352,7 @@ def save_app_csv(results: list, scan_date: str, dataset_dates: dict = None):
             "mainforce_today":   mainforce_today_json,
             "margin_radar":      margin_radar_json,
             "short_radar":       short_radar_json,
+            "opens_history":     opens_history_json,
             # 各面向實際最後資料日（每行重複寫入，前端讀第一筆）
             "dataset_date_A":    dd_A,
             "dataset_date_B":    dd_B,
@@ -397,12 +401,36 @@ def save_app_csv(results: list, scan_date: str, dataset_dates: dict = None):
     return filepath
 
 
+def save_scan_history_json(historical_data: dict, scan_date: str):
+    """
+    儲存回測用的歷史榜單 JSON（每個 N 對應 8 個榜，30 名 stock_id list）。
+    輸出：output/scan_history.json，前端 fetch 後依 chip 組合渲染。
+    """
+    import json as _json
+    if not historical_data or not historical_data.get("rankings"):
+        logger.info("無歷史榜單資料，跳過 scan_history.json")
+        return None
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    filepath = os.path.join(OUTPUT_DIR, "scan_history.json")
+    payload = {
+        "scan_date":     scan_date,
+        "trading_dates": historical_data.get("trading_dates", []),
+        "rankings":      historical_data.get("rankings", {}),
+    }
+    with open(filepath, "w", encoding="utf-8") as f:
+        _json.dump(payload, f, ensure_ascii=False, indent=0, separators=(",", ":"))
+    logger.info(f"歷史榜單已儲存：{filepath}")
+    return filepath
+
+
 def generate_report(results: list, scan_date: str,
                     total_scanned: int, elapsed: float,
-                    dataset_dates: dict = None):
+                    dataset_dates: dict = None,
+                    historical_data: dict = None):
     """
     主輸出入口：產生所有輸出格式。
-    dataset_dates：各面向實際最後資料日（傳給 save_app_csv 寫入 CSV）
+    dataset_dates  ：各面向實際最後資料日（傳給 save_app_csv）
+    historical_data：回測歷史榜單（傳給 save_scan_history_json）
     """
     df = build_summary_df(results)
 
@@ -414,7 +442,8 @@ def generate_report(results: list, scan_date: str,
 
     if OUTPUT_CSV:
         save_csv(df, scan_date)
-        save_app_csv(results, scan_date, dataset_dates)   # App 專用 CSV
+        save_app_csv(results, scan_date, dataset_dates)
+        save_scan_history_json(historical_data, scan_date)
 
     save_detail_json(results, scan_date)
 

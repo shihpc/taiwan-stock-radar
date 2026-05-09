@@ -59,7 +59,7 @@ jobs:
             python scanner.py --quick --no-broker
           fi
 
-      - name: Copy CSV to root
+      - name: Copy CSV / JSON to root
         run: |
           if [ -f output/scan_app.csv ]; then
             cp output/scan_app.csv ./scan_app.csv
@@ -67,12 +67,19 @@ jobs:
           else
             echo "⚠️ scan_app.csv 不存在（無候選股或休市），跳過"
           fi
+          if [ -f output/scan_history.json ]; then
+            cp output/scan_history.json ./scan_history.json
+            echo "✅ scan_history.json 複製完成（$(wc -c < scan_history.json) bytes）"
+          else
+            echo "⚠️ scan_history.json 不存在（無歷史榜單），跳過"
+          fi
 
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add scan_app.csv
+          if [ -f scan_history.json ]; then git add scan_history.json; fi
           if git diff --staged --quiet; then
             echo "資料無變更，跳過 commit"
           else

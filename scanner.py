@@ -57,6 +57,9 @@ from engine.foreign_radar import compute_foreign_radar, compute_trust_io
 from engine.broker_analysis import compute_top3_brokers
 from engine.breakout_radar import detect_breakout, compute_mainforce_today
 from engine.margin_radar import compute_margin_radar, compute_short_radar
+from engine.backtest_radar import (
+    compute_historical_rankings, compute_opens_history,
+)
 from engine.filters import (
     filter_stock_list,
     filter_by_margin,
@@ -332,6 +335,8 @@ def run_scan(scan_date: str = None, quick: bool = False,
             # 融資 / 融券多視窗餘額金額 + 增減
             result["margin_radar"]  = compute_margin_radar(margin_hist, price_df)
             result["short_radar"]   = compute_short_radar(margin_hist, price_df)
+            # 過去 21 日開盤價（回測 tab 用）
+            result["opens_history"] = compute_opens_history(price_df, days=21)
             # 最新收盤 / 漲跌（讓前端卡片顯示用）
             if not price_df.empty:
                 pr_sort = price_df.copy()
@@ -513,6 +518,14 @@ def run_scan(scan_date: str = None, quick: bool = False,
                 f"D={dataset_dates['D']} E={dataset_dates['E']} "
                 f"H={dataset_dates['H']} M={dataset_dates['M']}")
 
+    # ── 回測歷史榜單（對 N=1/3/5/10/20 重算 T-N 當時各榜）─────
+    logger.info("計算歷史榜單（回測 tab 用）...")
+    valid_stock_ids_for_backtest = [r["stock_id"] for r in results
+                                       if r.get("opens_history")]
+    historical_data = compute_historical_rankings(
+        cache, valid_stock_ids_for_backtest,
+    )
+
     # ── Step 5：輸出報告 ──────────────────────────────────────
     logger.info("Step 5/5：產生報告...")
     elapsed = time.time() - start_time
@@ -522,6 +535,7 @@ def run_scan(scan_date: str = None, quick: bool = False,
         total_scanned=total,
         elapsed=elapsed,
         dataset_dates=dataset_dates,
+        historical_data=historical_data,
     )
     return summary_df
 
