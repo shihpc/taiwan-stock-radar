@@ -3710,306 +3710,225 @@ function pickDetailHint(code) {
   detailSearch();
 }
 
+
+// ══════════════════════════════════════════
+//  RENDER DETAIL（個股詳情頁：上榜紀錄 + 當前數據）
+// ══════════════════════════════════════════
+
+// 計算該股在某 field（foreign_radar / trust_io）某視窗某方向的前 30 排名
+function _stockRankIn(field, w, isBuy, stockCode) {
+  const list = allStockData
+    .filter(s => {
+      const v = ((s[field] || {})[w] || {}).net_amount_m || 0;
+      return isBuy ? v > 0 : v < 0;
+    })
+    .map(s => ({ code: s.code, val: ((s[field] || {})[w] || {}).net_amount_m || 0 }))
+    .sort((a, b) => isBuy ? b.val - a.val : a.val - b.val);
+  const idx = list.findIndex(x => x.code === stockCode);
+  return idx >= 0 && idx < 30 ? { rank: idx + 1, val: list[idx].val } : null;
+}
+
+// 該股是否在某視窗的三方共識榜
+function _isInCombined(code, w, isLong) {
+  const threshold = 50;
+  const fSet = _topRankCodeSet('foreign_radar', w, isLong, threshold);
+  const tSet = _topRankCodeSet('trust_io',      w, isLong, threshold);
+  const bSet = _breakoutCodeSet(isLong, threshold);
+  return fSet.has(code) && tSet.has(code) && bSet.has(code);
+}
+
+function _fmtAmt(m) {
+  m = m || 0;
+  if (Math.abs(m) >= 100) return (m >= 0 ? '+' : '') + (m / 100).toFixed(2) + ' 億';
+  return (m >= 0 ? '+' : '') + m.toFixed(1) + ' 百萬';
+}
+function _fmtAmtAbs(m) {
+  m = Math.abs(m || 0);
+  if (m >= 100) return (m / 100).toFixed(2) + ' 億';
+  return m.toFixed(1) + ' 百萬';
+}
+function _amtCls(m) {
+  return m > 0 ? 'fr-pos' : (m < 0 ? 'fr-neg' : 'fr-zero');
+}
+
+// 上榜紀錄區塊
+function _buildListingsSection(code) {
+  const windows = ['1', '3', '5', '10', '20'];
+  const fBuy  = windows.map(w => { const r = _stockRankIn('foreign_radar', w, true,  code); return r ? { w, ...r } : null; }).filter(Boolean);
+  const fSell = windows.map(w => { const r = _stockRankIn('foreign_radar', w, false, code); return r ? { w, ...r } : null; }).filter(Boolean);
+  const tBuy  = windows.map(w => { const r = _stockRankIn('trust_io',      w, true,  code); return r ? { w, ...r } : null; }).filter(Boolean);
+  const tSell = windows.map(w => { const r = _stockRankIn('trust_io',      w, false, code); return r ? { w, ...r } : null; }).filter(Boolean);
+  const cLong  = windows.filter(w => _isInCombined(code, w, true));
+  const cShort = windows.filter(w => _isInCombined(code, w, false));
+  const s = allStockData.find(x => x.code === code) || {};
+  const mfUp   = s.breakout_up   === 1;
+  const mfDown = s.breakout_down === 1;
+
+  const renderEntries = (entries, color) => entries.map(e =>
+    `<div style="display:flex;align-items:center;gap:8px;font-size:.65rem;padding:3px 0;">
+      <span style="color:var(--t3);min-width:36px;">${e.w} 日</span>
+      <span style="color:${color};font-weight:700;font-family:'Space Mono',monospace;min-width:60px;">第 ${e.rank} 名</span>
+      <span style="color:var(--t2);font-family:'Space Mono',monospace;">${_fmtAmt(e.val)}</span>
+    </div>`).join('');
+
+  let html = `<div class="section-hdr" style="margin-top:12px;">📋 上榜紀錄</div>`;
+  let any = false;
+
+  if (cLong.length || cShort.length) {
+    any = true;
+    html += `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;">
+      <div style="font-size:.62rem;color:var(--c1);font-weight:700;margin-bottom:5px;letter-spacing:1px;">📡 三方共識</div>`;
+    if (cLong.length)  html += `<div style="font-size:.66rem;color:var(--up);padding:2px 0;">📈 多頭：${cLong.map(w => w + ' 日').join('、')}</div>`;
+    if (cShort.length) html += `<div style="font-size:.66rem;color:var(--dn);padding:2px 0;">📉 空頭：${cShort.map(w => w + ' 日').join('、')}</div>`;
+    html += `</div>`;
+  }
+
+  if (mfUp || mfDown) {
+    any = true;
+    const t = mfUp ? '↗ 向上突破 + 5 倍爆量' : '↘ 向下突破 + 5 倍爆量';
+    const c = mfUp ? 'var(--up)' : 'var(--dn)';
+    html += `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;">
+      <div style="font-size:.62rem;color:var(--c5);font-weight:700;margin-bottom:5px;letter-spacing:1px;">🎯 主力分點</div>
+      <div style="font-size:.66rem;color:${c};">${t}（量比 ${(s.vol_ratio_5d || 0).toFixed(1)}x）</div>
+    </div>`;
+  }
+
+  if (fBuy.length || fSell.length) {
+    any = true;
+    html += `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;">
+      <div style="font-size:.62rem;color:var(--c1);font-weight:700;margin-bottom:5px;letter-spacing:1px;">🌊 外資進出</div>`;
+    if (fBuy.length)  html += `<div style="font-size:.58rem;color:var(--t3);margin:4px 0 2px;">📈 買超榜</div>${renderEntries(fBuy, 'var(--up)')}`;
+    if (fSell.length) html += `<div style="font-size:.58rem;color:var(--t3);margin:6px 0 2px;">📉 賣超榜</div>${renderEntries(fSell, 'var(--dn)')}`;
+    html += `</div>`;
+  }
+
+  if (tBuy.length || tSell.length) {
+    any = true;
+    html += `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;">
+      <div style="font-size:.62rem;color:var(--up);font-weight:700;margin-bottom:5px;letter-spacing:1px;">🏦 投信進出</div>`;
+    if (tBuy.length)  html += `<div style="font-size:.58rem;color:var(--t3);margin:4px 0 2px;">📈 買超榜</div>${renderEntries(tBuy, 'var(--up)')}`;
+    if (tSell.length) html += `<div style="font-size:.58rem;color:var(--t3);margin:6px 0 2px;">📉 賣超榜</div>${renderEntries(tSell, 'var(--dn)')}`;
+    html += `</div>`;
+  }
+
+  if (!any) {
+    html += `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center;color:var(--t3);font-size:.7rem;line-height:1.7;">
+      此股當前未進入任何 30 名榜單<br>
+      <span style="font-size:.6rem;">無外資 / 投信 / 主力分點 / 三方共識訊號</span>
+    </div>`;
+  }
+  return html;
+}
+
+// 當前數據區塊
+function _buildCurrentDataSection(s) {
+  const fr5 = (s.foreign_radar || {})['5'] || {};
+  const ti5 = (s.trust_io || {})['5'] || {};
+  const mf  = s.mainforce_today || {};
+  const mr  = s.margin_radar || {};
+  const sr  = s.short_radar || {};
+
+  const trAmt    = s.trust_amount_m || 0;
+  const trLots   = s.trust_net_lots || 0;
+  const isBox    = s.is_box === 1;
+  const boxBrk   = s.box_breakout === 1;
+  const boxLabel = boxBrk ? '🚀 突破' : (isBox ? '📦 整理' : '');
+
+  return `<div class="section-hdr">📊 當前數據</div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:10px;">
+      <table style="width:100%;border-collapse:collapse;font-size:.66rem;">
+        <thead>
+          <tr style="background:rgba(0,200,255,.04);color:var(--t3);">
+            <th style="padding:6px 10px;text-align:left;font-weight:400;font-size:.6rem;">面向</th>
+            <th style="padding:6px 10px;text-align:right;font-weight:400;font-size:.6rem;">5 日金額</th>
+            <th style="padding:6px 10px;text-align:right;font-weight:400;font-size:.6rem;">當日分點</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-top:1px solid var(--border);">
+            <td style="padding:8px 10px;color:var(--c1);">🌊 外資</td>
+            <td class="${_amtCls(fr5.net_amount_m || 0)}" style="padding:8px 10px;text-align:right;font-family:'Space Mono',monospace;font-weight:700;">${_fmtAmt(fr5.net_amount_m)}</td>
+            <td style="padding:8px 10px;text-align:right;font-family:'Space Mono',monospace;color:var(--t3);">—</td>
+          </tr>
+          <tr style="border-top:1px solid var(--border);">
+            <td style="padding:8px 10px;color:var(--up);">🏦 投信</td>
+            <td class="${_amtCls(ti5.net_amount_m || 0)}" style="padding:8px 10px;text-align:right;font-family:'Space Mono',monospace;font-weight:700;">${_fmtAmt(ti5.net_amount_m)}</td>
+            <td style="padding:8px 10px;text-align:right;font-family:'Space Mono',monospace;color:var(--t3);">—</td>
+          </tr>
+          <tr style="border-top:1px solid var(--border);">
+            <td style="padding:8px 10px;color:var(--c5);">🎯 主力分點</td>
+            <td style="padding:8px 10px;text-align:right;font-family:'Space Mono',monospace;color:var(--t3);">—</td>
+            <td class="${_amtCls(mf.net_amount_m || 0)}" style="padding:8px 10px;text-align:right;font-family:'Space Mono',monospace;font-weight:700;">${mf.net_amount_m ? _fmtAmt(mf.net_amount_m) : '—'}</td>
+          </tr>
+          <tr style="border-top:1px solid var(--border);background:rgba(0,255,157,.03);">
+            <td style="padding:8px 10px;color:var(--c2);">⚡ 融資餘額</td>
+            <td colspan="2" style="padding:8px 10px;text-align:right;font-family:'Space Mono',monospace;color:var(--c2);font-weight:700;">${_fmtAmtAbs(mr.latest_amt_m)}</td>
+          </tr>
+          <tr style="border-top:1px solid var(--border);background:rgba(0,255,157,.03);">
+            <td style="padding:8px 10px;color:var(--c2);">⚡ 融券餘額</td>
+            <td colspan="2" style="padding:8px 10px;text-align:right;font-family:'Space Mono',monospace;color:var(--c2);font-weight:700;">${_fmtAmtAbs(sr.latest_amt_m)}</td>
+          </tr>
+          ${trAmt ? `<tr style="border-top:1px solid var(--border);background:rgba(255,212,38,.04);">
+            <td style="padding:8px 10px;color:var(--c4);">💧 投信雷達</td>
+            <td colspan="2" style="padding:8px 10px;text-align:right;font-family:'Space Mono',monospace;">
+              <span class="${_amtCls(trAmt)}" style="font-weight:700;">${_fmtAmt(trAmt)}</span>
+              <span style="color:var(--t3);font-size:.6rem;margin-left:6px;">(${trLots > 0 ? '+' : ''}${trLots.toLocaleString()} 張)</span>
+              ${boxLabel ? `<span style="margin-left:6px;font-size:.58rem;">${boxLabel}</span>` : ''}
+            </td>
+          </tr>` : ''}
+        </tbody>
+      </table>
+    </div>`;
+}
+
 function renderDetail(s) {
   const isUp = s.chg >= 0;
-  const dims = [
-    {key:'A',label:'外資動向',icon:'🌊',score:s.A,max:20,cls:'dim-A',dateKey:'A'},
-    {key:'B',label:'投信認養',icon:'🏦',score:s.B,max:20,cls:'dim-B',dateKey:'B'},
-    {key:'C',label:'主力分點',icon:'🎯',score:s.C,max:20,cls:'dim-C',dateKey:'C'},
-    {key:'D',label:'技術面',  icon:'📈',score:s.D,max:20,cls:'dim-D',dateKey:'D'},
-    {key:'E',label:'基本面',  icon:'💰',score:s.E,max:20,cls:'dim-E',dateKey:'E'},
-    {key:'S2h',label:'股權分散',icon:'🏛',score:s.S2h,max:10,cls:'dim-S2h',dateKey:'H'},
-    {key:'S2m',label:'融資券',  icon:'⚡',score:s.S2m,max:8, cls:'dim-S2m',dateKey:'M'},
-  ];
-  const signalColor = s.signal==='BUY'?'var(--up)':'var(--c1)';
-  const signalBg    = s.signal==='BUY'?'rgba(255,61,106,.15)':'rgba(0,207,255,.1)';
-  const dd = s.dataDates || {};
-
-  // 個股簡介（依行業別自動產生）
   const intro = s.intro || generateStockIntro(s);
+
+  const listingsHtml = _buildListingsSection(s.code);
+  const currentHtml  = _buildCurrentDataSection(s);
 
   document.getElementById('detailContent').innerHTML = `
     <div class="detail-hero">
-      <div class="dh-top">
-        <div>
-          <div class="dh-code">${s.code} · ${s.market||''} · ${s.industry}</div>
+      <div class="dh-top" style="justify-content:flex-start;gap:14px;">
+        <div style="flex:1;min-width:0;">
+          <div class="dh-code">${s.code}${s.market ? ' · ' + s.market : ''}${s.industry ? ' · ' + s.industry : ''}</div>
           <div class="dh-name">${s.name}</div>
-          <div style="margin-top:6px;display:flex;align-items:baseline;gap:8px;">
-            <span style="font-family:'Orbitron',monospace;font-size:1.3rem;font-weight:700;color:${isUp?'var(--up)':'var(--dn)'}">${s.price.toLocaleString()}</span>
-            <span class="price-change ${isUp?'up':'dn'}" style="font-size:.78rem;font-family:'Space Mono',monospace">${isUp?'▲':'▼'}${Math.abs(s.chg)} (${Math.abs(s.chg_pct).toFixed(2)}%)</span>
+          <div style="margin-top:6px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;">
+            <span style="font-family:'Orbitron',monospace;font-size:1.35rem;font-weight:700;color:${isUp ? 'var(--up)' : 'var(--dn)'};">${(s.price || 0).toLocaleString()}</span>
+            <span class="price-change ${isUp ? 'up' : 'dn'}" style="font-size:.78rem;font-family:'Space Mono',monospace;">
+              ${isUp ? '▲' : '▼'}${Math.abs(s.chg || 0)} (${Math.abs(s.chg_pct || 0).toFixed(2)}%)
+            </span>
           </div>
-        </div>
-        <div class="dh-score-wrap">
-          <div class="dh-score">${s.score}</div>
-          <div class="dh-scoremax">/158</div>
-          <div class="dh-pct">${(s.pct*100).toFixed(1)}%</div>
         </div>
       </div>
 
-      <div id="detailIntroBox" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;margin-bottom:10px;font-size:.68rem;color:var(--t2);line-height:1.75;">
+      <div id="detailIntroBox" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;margin-top:8px;margin-bottom:10px;font-size:.68rem;color:var(--t2);line-height:1.75;">
         ${intro}
       </div>
 
-      <div style="background:${signalBg};border:1px solid ${signalColor}33;border-radius:8px;padding:8px 12px;margin-bottom:8px;">
-        <div style="font-size:.62rem;color:${signalColor};font-weight:700;letter-spacing:2px;margin-bottom:3px;">${s.signal==='BUY'?'📈 買進訊號':'👀 觀察訊號'}</div>
-        <div style="font-size:.7rem;color:var(--t1);line-height:1.6;">${s.signal_desc}</div>
-      </div>
-      <div style="display:flex;gap:6px;margin-bottom:6px;">
+      <div style="display:flex;gap:6px;margin-bottom:10px;">
         <button onclick="viewKlineFromDetail('${s.code}')"
           style="flex:1;background:rgba(0,207,255,.08);border:1px solid var(--border2);
-                 border-radius:8px;padding:7px;color:var(--c1);font-size:.65rem;
-                 font-weight:700;cursor:pointer;">
-          📈 K 線圖
-        </button>
-        <button onclick="viewChartFromDetail('${s.code}')"
-          style="flex:1;background:rgba(0,207,255,.04);border:1px solid var(--border);
-                 border-radius:8px;padding:7px;color:var(--t2);font-size:.65rem;
-                 font-weight:700;cursor:pointer;">
-          📊 TV 圖表
+                 border-radius:8px;padding:9px;color:var(--c1);font-size:.7rem;
+                 font-weight:700;cursor:pointer;letter-spacing:1px;">
+          📈 切換到 K 線圖
         </button>
       </div>
-      <!-- 外部資源連結 -->
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:10px;">
+
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:6px;">
         <a href="https://goodinfo.tw/tw/StockInfo/StockDetail.asp?STOCK_ID=${s.code}" target="_blank" rel="noopener"
-          style="display:flex;align-items:center;justify-content:center;
-                 background:var(--bg3);border:1px solid var(--border);
-                 border-radius:6px;padding:6px 2px;color:var(--t2);font-size:.6rem;
-                 text-decoration:none;white-space:nowrap;">
-          📑 Goodinfo
-        </a>
-        <a href="https://mops.twse.com.tw/mops/web/t05st03?step=1&keyword4=${s.code}" target="_blank" rel="noopener"
-          style="display:flex;align-items:center;justify-content:center;
-                 background:var(--bg3);border:1px solid var(--border);
-                 border-radius:6px;padding:6px 2px;color:var(--t2);font-size:.6rem;
-                 text-decoration:none;white-space:nowrap;">
-          🏛 公開觀測站
-        </a>
-        <a href="https://tw.stock.yahoo.com/quote/${s.code}" target="_blank" rel="noopener"
-          style="display:flex;align-items:center;justify-content:center;
-                 background:var(--bg3);border:1px solid var(--border);
-                 border-radius:6px;padding:6px 2px;color:var(--t2);font-size:.6rem;
-                 text-decoration:none;white-space:nowrap;">
-          📰 Yahoo 股市
-        </a>
+          style="display:flex;align-items:center;justify-content:center;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px 2px;color:var(--t2);font-size:.6rem;text-decoration:none;white-space:nowrap;">📑 Goodinfo</a>
         <a href="https://www.cnyes.com/twstock/${s.code}" target="_blank" rel="noopener"
-          style="display:flex;align-items:center;justify-content:center;
-                 background:var(--bg3);border:1px solid var(--border);
-                 border-radius:6px;padding:6px 2px;color:var(--t2);font-size:.6rem;
-                 text-decoration:none;white-space:nowrap;">
-          🔗 鉅亨網
-        </a>
-      </div>
-      <div class="card-tags" style="gap:4px;">
-        ${s.tags.map(t=>{let c='tag-law';if(t.includes('主力')||t.includes('分點'))c='tag-broker';else if(t.includes('籌碼')||t.includes('大戶')||t.includes('融'))c='tag-chip';else if(t.includes('營收')||t.includes('EPS'))c='tag-fund';return`<span class="tag ${c}" style="font-size:.62rem;">${t}</span>`;}).join('')}
-      </div>
-    </div>
-
-    <div class="section-hdr" style="margin-top:4px">個股新聞</div>
-    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;">
-      <div style="margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;">
-        <span style="font-size:.65rem;color:var(--t2);font-weight:700;letter-spacing:1px;">最近新聞</span>
-        <a href="https://www.cnyes.com/twstock/${s.code}/news/stock" target="_blank" rel="noopener"
-           style="font-size:.58rem;color:var(--c1);text-decoration:none;">鉅亨網更多新聞 →</a>
-      </div>
-      <div id="newsItems"><div style="text-align:center;padding:10px 0;font-size:.65rem;color:var(--t3);">新聞載入中…</div></div>
-      <div style="margin-top:6px;">
-        <a href="https://www.cnyes.com/twstock/${s.code}/company/profile" target="_blank" rel="noopener"
-           style="font-size:.6rem;color:var(--t3);text-decoration:none;">🔗 鉅亨網 ${s.name} 公司簡介</a>
-      </div>
-    </div>
-
-    <div class="section-hdr">評分明細</div>
-    <div class="dim-grid">
-
-      <div class="dim-row dim-A">
-        <div style="width:100%">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-            <div class="dim-label"><span class="dim-icon">🌊</span>A. 外資動向</div>
-            <div style="display:flex;align-items:baseline;gap:3px;">
-              <div class="dim-score">${s.A}<span class="dim-max">/20</span></div>
-              <div style="font-size:.5rem;color:var(--t3);font-family:'Space Mono',monospace;">${dd['A']||'—'}</div>
-            </div>
-          </div>
-          <div class="dim-progress" style="margin-bottom:8px;"><div class="dim-fill" style="width:${s.A/20*100}%"></div></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;">
-            <div style="background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:5px;text-align:center;">
-              <div style="font-size:.5rem;color:var(--t3);margin-bottom:2px;">連買天數</div>
-              <div style="font-family:'Space Mono',monospace;font-size:.75rem;color:var(--c1);font-weight:700;">${s.foreign_days} 天</div>
-            </div>
-            <div style="background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:5px;text-align:center;">
-              <div style="font-size:.5rem;color:var(--t3);margin-bottom:2px;">買超佔成交比</div>
-              <div style="font-family:'Space Mono',monospace;font-size:.75rem;color:${s.turnover_pct>0?'var(--c4)':'var(--t3)'};font-weight:700;">${(s.turnover_pct||0).toFixed(1)}%</div>
-            </div>
-            <div style="background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:5px;text-align:center;">
-              <div style="font-size:.5rem;color:var(--t3);margin-bottom:2px;">持股趨勢</div>
-              <div style="font-family:'Space Mono',monospace;font-size:.75rem;color:${s.big_chg>0?'var(--c2)':'var(--t3)'};font-weight:700;">${s.big_chg>0?'↑ 上升':'→ 持平'}</div>
-            </div>
-          </div>
-        </div>
+          style="display:flex;align-items:center;justify-content:center;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px 2px;color:var(--t2);font-size:.6rem;text-decoration:none;white-space:nowrap;">📰 鉅亨網</a>
+        <a href="https://histock.tw/stock/${s.code}" target="_blank" rel="noopener"
+          style="display:flex;align-items:center;justify-content:center;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px 2px;color:var(--t2);font-size:.6rem;text-decoration:none;white-space:nowrap;">📈 嗨投資</a>
+        <a href="https://tw.stock.yahoo.com/quote/${s.code}" target="_blank" rel="noopener"
+          style="display:flex;align-items:center;justify-content:center;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px 2px;color:var(--t2);font-size:.6rem;text-decoration:none;white-space:nowrap;">🌐 Yahoo</a>
       </div>
 
-      <div class="dim-row dim-B">
-        <div style="width:100%">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-            <div class="dim-label"><span class="dim-icon">🏦</span>B. 投信認養</div>
-            <div style="display:flex;align-items:baseline;gap:3px;">
-              <div class="dim-score">${s.B}<span class="dim-max">/20</span></div>
-              <div style="font-size:.5rem;color:var(--t3);font-family:'Space Mono',monospace;">${dd['B']||'—'}</div>
-            </div>
-          </div>
-          <div class="dim-progress" style="margin-bottom:8px;"><div class="dim-fill" style="width:${s.B/20*100}%"></div></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;">
-            <div style="background:rgba(255,61,106,.08);border:1px solid rgba(255,61,106,.2);border-radius:5px;padding:5px;text-align:center;">
-              <div style="font-size:.5rem;color:var(--t3);margin-bottom:2px;">連買天數</div>
-              <div style="font-family:'Space Mono',monospace;font-size:.75rem;color:var(--up);font-weight:700;">${s.trust_days} 天</div>
-            </div>
-            <div style="background:rgba(255,61,106,.08);border:1px solid rgba(255,61,106,.2);border-radius:5px;padding:5px;text-align:center;">
-              <div style="font-size:.5rem;color:var(--t3);margin-bottom:2px;">近5日累計買超</div>
-              <div style="font-family:'Space Mono',monospace;font-size:.75rem;color:var(--up);font-weight:700;">+${(s.trust_d5||0).toLocaleString()}</div>
-            </div>
-            <div style="background:rgba(255,61,106,.08);border:1px solid rgba(255,61,106,.2);border-radius:5px;padding:5px;text-align:center;">
-              <div style="font-size:.5rem;color:var(--t3);margin-bottom:2px;">拉回護盤</div>
-              <div style="font-family:'Space Mono',monospace;font-size:.75rem;color:${s.trust_days>=3?'var(--c2)':'var(--t3)'};font-weight:700;">${s.trust_days>=3?'有':'—'}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="dim-row dim-C">
-        <div style="width:100%">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-            <div class="dim-label"><span class="dim-icon">🎯</span>C. 主力分點</div>
-            <div style="display:flex;align-items:baseline;gap:3px;">
-              <div class="dim-score">${s.C}<span class="dim-max">/20</span></div>
-              <div style="font-size:.5rem;color:var(--t3);font-family:'Space Mono',monospace;">${dd['C']||'—'}</div>
-            </div>
-          </div>
-          <div class="dim-progress" style="margin-bottom:8px;"><div class="dim-fill" style="width:${s.C/20*100}%"></div></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
-            <div style="background:rgba(167,139,250,.08);border:1px solid rgba(167,139,250,.2);border-radius:5px;padding:5px;text-align:center;">
-              <div style="font-size:.5rem;color:var(--t3);margin-bottom:2px;">主力連進</div>
-              <div style="font-family:'Space Mono',monospace;font-size:.75rem;color:var(--c5);font-weight:700;">${s.broker_days} 天</div>
-            </div>
-            <div style="background:rgba(167,139,250,.08);border:1px solid rgba(167,139,250,.2);border-radius:5px;padding:5px;text-align:center;">
-              <div style="font-size:.5rem;color:var(--t3);margin-bottom:2px;">分點集中度</div>
-              <div style="font-family:'Space Mono',monospace;font-size:.75rem;color:var(--c5);font-weight:700;">${s.broker_conc}%</div>
-            </div>
-          </div>
-          ${(s.broker_names && s.broker_names.buy && s.broker_names.buy.length>0) ? `
-          <div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:3px;">
-            ${s.broker_names.buy.map(b=>`<span style="font-size:.55rem;background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.25);color:var(--c5);border-radius:3px;padding:1px 5px;">${b.name} <span style="color:var(--c4)">+${b.d5}</span></span>`).join('')}
-          </div>` : ''}
-        </div>
-      </div>
-
-      <div class="dim-row dim-D">
-        <div style="width:100%">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-            <div class="dim-label"><span class="dim-icon">📈</span>D. 技術面</div>
-            <div style="display:flex;align-items:baseline;gap:3px;">
-              <div class="dim-score">${s.D}<span class="dim-max">/20</span></div>
-              <div style="font-size:.5rem;color:var(--t3);font-family:'Space Mono',monospace;">${dd['D']||'—'}</div>
-            </div>
-          </div>
-          <div class="dim-progress" style="margin-bottom:8px;"><div class="dim-fill" style="width:${s.D/20*100}%"></div></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;">
-            <div style="background:rgba(0,255,157,.05);border:1px solid rgba(0,255,157,.15);border-radius:5px;padding:5px;text-align:center;">
-              <div style="font-size:.48rem;color:var(--t3);margin-bottom:2px;">RSI(14)</div>
-              <div style="font-family:'Space Mono',monospace;font-size:.75rem;color:${s.rsi>70?'var(--up)':s.rsi<30?'var(--c2)':'var(--c4)'};font-weight:700;">${s.rsi.toFixed(1)}</div>
-            </div>
-            <div style="background:rgba(0,255,157,.05);border:1px solid rgba(0,255,157,.15);border-radius:5px;padding:5px;text-align:center;">
-              <div style="font-size:.48rem;color:var(--t3);margin-bottom:2px;">均線排列</div>
-              <div style="font-family:'Space Mono',monospace;font-size:.72rem;color:${s.D>=12?'var(--c2)':'var(--t2)'};font-weight:700;">${s.D>=12?'多頭':s.D>=6?'部分':'空頭'}</div>
-            </div>
-            <div style="background:rgba(0,255,157,.05);border:1px solid rgba(0,255,157,.15);border-radius:5px;padding:5px;text-align:center;">
-              <div style="font-size:.48rem;color:var(--t3);margin-bottom:2px;">MACD</div>
-              <div style="font-family:'Space Mono',monospace;font-size:.72rem;color:${s.D>=8?'var(--c2)':'var(--t3)'};font-weight:700;">${s.D>=8?'黃金叉':'—'}</div>
-            </div>
-            <div style="background:rgba(0,255,157,.05);border:1px solid rgba(0,255,157,.15);border-radius:5px;padding:5px;text-align:center;">
-              <div style="font-size:.48rem;color:var(--t3);margin-bottom:2px;">量能突破</div>
-              <div style="font-family:'Space Mono',monospace;font-size:.72rem;color:${s.D>=18?'var(--c2)':'var(--t3)'};font-weight:700;">${s.D>=18?'是':'—'}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="dim-row dim-E">
-        <div style="width:100%">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-            <div class="dim-label"><span class="dim-icon">💰</span>E. 基本面</div>
-            <div style="display:flex;align-items:baseline;gap:3px;">
-              <div class="dim-score">${s.E}<span class="dim-max">/20</span></div>
-              <div style="font-size:.5rem;color:var(--t3);font-family:'Space Mono',monospace;">${dd['E']||'—'}</div>
-            </div>
-          </div>
-          <div class="dim-progress" style="margin-bottom:8px;"><div class="dim-fill" style="width:${s.E/20*100}%"></div></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;">
-            <div style="background:rgba(255,212,38,.05);border:1px solid rgba(255,212,38,.15);border-radius:5px;padding:5px;text-align:center;">
-              <div style="font-size:.48rem;color:var(--t3);margin-bottom:2px;">月營收連成長</div>
-              <div style="font-family:'Space Mono',monospace;font-size:.75rem;color:${s.E>=8?'var(--c4)':'var(--t3)'};font-weight:700;">${s.E>=8?'6月↑':s.E>=3?'3月↑':'—'}</div>
-            </div>
-            <div style="background:rgba(255,212,38,.05);border:1px solid rgba(255,212,38,.15);border-radius:5px;padding:5px;text-align:center;">
-              <div style="font-size:.48rem;color:var(--t3);margin-bottom:2px;">EPS 季增</div>
-              <div style="font-family:'Space Mono',monospace;font-size:.75rem;color:${s.E>=5?'var(--c4)':'var(--t3)'};font-weight:700;">${s.E>=5?'成長中':'—'}</div>
-            </div>
-            <div style="background:rgba(255,212,38,.05);border:1px solid rgba(255,212,38,.15);border-radius:5px;padding:5px;text-align:center;">
-              <div style="font-size:.48rem;color:var(--t3);margin-bottom:2px;">毛利率改善</div>
-              <div style="font-family:'Space Mono',monospace;font-size:.75rem;color:${s.E>=15?'var(--c4)':'var(--t3)'};font-weight:700;">${s.E>=15?'是':'—'}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="dim-row dim-S2h">
-        <div style="width:100%">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-            <div class="dim-label"><span class="dim-icon">🏛</span>股權分散</div>
-            <div style="display:flex;align-items:baseline;gap:3px;">
-              <div class="dim-score">${s.S2h}<span class="dim-max">/25</span></div>
-              <div style="font-size:.5rem;color:var(--t3);font-family:'Space Mono',monospace;">${dd['H']||'—'}</div>
-            </div>
-          </div>
-          <div class="dim-progress" style="margin-bottom:8px;"><div class="dim-fill" style="width:${s.S2h/25*100}%"></div></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;">
-            <div style="background:rgba(255,140,66,.06);border:1px solid rgba(255,140,66,.18);border-radius:5px;padding:5px;text-align:center;">
-              <div style="font-size:.48rem;color:var(--t3);margin-bottom:2px;">大戶 2 週變化</div>
-              <div style="font-family:'Space Mono',monospace;font-size:.75rem;color:${s.big_chg>0?'var(--c6)':'var(--t3)'};font-weight:700;">${s.big_chg>0?'+':''}${s.big_chg}%</div>
-            </div>
-            <div style="background:rgba(255,140,66,.06);border:1px solid rgba(255,140,66,.18);border-radius:5px;padding:5px;text-align:center;">
-              <div style="font-size:.48rem;color:var(--t3);margin-bottom:2px;">超大戶趨勢</div>
-              <div style="font-family:'Space Mono',monospace;font-size:.75rem;color:${s.S2h>=5?'var(--c6)':'var(--t3)'};font-weight:700;">${s.S2h>=5?'↑ 上升':'→ 持平'}</div>
-            </div>
-            <div style="background:rgba(255,140,66,.06);border:1px solid rgba(255,140,66,.18);border-radius:5px;padding:5px;text-align:center;">
-              <div style="font-size:.48rem;color:var(--t3);margin-bottom:2px;">籌碼集中</div>
-              <div style="font-family:'Space Mono',monospace;font-size:.75rem;color:${s.S2h>=20?'var(--c6)':'var(--t3)'};font-weight:700;">${s.S2h>=20?'是':'—'}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="dim-row dim-S2m">
-        <div style="width:100%">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-            <div class="dim-label"><span class="dim-icon">⚡</span>融資券</div>
-            <div style="display:flex;align-items:baseline;gap:3px;">
-              <div class="dim-score">${s.S2m}<span class="dim-max">/13</span></div>
-              <div style="font-size:.5rem;color:var(--t3);font-family:'Space Mono',monospace;">${dd['M']||'—'}</div>
-            </div>
-          </div>
-          <div class="dim-progress" style="margin-bottom:8px;"><div class="dim-fill" style="width:${Math.max(s.S2m,0)/13*100}%"></div></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
-            <div style="background:rgba(100,255,218,.05);border:1px solid rgba(100,255,218,.15);border-radius:5px;padding:5px;text-align:center;">
-              <div style="font-size:.5rem;color:var(--t3);margin-bottom:2px;">融資使用率</div>
-              <div style="font-family:'Space Mono',monospace;font-size:.75rem;color:${s.margin_ratio<20?'var(--c2)':s.margin_ratio>50?'var(--up)':'var(--c4)'};font-weight:700;">${s.margin_ratio}%</div>
-            </div>
-            <div style="background:rgba(100,255,218,.05);border:1px solid rgba(100,255,218,.15);border-radius:5px;padding:5px;text-align:center;">
-              <div style="font-size:.5rem;color:var(--t3);margin-bottom:2px;">融券率</div>
-              <div style="font-family:'Space Mono',monospace;font-size:.75rem;color:${s.short_ratio>60?'var(--c4)':s.short_ratio>30?'var(--t2)':'var(--t3)'};font-weight:700;">${s.short_ratio}%</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
+      ${listingsHtml}
+      ${currentHtml}
     </div>
   `;
   fetchStockNews(s);
