@@ -812,6 +812,13 @@ body::before{
 .fr-window-table td:first-child{text-align:left;color:var(--t2);font-size:.6rem;}
 .fr-window-table tr:last-child td{border-bottom:none;}
 .fr-pos{color:var(--up);}.fr-neg{color:var(--dn);}.fr-zero{color:var(--t3);}
+.fr-toggle-btn{background:rgba(0,200,255,.06);border:1px solid var(--border);
+  color:var(--t2);border-radius:5px;padding:3px 8px;font-size:.6rem;
+  cursor:pointer;font-family:inherit;letter-spacing:.5px;
+  display:inline-flex;align-items:center;gap:4px;flex-shrink:0;}
+.fr-toggle-btn:hover{background:rgba(0,200,255,.14);color:var(--t1);}
+.fr-toggle-btn .fr-toggle-icon{font-weight:700;font-family:'Space Mono',monospace;font-size:.75rem;line-height:1;}
+.fr-table-wrap{margin-top:6px;}
 
 /* 手機（< 600px）：表格緊湊 + 隱藏買額/賣額（中間欄） */
 @media (max-width: 600px) {
@@ -2752,13 +2759,15 @@ function buildTrustIORankCard(s, rank) {
         ${buildAmountTopRow(sortNet, `${sortW} 日 |金額|`)}
         ${(cdBadge || fdBadge) ? `<div class="drc-sub" style="display:flex;gap:5px;flex-wrap:wrap;margin-top:4px;">${cdBadge}${fdBadge}</div>` : ''}
 
-        <table class="fr-window-table" onclick="event.stopPropagation()">
-          <thead><tr>
-            <th>視窗</th><th>買張</th><th>賣張</th><th>淨張</th>
-            <th class="mobile-hide">買額</th><th class="mobile-hide">賣額</th><th>淨額</th>
-          </tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
+        <div class="fr-table-wrap" style="display:none;">
+          <table class="fr-window-table" onclick="event.stopPropagation()">
+            <thead><tr>
+              <th>視窗</th><th>買張</th><th>賣張</th><th>淨張</th>
+              <th class="mobile-hide">買額</th><th class="mobile-hide">賣額</th><th>淨額</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
 
         ${brokerSection}
       </div>
@@ -2852,12 +2861,13 @@ function buildBreakoutRankCard(s, rank) {
     border-radius:4px;padding:1px 6px;white-space:nowrap;font-weight:700;">
     🔥 量比 ${volRatio.toFixed(1)}x</span>`;
 
-  // 單行：當日彙總（不是 5 視窗，只有單日）
+  // 單行：當日彙總（不是 5 視窗，只有單日）— 包在 fr-table-wrap 中可摺疊
   const summaryRow = `
-    <table class="fr-window-table" onclick="event.stopPropagation()" style="margin-top:8px;">
+    <div class="fr-table-wrap" style="display:none;margin-top:8px;">
+    <table class="fr-window-table" onclick="event.stopPropagation()">
       <thead><tr>
         <th>當日</th><th>買張</th><th>賣張</th><th>淨張</th>
-        <th>買額</th><th>賣額</th><th>淨額</th>
+        <th class="mobile-hide">買額</th><th class="mobile-hide">賣額</th><th>淨額</th>
       </tr></thead>
       <tbody><tr style="background:rgba(167,139,250,.06);">
         <td>分點彙總</td>
@@ -2868,7 +2878,8 @@ function buildBreakoutRankCard(s, rank) {
         <td class="mobile-hide">${fmtAmountAbs(mf.sell_amount_m)}</td>
         <td class="${amountClass(mf.net_amount_m)}"><strong>${fmtAmount(mf.net_amount_m)}</strong></td>
       </tr></tbody>
-    </table>`;
+    </table>
+    </div>`;
 
   // 前三大分點（依方向：向上 → top3_buy；向下 → top3_sell）
   const top3 = isBuyDir ? (mf.top3_buy || []) : (mf.top3_sell || []);
@@ -3006,14 +3017,18 @@ function buildMarginRankCard(s, rank) {
   }).join('');
 
   const latestAmtParts = fmtAmountAbs(latestAmt).split(' ');
-  const amountTopRow = `<div style="display:flex;align-items:baseline;gap:8px;
+  const amountTopRow = `<div style="display:flex;align-items:center;gap:8px;
         margin-top:4px;padding:5px 8px;background:rgba(0,255,157,.05);
         border:1px solid var(--border);border-radius:6px;">
       <span style="font-family:'Space Mono',monospace;font-size:1.1rem;
             font-weight:700;color:var(--c2);letter-spacing:.5px;">${latestAmtParts[0]||'0'}</span>
-      <span style="font-size:.62rem;color:var(--t2);font-family:'Space Mono',monospace;">
+      <span style="font-size:.62rem;color:var(--t2);font-family:'Space Mono',monospace;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
         ${latestAmtParts[1]||''} 最近一日${typeText}餘額
       </span>
+      <button class="fr-toggle-btn" onclick="toggleFrTable(event,this)">
+        <span class="fr-toggle-icon">+</span>
+        <span class="fr-toggle-label">明細</span>
+      </button>
     </div>`;
 
   return `<div class="dim-rank-card dim-S2m" onclick="openDetail('${s.code}')"
@@ -3033,13 +3048,15 @@ function buildMarginRankCard(s, rank) {
           <span>收盤 ${latestClose.toFixed(2)}</span>
         </div>
 
-        <table class="fr-window-table" onclick="event.stopPropagation()" style="margin-top:6px;">
-          <thead><tr>
-            <th>視窗</th><th>前 X 日張數</th><th>前 X 日金額</th>
-            <th>張數增減</th><th>金額增減</th>
-          </tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
+        <div class="fr-table-wrap" style="display:none;">
+          <table class="fr-window-table" onclick="event.stopPropagation()">
+            <thead><tr>
+              <th>視窗</th><th>前 X 日張數</th><th>前 X 日金額</th>
+              <th>張數增減</th><th>金額增減</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>`;
@@ -3255,22 +3272,41 @@ function truncateBrokerName(name, maxLen = 6) {
   // 不含「-」：取前 maxLen 字
   return name.length > maxLen ? name.substring(0, maxLen) : name;
 }
-// 渲染卡片頂部的金額大字行（替代右側 drc-right）
+// 渲染卡片頂部的金額大字行（含展開明細按鈕，替代右側 drc-right）
 function buildAmountTopRow(amountM, labelSuffix) {
   const cls   = amountClass(amountM);
   const parts = fmtAmount(amountM).split(' ');
   const num   = parts[0] || '0';
   const unit  = parts[1] || '';
-  return `<div style="display:flex;align-items:baseline;gap:8px;
+  return `<div style="display:flex;align-items:center;gap:8px;
                      margin-top:4px;padding:5px 8px;
                      background:rgba(0,200,255,.04);
                      border:1px solid var(--border);border-radius:6px;">
     <span class="${cls}" style="font-family:'Space Mono',monospace;
           font-size:1.1rem;font-weight:700;letter-spacing:.5px;">${num}</span>
-    <span style="font-size:.62rem;color:var(--t2);font-family:'Space Mono',monospace;">
+    <span style="font-size:.62rem;color:var(--t2);font-family:'Space Mono',monospace;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
       ${unit ? unit + ' ' : ''}${labelSuffix}
     </span>
+    <button class="fr-toggle-btn" onclick="toggleFrTable(event,this)">
+      <span class="fr-toggle-icon">+</span>
+      <span class="fr-toggle-label">明細</span>
+    </button>
   </div>`;
+}
+
+// 切換卡片內 5 視窗 / 當日彙總明細表格的顯示
+function toggleFrTable(e, btn) {
+  e.stopPropagation();   // 避免觸發卡片 onclick (openDetail)
+  const card = btn.closest('.dim-rank-card');
+  if (!card) return;
+  const wrap = card.querySelector('.fr-table-wrap');
+  if (!wrap) return;
+  const icon  = btn.querySelector('.fr-toggle-icon');
+  const label = btn.querySelector('.fr-toggle-label');
+  const open  = wrap.style.display === 'none';
+  wrap.style.display = open ? '' : 'none';
+  if (icon)  icon.textContent  = open ? '−' : '+';
+  if (label) label.textContent = open ? '收合' : '明細';
 }
 function amountClass(m) {
   if (m > 0) return 'fr-pos';
@@ -3360,13 +3396,15 @@ function buildForeignRankCard(s, rank) {
         ${buildAmountTopRow(sortNet, `${sortW} 日 |金額|`)}
         ${trustBadge ? `<div class="drc-sub" style="margin-top:4px;">${trustBadge}</div>` : ''}
 
-        <table class="fr-window-table" onclick="event.stopPropagation()">
-          <thead><tr>
-            <th>視窗</th><th>買張</th><th>賣張</th><th>淨張</th>
-            <th class="mobile-hide">買額</th><th class="mobile-hide">賣額</th><th>淨額</th>
-          </tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
+        <div class="fr-table-wrap" style="display:none;">
+          <table class="fr-window-table" onclick="event.stopPropagation()">
+            <thead><tr>
+              <th>視窗</th><th>買張</th><th>賣張</th><th>淨張</th>
+              <th class="mobile-hide">買額</th><th class="mobile-hide">賣額</th><th>淨額</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
 
         ${brokerSection}
       </div>
