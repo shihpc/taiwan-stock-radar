@@ -347,10 +347,12 @@ def run_scan(scan_date: str = None, quick: bool = False,
             }
         return out
 
-    # ── Step 3.5：對「外資 / 投信 5 視窗前 30 聯集 + 突破股」抓 broker
-    #           算 windowed top3（前端外資 / 投信 / 主力分點 tab 共用）
+    # ── Step 3.5：對「外資 / 投信 5 視窗前 30 聯集 + 量比 > 3.5x 股票」
+    #           抓 broker，算 windowed top3 + mainforce_consec
+    #           （前端外資 / 投信 / 主力分點 tab 共用）
     broker_targets: set[str] = set()
     if use_broker:
+        # 法人前 30（外資 / 投信 5 視窗聯集）— 給外資 / 投信 tab 用
         for w in ['1', '3', '5', '10', '20']:
             sorted_f = sorted(
                 results,
@@ -366,14 +368,20 @@ def run_scan(scan_date: str = None, quick: bool = False,
                 reverse=True,
             )[:30]
             broker_targets.update(r['stock_id'] for r in sorted_t)
-        # 突破 + 爆量股
+
+        # 量比 > 3.5x 的成交量爆增股 — 給主力分點 tab 用
+        # （涵蓋「法人沒進場、本土分點吃貨」的潛在主力股）
+        VOL_RATIO_THRESHOLD = 3.5
+        n_legal = len(broker_targets)
         for r in results:
             bo = r.get('breakout') or {}
-            if bo.get('qualified_up') or bo.get('qualified_down'):
+            if (bo.get('vol_ratio') or 0) > VOL_RATIO_THRESHOLD:
                 broker_targets.add(r['stock_id'])
+        n_vol = len(broker_targets) - n_legal
 
-        logger.info(f"Step 3.5：對 {len(broker_targets)} 支股票抓 broker（"
-                    f"外資/投信 5 視窗前 30 聯集 + 突破股）...")
+        logger.info(f"Step 3.5：對 {len(broker_targets)} 支股票抓 broker"
+                    f"（法人前 30 聯集 {n_legal} + 量比 > {VOL_RATIO_THRESHOLD}x"
+                    f" 新增 {n_vol}）...")
         empty_mfc = {"buy":  {"trader_name": "", "consec_days": 0, "net_lots": 0,
                                   "net_amount_m": 0.0, "is_qualified": False},
                      "sell": {"trader_name": "", "consec_days": 0, "net_lots": 0,
