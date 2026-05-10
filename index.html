@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>台股雷達 | 主力選股</title>
+<title>台股雷達</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&family=Orbitron:wght@500;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
 /* ═══════════════════════════════════════════
@@ -121,13 +121,6 @@ body::before{
 }
 .scan-date{font-size:.62rem;color:var(--t3);}
 .scan-date .sd-val{color:var(--c4);font-family:'Space Mono',monospace;}
-.market-status{
-  font-size:.6rem;
-  padding:2px 8px;border-radius:10px;flex-shrink:0;
-}
-.market-open{background:rgba(0,255,157,.1);color:var(--c2);border:1px solid rgba(0,255,157,.3);}
-.market-closed{background:rgba(45,90,122,.2);color:var(--t3);border:1px solid var(--border);}
-
 /* 資料更新日期 - 觸發按鈕 */
 .dates-btn{
   background:var(--bg3);border:1px solid var(--border2);
@@ -793,6 +786,12 @@ body::before{
 .breakout-chip:hover{border-color:var(--border3);color:var(--t1);}
 .breakout-chip.active[data-d="up"]{background:rgba(255,61,106,.1);border-color:var(--up);color:var(--up);}
 .breakout-chip.active[data-d="down"]{background:rgba(0,255,157,.08);border-color:var(--dn);color:var(--dn);}
+/* 主力分點 tab 門檻拉桿 */
+.bk-slider-row{display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid rgba(0,200,255,.05);}
+.bk-slider-row:last-child{border-bottom:none;}
+.bk-slider-label{font-size:.62rem;color:var(--t2);min-width:62px;letter-spacing:.5px;flex-shrink:0;}
+.bk-slider{flex:1;accent-color:var(--c5);cursor:pointer;height:18px;}
+.bk-slider-val{font-size:.65rem;color:var(--c5);font-family:'Space Mono',monospace;font-weight:700;min-width:62px;text-align:right;flex-shrink:0;}
 .margin-type-chip{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:7px;
   padding:8px;font-size:.7rem;color:var(--t2);cursor:pointer;transition:all .2s;
   font-family:inherit;letter-spacing:1px;font-weight:700;}
@@ -927,7 +926,6 @@ body::before{
       <div class="brand-icon">📡</div>
       <div>
         <div class="brand-name">台股雷達</div>
-        <div class="brand-sub">主力選股系統</div>
       </div>
     </div>
     <div class="hdr-status">
@@ -944,7 +942,6 @@ body::before{
     </div>
     <div style="display:flex;align-items:center;gap:6px;">
       <button class="dates-btn" id="datesBtn" onclick="openDatesModal()">📅 資料日期</button>
-      <div class="market-status" id="marketStatus">—</div>
     </div>
   </div>
 </div>
@@ -1051,10 +1048,31 @@ body::before{
         <div style="background:rgba(167,139,250,.06);border:1px solid rgba(167,139,250,.2);border-radius:8px;padding:8px 12px;font-size:.65rem;color:var(--t2);line-height:1.6;">
           🎯 <strong style="color:var(--c5)">主力分點</strong>：篩出「同一分點近 5 日連買 / 連賣 ≥ 3 天，累計金額 ≥ 5 千萬」的個股；同時排除「外資 5 日 \|net\| ≥ 3 千萬 OR 投信 5 日 \|net\| ≥ 3 千萬」的股票，凸顯主力色彩。突破 + 爆量股額外標 🚀。
         </div>
-        <!-- 突破方向切換 -->
+        <!-- 方向切換 -->
         <div id="breakoutDirChips" style="display:flex;gap:6px;padding:4px 0 6px;">
           <button class="breakout-chip active" data-d="up"   onclick="setBreakoutDir('up',this)">↗ 看好（買超分點）</button>
           <button class="breakout-chip"        data-d="down" onclick="setBreakoutDir('down',this)">↘ 看空（賣超分點）</button>
+        </div>
+        <!-- 拉桿式門檻調整 -->
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-bottom:6px;">
+          <div class="bk-slider-row">
+            <span class="bk-slider-label">連續天數</span>
+            <input type="range" id="bk-consec" class="bk-slider" min="1" max="10" step="1" value="3"
+                   oninput="setBreakoutFilter('consec', this.value)"/>
+            <span id="bk-consec-val" class="bk-slider-val">≥ 3 天</span>
+          </div>
+          <div class="bk-slider-row">
+            <span class="bk-slider-label">累計金額</span>
+            <input type="range" id="bk-amount" class="bk-slider" min="0" max="6" step="1" value="2"
+                   oninput="setBreakoutFilter('amount', this.value)"/>
+            <span id="bk-amount-val" class="bk-slider-val">≥ 5 千萬</span>
+          </div>
+          <div class="bk-slider-row">
+            <span class="bk-slider-label">法人排除</span>
+            <input type="range" id="bk-exclude" class="bk-slider" min="0" max="6" step="1" value="1"
+                   oninput="setBreakoutFilter('exclude', this.value)"/>
+            <span id="bk-exclude-val" class="bk-slider-val">≥ 3 千萬</span>
+          </div>
         </div>
         <div class="section-hdr" id="breakoutHdr">主力買超分點榜（5 日連買 + 排除法人）</div>
         <div id="breakoutRankList">
@@ -1738,21 +1756,6 @@ function switchSubTab(idx, btn) {
   btn.classList.add(cls);
 }
 
-// ══════════════════════════════════════════
-//  MARKET STATUS
-// ══════════════════════════════════════════
-function updateMarketStatus() {
-  const now = new Date();
-  const h = now.getHours(), m = now.getMinutes(), day = now.getDay();
-  const isWeekday = day >= 1 && day <= 5;
-  const inSession = isWeekday && ((h === 9 && m >= 0)||(h >= 10 && h < 13)||(h === 13 && m <= 30));
-  const el = document.getElementById('marketStatus');
-  el.textContent = inSession ? '🟢 盤中' : '⚫ 收盤';
-  el.className = 'market-status ' + (inSession ? 'market-open' : 'market-closed');
-}
-updateMarketStatus();
-setInterval(updateMarketStatus, 60000);
-
 let allStockData = [];
 
 
@@ -2270,20 +2273,53 @@ function buildTrustIORankCard(s, rank) {
 //  資料源：scan_app.csv 的 mainforce_consec（後端 broker_analysis.py
 //          compute_mainforce_consec 算好寫入）
 // ══════════════════════════════════════════
-const MAINFORCE_AMOUNT_THRESHOLD_M = 50;   // 5 千萬：分點連買金額門檻
-const LEGAL_PERSON_EXCLUDE_M       = 30;   // 3 千萬：法人 |net| ≥ 此值就排除
-let breakoutDir = 'up';   // 'up' = 看好（買超分點）/ 'down' = 看空（賣超分點）
+// 拉桿離散刻度（百萬元）
+const BK_AMOUNT_STEPS  = [10, 30, 50, 100, 300, 1000, 3000];
+//                       1千 3千 5千 1億  3億   10億 30億
+const BK_EXCLUDE_STEPS = [10, 30, 100, 300, 1000, 3000, 99999];
+//                       1千 3千 1億  3億   10億  30億  不排除
+
+let breakoutDir       = 'up';   // 'up' = 看好（買超分點）/ 'down' = 看空（賣超分點）
+let breakoutMinConsec = 3;       // 連買天數門檻
+let breakoutMinAmount = 50;      // 累計金額門檻（百萬）— 預設 5 千萬
+let breakoutExcludeM  = 30;      // 法人排除門檻（百萬）— 預設 3 千萬
+
+function _fmtAmtThreshold(m) {
+  if (m >= 100) return (m / 100) + ' 億';
+  if (m >= 10)  return (m / 10)  + ' 千萬';
+  return m + ' 百萬';
+}
 
 function setBreakoutDir(d, btn) {
   breakoutDir = d;
   document.querySelectorAll('.breakout-chip').forEach(c => c.classList.remove('active'));
   btn.classList.add('active');
+  _updateBreakoutHdr();
+  renderBreakoutRank();
+}
+
+function _updateBreakoutHdr() {
   const hdr = document.getElementById('breakoutHdr');
-  if (hdr) {
-    hdr.textContent = d === 'up'
-      ? '主力買超分點榜（5 日連買 + 排除法人）'
-      : '主力賣超分點榜（5 日連賣 + 排除法人）';
+  if (!hdr) return;
+  const action = breakoutDir === 'up' ? '買超' : '賣超';
+  const consAct = breakoutDir === 'up' ? '連買' : '連賣';
+  hdr.textContent = `主力${action}分點榜（${consAct} ≥ ${breakoutMinConsec} 天 + ${_fmtAmtThreshold(breakoutMinAmount)}）`;
+}
+
+function setBreakoutFilter(type, val) {
+  val = parseInt(val);
+  if (type === 'consec') {
+    breakoutMinConsec = val;
+    document.getElementById('bk-consec-val').textContent = `≥ ${val} 天`;
+  } else if (type === 'amount') {
+    breakoutMinAmount = BK_AMOUNT_STEPS[val];
+    document.getElementById('bk-amount-val').textContent = `≥ ${_fmtAmtThreshold(breakoutMinAmount)}`;
+  } else if (type === 'exclude') {
+    breakoutExcludeM = BK_EXCLUDE_STEPS[val];
+    const txt = breakoutExcludeM >= 99999 ? '不排除' : `≥ ${_fmtAmtThreshold(breakoutExcludeM)}`;
+    document.getElementById('bk-exclude-val').textContent = txt;
   }
+  _updateBreakoutHdr();
   renderBreakoutRank();
 }
 
@@ -2291,16 +2327,25 @@ function renderBreakoutRank() {
   const isLong = breakoutDir === 'up';
   const dirKey = isLong ? 'buy' : 'sell';
 
-  // 篩選邏輯：
-  //   1. 主力分點：mainforce_consec[buy/sell].is_qualified === true
-  //   2. 排除法人大買 / 大賣：外資 5 日 |net| ≥ 3000萬 OR 投信 5 日 |net| ≥ 3000萬
+  // 篩選邏輯（依使用者拉桿即時計算，不再用後端 is_qualified）：
+  //   1. 連買天數 ≥ breakoutMinConsec
+  //   2. 累計金額 |net_amount_m| ≥ breakoutMinAmount
+  //   3. 方向確認（買超 / 賣超）
+  //   4. 排除法人：|外資 5 日 net| ≥ breakoutExcludeM OR |投信 5 日 net| ≥ breakoutExcludeM
   let qualified = allStockData.filter(s => {
     const mc = (s.mainforce_consec || {})[dirKey] || {};
-    if (!mc.is_qualified) return false;
-    const fr5 = (s.foreign_radar || {})['5'] || {};
-    const ti5 = (s.trust_io      || {})['5'] || {};
-    if (Math.abs(fr5.net_amount_m || 0) >= LEGAL_PERSON_EXCLUDE_M) return false;
-    if (Math.abs(ti5.net_amount_m || 0) >= LEGAL_PERSON_EXCLUDE_M) return false;
+    if ((mc.consec_days || 0) < breakoutMinConsec) return false;
+    const amt = mc.net_amount_m || 0;
+    if (Math.abs(amt) < breakoutMinAmount) return false;
+    if (isLong  && amt <= 0) return false;
+    if (!isLong && amt >= 0) return false;
+    // 法人排除（breakoutExcludeM >= 99999 表示不排除）
+    if (breakoutExcludeM < 99999) {
+      const fr5 = (s.foreign_radar || {})['5'] || {};
+      const ti5 = (s.trust_io      || {})['5'] || {};
+      if (Math.abs(fr5.net_amount_m || 0) >= breakoutExcludeM) return false;
+      if (Math.abs(ti5.net_amount_m || 0) >= breakoutExcludeM) return false;
+    }
     return true;
   });
 
