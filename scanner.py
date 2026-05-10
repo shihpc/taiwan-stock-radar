@@ -335,26 +335,22 @@ def run_scan(scan_date: str = None, quick: bool = False,
             }
         return out
 
-    # ── Step 3.5：抓 broker 的目標股 — 兩條件聯集（主力分點 tab 為主）
-    #   1) 量比 > 2x 的爆量股（前端可拉桿收緊至 3x / 5x）
-    #   2) 5 日箱型 ≤ 9% AND 突破幅度 ≥ 3%（前端可拉桿收緊）
-    #   抓完算 windowed top3 + mainforce_consec
-    #   注意：外資 / 投信 tab 的 broker_top3 對未涵蓋的大型股會空，由前端容錯
+    # ── Step 3.5：抓 broker 的目標股 — 兩條件交集（高品質主力候選）
+    #   同時滿足：
+    #     (1) 量比 > 2x（爆量確認）
+    #     (2) 5 日箱型 ≤ 9% AND 突破幅度 ≥ 3%（壓抑後突破）
+    #   篩出「橫盤已久 + 爆量 + 突破」三合一強訊號
     broker_targets: set[str] = set()
     if use_broker:
-        # (1) 量比 > 2x
         VOL_RATIO_THRESHOLD = 2.0
+        BOX_AMP_MAX         = 0.09
+        BREAK_PCT_MIN       = 0.03
         for r in results:
             bo = r.get('breakout') or {}
-            if (bo.get('vol_ratio') or 0) > VOL_RATIO_THRESHOLD:
-                broker_targets.add(r['stock_id'])
-        n_vol = len(broker_targets)
-
-        # (2) 5 日箱型 ≤ 9% AND 突破幅度 ≥ 3%（雙向）
-        BOX_AMP_MAX     = 0.09
-        BREAK_PCT_MIN   = 0.03
-        for r in results:
-            bo = r.get('breakout') or {}
+            # 條件 1：量比 > 2x
+            if (bo.get('vol_ratio') or 0) <= VOL_RATIO_THRESHOLD:
+                continue
+            # 條件 2：5 日箱型 ≤ 9% AND 突破幅度 ≥ 3%（雙向）
             box_amp  = bo.get('box_amplitude') or 0
             box_high = bo.get('box_high')      or 0
             box_low  = bo.get('box_low')       or 0
@@ -365,13 +361,13 @@ def run_scan(scan_date: str = None, quick: bool = False,
                 continue
             up_pct   = (today_c - box_high) / box_high
             down_pct = (box_low - today_c) / box_low
-            if up_pct >= BREAK_PCT_MIN or down_pct >= BREAK_PCT_MIN:
-                broker_targets.add(r['stock_id'])
-        n_break = len(broker_targets) - n_vol
+            if up_pct < BREAK_PCT_MIN and down_pct < BREAK_PCT_MIN:
+                continue
+            broker_targets.add(r['stock_id'])
 
         logger.info(f"Step 3.5：對 {len(broker_targets)} 支股票抓 broker"
-                    f"（量比>{VOL_RATIO_THRESHOLD}x {n_vol}"
-                    f" + 箱型≤{int(BOX_AMP_MAX*100)}% 突破≥{int(BREAK_PCT_MIN*100)}% 新增 {n_break}）...")
+                    f"（量比>{VOL_RATIO_THRESHOLD}x"
+                    f" ∩ 箱型≤{int(BOX_AMP_MAX*100)}%+突破≥{int(BREAK_PCT_MIN*100)}%）...")
         # 每股算 5 個視窗（1/2/3/4/5 日）的 mainforce_consec，
         # 對應前端「連續天數」拉桿（讓 X 日連買的判斷視窗跟著拉桿走）
         MFC_WINDOWS = [1, 2, 3, 4, 5]
