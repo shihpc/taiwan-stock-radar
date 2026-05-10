@@ -792,6 +792,10 @@ body::before{
 .bk-slider-label{font-size:.62rem;color:var(--t2);min-width:62px;letter-spacing:.5px;flex-shrink:0;}
 .bk-slider{flex:1;accent-color:var(--c5);cursor:pointer;height:18px;}
 .bk-slider-val{font-size:.65rem;color:var(--c5);font-family:'Space Mono',monospace;font-weight:700;min-width:62px;text-align:right;flex-shrink:0;}
+.bk-check-row{display:flex;flex-wrap:wrap;gap:10px 18px;padding:8px 0 2px;border-top:1px solid rgba(0,200,255,.08);margin-top:6px;}
+.bk-check{display:inline-flex;align-items:center;gap:6px;font-size:.65rem;color:var(--t2);cursor:pointer;user-select:none;}
+.bk-check input[type=checkbox]{accent-color:var(--c5);width:14px;height:14px;cursor:pointer;flex-shrink:0;}
+.bk-check input:checked + span{color:var(--c5);}
 .margin-type-chip{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:7px;
   padding:8px;font-size:.7rem;color:var(--t2);cursor:pointer;transition:all .2s;
   font-family:inherit;letter-spacing:1px;font-weight:700;}
@@ -1072,6 +1076,10 @@ body::before{
             <input type="range" id="bk-exclude" class="bk-slider" min="0" max="51" step="1" value="3"
                    oninput="setBreakoutFilter('exclude', this.value)"/>
             <span id="bk-exclude-val" class="bk-slider-val">≥ 3 千萬</span>
+          </div>
+          <div class="bk-check-row">
+            <label class="bk-check"><input type="checkbox" id="bk-exForeign" checked onchange="setBreakoutFilter('exForeign', this.checked)"/><span>排除外資券商</span></label>
+            <label class="bk-check"><input type="checkbox" id="bk-exDomHQ" checked onchange="setBreakoutFilter('exDomHQ', this.checked)"/><span>排除國內大型券商總公司</span></label>
           </div>
         </div>
         <div class="section-hdr" id="breakoutHdr">主力買超分點榜（5 日連買 + 排除法人）</div>
@@ -2277,10 +2285,37 @@ function buildTrustIORankCard(s, rank) {
 // 法人排除多一格：第 51 格 = 不排除
 const BK_AMT_UNIT_M = 10;   // 1 千萬 = 10 百萬
 
-let breakoutDir       = 'up';   // 'up' = 看好（買超分點）/ 'down' = 看空（賣超分點）
-let breakoutMinConsec = 3;       // 連續天數門檻
-let breakoutMinAmount = 50;      // 累計金額門檻（百萬）— 預設 5 千萬
-let breakoutExcludeM  = 30;      // 法人排除門檻（百萬）— 預設 3 千萬
+// 外資券商（11 組，含同集團變體；以 startsWith 比對）
+const BK_FOREIGN_BROKERS = [
+  '美林', '美商高盛', '瑞銀', '星洲瑞銀', '摩根士丹利', '摩根大通', '台灣摩根',
+  '港商野村', '港商麥格理', '港麥格理', '花旗環球', '上海匯豐',
+  '法銀巴黎', '大和國泰',
+];
+// 國內大型券商總公司（純品牌名，不含分公司後綴）
+// 注意：以 startsWith 為主，同時排除「品牌+分公司」誤判 — 在比對函式中處理
+const BK_DOMESTIC_HQ = [
+  '元大', '凱基', '富邦', '永豐金', '群益',
+  '台新', '台新證券', '統一', '國泰',
+  '華南', '華南永昌證券',
+];
+
+// 判斷 trader_name 是否屬於外資券商
+function _isForeignBroker(name) {
+  if (!name) return false;
+  return BK_FOREIGN_BROKERS.some(b => name.startsWith(b));
+}
+// 判斷 trader_name 是否為國內大型券商「總公司」純名（精確匹配，不含分公司）
+function _isDomesticHQ(name) {
+  if (!name) return false;
+  return BK_DOMESTIC_HQ.includes(name);
+}
+
+let breakoutDir            = 'up';   // 'up' = 看好（買超分點）/ 'down' = 看空（賣超分點）
+let breakoutMinConsec      = 3;       // 連續天數門檻
+let breakoutMinAmount      = 50;      // 累計金額門檻（百萬）— 預設 5 千萬
+let breakoutExcludeM       = 30;      // 法人排除門檻（百萬）— 預設 3 千萬
+let breakoutExcludeForeign = true;    // 排除外資券商（預設勾）
+let breakoutExcludeDomHQ   = true;    // 排除國內大型券商總公司（預設勾）
 
 function _fmtAmtThreshold(m) {
   if (m === 0)  return '0';
@@ -2306,20 +2341,26 @@ function _updateBreakoutHdr() {
 }
 
 function setBreakoutFilter(type, val) {
-  val = parseInt(val);
-  if (type === 'consec') {
-    breakoutMinConsec = val;
-    document.getElementById('bk-consec-val').textContent = `≥ ${val} 天`;
-  } else if (type === 'amount') {
-    breakoutMinAmount = val * BK_AMT_UNIT_M;   // 0..50 → 0..500 百萬
-    document.getElementById('bk-amount-val').textContent = `≥ ${_fmtAmtThreshold(breakoutMinAmount)}`;
-  } else if (type === 'exclude') {
-    if (val >= 51) {                            // 第 51 格 = 不排除
-      breakoutExcludeM = 99999;
-      document.getElementById('bk-exclude-val').textContent = '不排除';
-    } else {
-      breakoutExcludeM = val * BK_AMT_UNIT_M;   // 0..50 → 0..500 百萬
-      document.getElementById('bk-exclude-val').textContent = `≥ ${_fmtAmtThreshold(breakoutExcludeM)}`;
+  if (type === 'exForeign') {
+    breakoutExcludeForeign = !!val;
+  } else if (type === 'exDomHQ') {
+    breakoutExcludeDomHQ = !!val;
+  } else {
+    val = parseInt(val);
+    if (type === 'consec') {
+      breakoutMinConsec = val;
+      document.getElementById('bk-consec-val').textContent = `≥ ${val} 天`;
+    } else if (type === 'amount') {
+      breakoutMinAmount = val * BK_AMT_UNIT_M;   // 0..50 → 0..500 百萬
+      document.getElementById('bk-amount-val').textContent = `≥ ${_fmtAmtThreshold(breakoutMinAmount)}`;
+    } else if (type === 'exclude') {
+      if (val >= 51) {                            // 第 51 格 = 不排除
+        breakoutExcludeM = 99999;
+        document.getElementById('bk-exclude-val').textContent = '不排除';
+      } else {
+        breakoutExcludeM = val * BK_AMT_UNIT_M;   // 0..50 → 0..500 百萬
+        document.getElementById('bk-exclude-val').textContent = `≥ ${_fmtAmtThreshold(breakoutExcludeM)}`;
+      }
     }
   }
   _updateBreakoutHdr();
@@ -2342,6 +2383,10 @@ function renderBreakoutRank() {
     if (Math.abs(amt) < breakoutMinAmount) return false;
     if (isLong  && amt <= 0) return false;
     if (!isLong && amt >= 0) return false;
+    // 券商分點過濾
+    const trader = mc.trader_name || '';
+    if (breakoutExcludeForeign && _isForeignBroker(trader)) return false;
+    if (breakoutExcludeDomHQ   && _isDomesticHQ(trader))    return false;
     // 法人排除（breakoutExcludeM >= 99999 表示不排除）
     if (breakoutExcludeM < 99999) {
       const fr5 = (s.foreign_radar || {})['5'] || {};
