@@ -176,6 +176,7 @@ const KLINE = (() => {
         low:    +r.min,
         close:  +r.close,
         volume: +r.Trading_Volume,
+        money:  +(r.Trading_money || 0),   // 當日總成交金額（元）
       }))
       .filter(r => r.open > 0)
       .sort((a, b) => a.date.localeCompare(b.date));
@@ -255,6 +256,7 @@ const KLINE = (() => {
         low:    Math.min(...bars.map(x => x.low)),
         close:  bars[bars.length - 1].close,
         volume: bars.reduce((s, x) => s + x.volume, 0),
+        money:  bars.reduce((s, x) => s + (x.money || 0), 0),
       }))
       .sort((a, b) => a.date.localeCompare(b.date));
   }
@@ -676,10 +678,19 @@ const KLINE = (() => {
     const chg = r.close - pre;
     const pct = (chg / pre * 100).toFixed(2);
     const isUp = chg >= 0;
+    // 成交金額：money（元）→ 億 / 千萬 / 萬
+    const fmtMoney = m => {
+      if (!m) return '—';
+      if (m >= 1e8)  return (m / 1e8).toFixed(2)  + ' 億';
+      if (m >= 1e7)  return (m / 1e7).toFixed(1)  + ' 千萬';
+      if (m >= 1e4)  return Math.round(m / 1e4)   + ' 萬';
+      return Math.round(m).toLocaleString();
+    };
     const cells = [
-      { l: '收盤',   v: r.close.toLocaleString(),                        c: isUp ? UP : DN },
-      { l: '漲跌%',  v: `${isUp ? '▲' : '▼'}${Math.abs(pct)}%`,          c: isUp ? UP : DN },
-      { l: '成交量', v: fmtVol(r.volume),                                 c: '#7ab3cc' },
+      { l: '收盤',     v: r.close.toLocaleString(),                              c: isUp ? UP : DN },
+      { l: '漲跌%',    v: `${isUp ? '▲' : '▼'}${Math.abs(pct)}%`,                c: isUp ? UP : DN },
+      { l: '成交張數', v: Math.round(r.volume / 1000).toLocaleString(),          c: '#7ab3cc' },
+      { l: '成交金額', v: fmtMoney(r.money),                                      c: '#7ab3cc' },
     ];
     el.innerHTML = cells.map(({ l, v, c }) =>
       `<div class="kl-stat-cell">

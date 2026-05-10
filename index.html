@@ -905,8 +905,8 @@ body::before{
    K線圖 Tab
 ═══════════════════════════════════════════ */
 .kl-stat-bar{
-  display:grid;grid-template-columns:repeat(3,1fr);
-  gap:6px;padding:2px 0;
+  display:grid;grid-template-columns:repeat(4,1fr);
+  gap:5px;padding:2px 0;
 }
 .kl-stat-cell{
   background:var(--bg2);border:1px solid var(--border);
@@ -3349,7 +3349,7 @@ function detailCodeHint(val) {
         <span style="font-family:'Space Mono',monospace;color:var(--c1);margin-right:6px;">${s.code}</span>
         <span style="color:var(--t1);">${s.name}</span>
       </span>
-      <span style="font-size:.6rem;color:var(--t3);">${s.market || ''}</span>
+      <span style="font-size:.6rem;color:var(--t3);">${s.market ? _marketLabel(s.market, s.type).replace('公司','') : ''}</span>
     </div>`).join('');
   hint.style.display = 'block';
 }
@@ -3560,7 +3560,7 @@ function renderDetail(s) {
     <div class="detail-hero">
       <div class="dh-top" style="justify-content:flex-start;gap:14px;">
         <div style="flex:1;min-width:0;">
-          <div class="dh-code">${s.code}${s.market ? ' · ' + s.market : ''}${s.industry ? ' · ' + s.industry : ''}</div>
+          <div class="dh-code">${s.code}${s.market ? ' · ' + _marketLabel(s.market, s.type) : ''}${s.industry ? ' · ' + s.industry : ''}</div>
           <div class="dh-name">${s.name}</div>
           <div style="margin-top:6px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;">
             <span style="font-family:'Orbitron',monospace;font-size:1.35rem;font-weight:700;color:${isUp ? 'var(--up)' : 'var(--dn)'};">${(s.price || 0).toLocaleString()}</span>
@@ -3599,6 +3599,22 @@ function renderDetail(s) {
 }
 
 // 自動產生個股簡介（fallback：Wiki 抓不到時用此模板）
+// 將 FinMind 原始 market 值（twse / tpex / emerging / 上市…）正規化為中文標籤
+function _marketLabel(market, type) {
+  if (type === 'ETF') return 'ETF';
+  const m = String(market || '').toLowerCase();
+  if (m === 'tpex' || m === '上櫃')      return '上櫃公司';
+  if (m === 'emerging' || m === '興櫃')  return '興櫃公司';
+  return '上市公司';   // twse / 上市 / 預設
+}
+// 簡短括號版（用於 K 線等地方）
+function _marketParen(market) {
+  const m = String(market || '').toLowerCase();
+  if (m === 'tpex' || m === '上櫃')      return '（上櫃）';
+  if (m === 'emerging' || m === '興櫃')  return '（興櫃）';
+  return '（上市）';
+}
+
 function generateStockIntro(s) {
   const indDesc = {
     '晶圓代工':'提供專業積體電路晶圓代工服務，為全球半導體產業關鍵環節',
@@ -3624,7 +3640,7 @@ function generateStockIntro(s) {
     '指數型基金':'追蹤指數表現的交易所掛牌基金（ETF）',
   };
   const base = indDesc[s.industry] || `${s.industry}相關業務`;
-  const mkt  = s.type === 'ETF' ? 'ETF' : (s.market === '上市' ? '上市公司' : '上櫃公司');
+  const mkt  = _marketLabel(s.market, s.type);
   let chip = '';
   if (s.trust_days >= 5)    chip += `投信連買 ${s.trust_days} 天，`;
   if (s.foreign_days >= 5)  chip += `外資連買 ${s.foreign_days} 天，`;
@@ -3704,7 +3720,7 @@ function loadTVChart(symbol) {
 
   const label = document.createElement('div');
   label.style.cssText = 'font-size:.78rem;color:var(--t2);';
-  label.textContent = code + ' ' + (mkt === 'TPEX' ? '（上櫃）' : '（上市）');
+  label.textContent = code + ' ' + _marketParen(mkt);
   box.appendChild(label);
 
   const btn = document.createElement('a');
