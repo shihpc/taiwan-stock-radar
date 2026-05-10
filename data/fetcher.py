@@ -110,11 +110,14 @@ def _load_all_cache(dataset: str, date: str) -> Optional[pd.DataFrame]:
 
 
 def _save_all_cache(dataset: str, date: str, df: pd.DataFrame) -> None:
-    """寫入單日全市場 cache。當日資料與空 DataFrame 不寫入"""
+    """
+    寫入單日全市場 cache。當日資料不寫入。
+    過去日期允許寫入空 DataFrame（標記休市日，避免下次重複打 API）。
+    """
     today = datetime.today().strftime("%Y-%m-%d")
     if date >= today:
         return
-    if df is None or df.empty:
+    if df is None:           # None = 抓取出錯，下次重試
         return
     _CACHE_ROOT.mkdir(parents=True, exist_ok=True)
     path = _all_cache_path(dataset, date)
