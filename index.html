@@ -1063,13 +1063,13 @@ body::before{
           </div>
           <div class="bk-slider-row">
             <span class="bk-slider-label">累計金額</span>
-            <input type="range" id="bk-amount" class="bk-slider" min="0" max="6" step="1" value="2"
+            <input type="range" id="bk-amount" class="bk-slider" min="0" max="50" step="1" value="5"
                    oninput="setBreakoutFilter('amount', this.value)"/>
             <span id="bk-amount-val" class="bk-slider-val">≥ 5 千萬</span>
           </div>
           <div class="bk-slider-row">
             <span class="bk-slider-label">法人排除</span>
-            <input type="range" id="bk-exclude" class="bk-slider" min="0" max="6" step="1" value="1"
+            <input type="range" id="bk-exclude" class="bk-slider" min="0" max="51" step="1" value="3"
                    oninput="setBreakoutFilter('exclude', this.value)"/>
             <span id="bk-exclude-val" class="bk-slider-val">≥ 3 千萬</span>
           </div>
@@ -2273,20 +2273,19 @@ function buildTrustIORankCard(s, rank) {
 //  資料源：scan_app.csv 的 mainforce_consec（後端 broker_analysis.py
 //          compute_mainforce_consec 算好寫入）
 // ══════════════════════════════════════════
-// 拉桿離散刻度（百萬元）
-const BK_AMOUNT_STEPS  = [10, 30, 50, 100, 300, 1000, 3000];
-//                       1千 3千 5千 1億  3億   10億 30億
-const BK_EXCLUDE_STEPS = [10, 30, 100, 300, 1000, 3000, 99999];
-//                       1千 3千 1億  3億   10億  30億  不排除
+// 拉桿刻度：以 1 千萬（= 10 百萬）為單位，0–5 億 = 0–500 百萬（51 格）
+// 法人排除多一格：第 51 格 = 不排除
+const BK_AMT_UNIT_M = 10;   // 1 千萬 = 10 百萬
 
 let breakoutDir       = 'up';   // 'up' = 看好（買超分點）/ 'down' = 看空（賣超分點）
-let breakoutMinConsec = 3;       // 連買天數門檻
+let breakoutMinConsec = 3;       // 連續天數門檻
 let breakoutMinAmount = 50;      // 累計金額門檻（百萬）— 預設 5 千萬
 let breakoutExcludeM  = 30;      // 法人排除門檻（百萬）— 預設 3 千萬
 
 function _fmtAmtThreshold(m) {
-  if (m >= 100) return (m / 100) + ' 億';
-  if (m >= 10)  return (m / 10)  + ' 千萬';
+  if (m === 0)  return '0';
+  if (m >= 100) return (m % 100 === 0 ? (m / 100) : (m / 100).toFixed(1)) + ' 億';
+  if (m >= 10)  return (m / 10) + ' 千萬';
   return m + ' 百萬';
 }
 
@@ -2312,12 +2311,16 @@ function setBreakoutFilter(type, val) {
     breakoutMinConsec = val;
     document.getElementById('bk-consec-val').textContent = `≥ ${val} 天`;
   } else if (type === 'amount') {
-    breakoutMinAmount = BK_AMOUNT_STEPS[val];
+    breakoutMinAmount = val * BK_AMT_UNIT_M;   // 0..50 → 0..500 百萬
     document.getElementById('bk-amount-val').textContent = `≥ ${_fmtAmtThreshold(breakoutMinAmount)}`;
   } else if (type === 'exclude') {
-    breakoutExcludeM = BK_EXCLUDE_STEPS[val];
-    const txt = breakoutExcludeM >= 99999 ? '不排除' : `≥ ${_fmtAmtThreshold(breakoutExcludeM)}`;
-    document.getElementById('bk-exclude-val').textContent = txt;
+    if (val >= 51) {                            // 第 51 格 = 不排除
+      breakoutExcludeM = 99999;
+      document.getElementById('bk-exclude-val').textContent = '不排除';
+    } else {
+      breakoutExcludeM = val * BK_AMT_UNIT_M;   // 0..50 → 0..500 百萬
+      document.getElementById('bk-exclude-val').textContent = `≥ ${_fmtAmtThreshold(breakoutExcludeM)}`;
+    }
   }
   _updateBreakoutHdr();
   renderBreakoutRank();
