@@ -184,6 +184,23 @@ body::before{
 .dd-chip .dd-name{color:var(--t2);font-size:.7rem;letter-spacing:.5px;}
 .dd-chip .dd-date{color:var(--c4);font-family:'Space Mono',monospace;font-size:.72rem;}
 .dd-chip.stale{border-color:rgba(255,140,66,.25);}
+
+/* 功能說明 modal — 沿用 dates-modal 結構，僅放寬版面 */
+.help-modal-card{max-width:560px !important;max-height:88vh !important;}
+.help-body{padding:14px 18px;overflow-y:auto;line-height:1.7;font-size:.66rem;color:var(--t1);}
+.help-body h3{color:var(--c1);font-size:.78rem;letter-spacing:.5px;margin:14px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--border);font-weight:700;}
+.help-body h3:first-child{margin-top:0;}
+.help-body h4{color:var(--c5);font-size:.7rem;margin:10px 0 4px;font-weight:700;}
+.help-body p{margin:4px 0;color:var(--t2);}
+.help-body ul{margin:4px 0 8px;padding-left:18px;color:var(--t2);}
+.help-body li{margin:2px 0;}
+.help-body code{background:var(--bg3);padding:1px 5px;border-radius:3px;color:var(--c4);font-family:'Space Mono',monospace;font-size:.62rem;}
+.help-body strong{color:var(--t1);}
+.help-body .help-tag{display:inline-block;padding:1px 7px;border-radius:9px;font-size:.55rem;margin-right:5px;font-family:'Space Mono',monospace;letter-spacing:.5px;}
+.help-body .tag-A{background:rgba(0,207,255,.12);color:var(--c1);}
+.help-body .tag-B{background:rgba(255,61,106,.12);color:var(--up);}
+.help-body .tag-C{background:rgba(196,118,255,.12);color:var(--c5);}
+.help-body .tag-M{background:rgba(0,255,157,.08);color:var(--dn);}
 .dd-chip.stale .dd-date{color:var(--c6);}
 .dd-chip.fresh{border-color:rgba(0,255,157,.25);}
 .dd-chip.fresh .dd-date{color:var(--c2);}
@@ -796,6 +813,13 @@ body::before{
 .bk-check{display:inline-flex;align-items:center;gap:6px;font-size:.65rem;color:var(--t2);cursor:pointer;user-select:none;}
 .bk-check input[type=checkbox]{accent-color:var(--c5);width:14px;height:14px;cursor:pointer;flex-shrink:0;}
 .bk-check input:checked + span{color:var(--c5);}
+/* 版本資訊 row */
+.ver-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(0,207,255,.04);}
+.ver-row:last-of-type{border-bottom:none;}
+.ver-k{color:var(--t3);}
+.ver-v{color:var(--t1);font-family:'Space Mono',monospace;}
+.ver-link{color:var(--c1);text-decoration:none;}
+.ver-link:hover{text-decoration:underline;}
 .margin-type-chip{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:7px;
   padding:8px;font-size:.7rem;color:var(--t2);cursor:pointer;transition:all .2s;
   font-family:inherit;letter-spacing:1px;font-weight:700;}
@@ -946,6 +970,68 @@ body::before{
     </div>
     <div style="display:flex;align-items:center;gap:6px;">
       <button class="dates-btn" id="datesBtn" onclick="openDatesModal()">📅 資料日期</button>
+    </div>
+  </div>
+</div>
+
+<!-- 功能說明 Modal -->
+<div class="dates-modal" id="helpModal" onclick="if(event.target===this)closeHelpModal()">
+  <div class="dates-modal-card help-modal-card">
+    <div class="dates-modal-hdr">
+      <span>📖 功能說明</span>
+      <button class="dates-modal-close" onclick="closeHelpModal()">×</button>
+    </div>
+    <div class="help-body">
+      <h3>整體架構</h3>
+      <p>5 個分頁：<strong>排行榜 / 個股詳情 / K線 / 回測 / 設定</strong>。每日由 GitHub Actions 跑 <code>scanner.py</code> 取 FinMind 全市場資料，輸出 <code>scan_app.csv</code> 給前端讀取。</p>
+
+      <h3>排行榜 — 4 個子分頁</h3>
+
+      <h4><span class="help-tag tag-A">A</span>外資進出</h4>
+      <p>5 個視窗（1/3/5/10/20 日）累計外資買賣超金額。資料源：<code>TaiwanStockInstitutionalInvestorsBuySell</code>（過濾「外資及陸資」、排除自營商）。金額用每日 VWAP（Trading_money / Trading_Volume）逐日累加。</p>
+
+      <h4><span class="help-tag tag-B">B</span>投信進出</h4>
+      <p>同上邏輯但過濾投信。除排行榜外，還有「投信雷達」呈現當日彙總金額 + 5 日箱型突破。</p>
+
+      <h4><span class="help-tag tag-C">C</span>主力分點</h4>
+      <p>從 <code>TaiwanStockTradingDailyReport</code>（Sponsor 限定）抓券商分點明細。納入 broker 抓取的個股有 3 種：</p>
+      <ul>
+        <li>外資 / 投信前 30 大金額股</li>
+        <li>當日成交量爆增（vol_ratio &gt; 3.5x）</li>
+        <li>近 5 日向上 / 向下突破個股</li>
+      </ul>
+      <p>主力分點榜為「<strong>同分點連續買 / 賣超</strong>」，可用 4 個門檻篩：</p>
+      <ul>
+        <li><strong>連續天數</strong>：1–10 天，預設 ≥ 3 天</li>
+        <li><strong>累計金額</strong>：0–5 億，每格 1 千萬，預設 ≥ 5 千萬</li>
+        <li><strong>法人排除</strong>：當該股 5 日外資 OR 投信 |net| 超過設定值就排除（避免被法人主導），最右為「不排除」</li>
+        <li><strong>排除外資券商</strong>（11 組 TWSE 代號，預設勾）</li>
+        <li><strong>排除國內大型券商總公司</strong>（21 組代號，預設勾，僅排除總公司不含分公司）</li>
+      </ul>
+
+      <h4><span class="help-tag tag-M">M</span>融資 / 融券</h4>
+      <p>5 視窗融資 / 融券餘額張數變化，金額 = 餘額張數 × 收盤價（含稅）。觀察散戶資金（融資）與空頭壓力（融券）。</p>
+
+      <h3>個股詳情</h3>
+      <p>點任一排行榜卡片進入。呈現：當日彙總（4 法人 / 主力分點 / 技術指標 / 融資券） + 該股近 N 日「上榜紀錄」。</p>
+
+      <h3>K 線</h3>
+      <p>輕量 K 線圖（分時 / 日 / 週 / 月），即時呼叫 FinMind API（可自填 token 提升頻率）。從個股詳情進入會自動帶入代碼。</p>
+
+      <h3>回測</h3>
+      <p>對 N = 1 / 3 / 5 / 10 / 20 日重算當時各榜（外資 / 投信 / 主力 / 融資），與當前開盤對照，看「N 天前上榜」的個股後續報酬分布。</p>
+
+      <h3>設定</h3>
+      <ul>
+        <li>手動觸發 GitHub Actions 掃描（資料更新）</li>
+        <li>本頁版本資訊 + 功能說明</li>
+      </ul>
+
+      <h3>資料日期燈號（標題列右上 📅）</h3>
+      <p>各面向 dataset 的最後一筆日期：A/B 法人、C 分點、D 技術面、E 月營收、H 股權分散、M 融資券。E（月營收）與 H（股權分散）公布頻率較低，落後幾天屬正常。</p>
+
+      <h3>注意</h3>
+      <p>本系統<strong>無評分系統</strong>（已於專案中段移除），所有排序皆為「客觀統計排名」，由使用者自行解讀。資料若延遲或缺漏請以資料日期燈號為準。</p>
     </div>
   </div>
 </div>
@@ -1206,6 +1292,28 @@ body::before{
                   border-radius:8px;color:var(--c1);font-size:.72rem;font-weight:700;">
           ⚙️ 前往 GitHub Actions 手動執行掃描
         </a>
+      </div>
+
+      <div class="section-hdr" style="margin-top:14px;">版本資訊</div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;font-size:.66rem;">
+        <div class="ver-row"><span class="ver-k">最新 commit</span>
+          <a id="verCommit" href="https://github.com/shihpc/taiwan-stock-radar/commits/main" target="_blank" rel="noopener" class="ver-v ver-link">載入中…</a>
+        </div>
+        <div class="ver-row"><span class="ver-k">推送時間</span><span class="ver-v" id="verPushTime">載入中…</span></div>
+        <div class="ver-row"><span class="ver-k">commit 訊息</span><span class="ver-v" id="verCommitMsg" style="text-align:right;max-width:62%;font-family:inherit;color:var(--t2);">載入中…</span></div>
+        <div class="ver-row"><span class="ver-k">原始碼</span>
+          <a href="https://github.com/shihpc/taiwan-stock-radar" target="_blank" rel="noopener" class="ver-v ver-link">shihpc/taiwan-stock-radar</a>
+        </div>
+        <button onclick="openHelpModal()"
+          style="width:100%;margin-top:10px;padding:10px;
+                 background:rgba(0,207,255,.08);border:1px solid rgba(0,207,255,.3);
+                 border-radius:8px;color:var(--c1);font-size:.7rem;font-weight:700;
+                 cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+          📖 功能說明
+        </button>
+        <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:.58rem;color:var(--t3);line-height:1.6;">
+          ⚠️ 本系統僅供研究參考，所有指標皆為歷史統計推論，不構成任何投資建議。投資人應自行評估風險。
+        </div>
       </div>
 
     </div>
@@ -3594,6 +3702,36 @@ function hideLoading(){
 function setProgress(pct){document.getElementById('loadBar').style.width=pct+'%';}
 function setLoadMsg(msg){document.getElementById('loadMsg').textContent=msg;}
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+
+// ══════════════════════════════════════════
+//  版本資訊 / 功能說明
+// ══════════════════════════════════════════
+async function loadVersionInfo() {
+  const setErr = (txt) => {
+    const e = document.getElementById('verCommit');     if (e) e.textContent = txt;
+    const t = document.getElementById('verPushTime');   if (t) t.textContent = '—';
+    const m = document.getElementById('verCommitMsg');  if (m) m.textContent = '—';
+  };
+  try {
+    const r = await fetch('https://api.github.com/repos/shihpc/taiwan-stock-radar/commits/main',
+                          {headers:{'Accept':'application/vnd.github+json'}});
+    if (!r.ok) { setErr('讀取失敗'); return; }
+    const j = await r.json();
+    const sha = (j.sha || '').slice(0, 7);
+    const dt  = new Date(j.commit.author.date);
+    const p2  = (n) => String(n).padStart(2, '0');
+    const dtStr = `${dt.getFullYear()}-${p2(dt.getMonth()+1)}-${p2(dt.getDate())} ${p2(dt.getHours())}:${p2(dt.getMinutes())}`;
+    const msg = (j.commit.message || '').split('\n')[0].slice(0, 60);
+    const cEl = document.getElementById('verCommit');
+    if (cEl) { cEl.textContent = sha; cEl.href = j.html_url || cEl.href; }
+    const tEl = document.getElementById('verPushTime'); if (tEl) tEl.textContent = dtStr;
+    const mEl = document.getElementById('verCommitMsg'); if (mEl) mEl.textContent = msg;
+  } catch(e) { setErr('讀取失敗'); }
+}
+loadVersionInfo();
+
+function openHelpModal()  { document.getElementById('helpModal').classList.add('show'); }
+function closeHelpModal() { document.getElementById('helpModal').classList.remove('show'); }
 
 // ══════════════════════════════════════════
 //  INIT
