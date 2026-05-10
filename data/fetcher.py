@@ -705,10 +705,12 @@ def _save_broker_cache(stock_id: str, date: str, df: pd.DataFrame) -> None:
         pass
 
 
-def fetch_broker_data(stock_id: str, date: str) -> pd.DataFrame:
+def fetch_broker_data(stock_id: str, date: str,
+                        retry: int = 3) -> pd.DataFrame:
     """
     取得個股單日分點進出（Sponsor 限定，逐筆版）。
     過去日期會永久 disk cache（broker 資料公布後不再變動）。
+    對 5xx / Timeout / ConnectionError 自動重試（指數退避），4xx 直接放棄。
     """
     cached = _load_broker_cache(stock_id, date)
     if cached is not None:
@@ -720,19 +722,36 @@ def fetch_broker_data(stock_id: str, date: str) -> pd.DataFrame:
         "date": date,
         "token": FINMIND_TOKEN,
     }
-    try:
-        resp = requests.get(FINMIND_BROKER_URL, params=payload, timeout=60)
-        resp.raise_for_status()
-        data = resp.json()
-        if data.get("status") != 200:
+    for attempt in range(retry):
+        try:
+            resp = requests.get(FINMIND_BROKER_URL, params=payload, timeout=60)
+            status = resp.status_code
+            if 500 <= status < 600:
+                logger.warning(f"[broker] {stock_id} {date} HTTP {status}（第 {attempt+1}/{retry} 次）")
+                time.sleep(2 ** attempt)
+                continue
+            resp.raise_for_status()
+            data = resp.json()
+            if data.get("status") != 200:
+                return pd.DataFrame()
+            df = pd.DataFrame(data.get("data", []))
+            time.sleep(API_SLEEP_SECONDS)
+            _save_broker_cache(stock_id, date, df)
+            return df
+        except requests.exceptions.HTTPError as e:
+            # 4xx 不重試（請求本身有問題）
+            logger.warning(f"[broker] {stock_id} {date} HTTP {e.response.status_code}，放棄")
             return pd.DataFrame()
-        df = pd.DataFrame(data.get("data", []))
-        time.sleep(API_SLEEP_SECONDS)
-        _save_broker_cache(stock_id, date, df)
-        return df
-    except Exception as e:
-        logger.error(f"分點資料取得失敗 {stock_id} {date}：{e}")
-        return pd.DataFrame()
+        except (requests.exceptions.Timeout,
+                requests.exceptions.ConnectionError) as e:
+            logger.warning(f"[broker] {stock_id} {date} 連線問題（第 {attempt+1}/{retry} 次）：{e}")
+            time.sleep(2 ** attempt)
+        except Exception as e:
+            logger.error(f"分點資料取得失敗 {stock_id} {date}：{e}")
+            return pd.DataFrame()
+
+    logger.warning(f"[broker] {stock_id} {date} 已重試 {retry} 次，放棄")
+    return pd.DataFrame()
 
 
 def fetch_all_broker_agg(date: str) -> pd.DataFrame:
