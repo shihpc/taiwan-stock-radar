@@ -579,6 +579,9 @@ def fetch_all_revenue_history(end_date: str, months_back: int = 13) -> pd.DataFr
         while m <= 0:
             m += 12; y -= 1
         targets.append(f"{y:04d}-{m:02d}-15")
+    # 跳過未來日期（資料尚未公布，永遠是空 → 浪費 API quota）
+    today = datetime.today().strftime("%Y-%m-%d")
+    targets = [d for d in targets if d < today]
     logger.info(f"逐月拉月營收（{len(targets)} 個月）...")
     dfs = []
     for d in targets:
@@ -645,6 +648,9 @@ def fetch_all_financial_history(end_date: str, days_back: int = 730) -> pd.DataF
         while m <= 0:
             m += 12; y -= 1
         targets.append(f"{y:04d}-{m:02d}-15")
+    # 跳過未來日期（資料尚未公布，永遠是空 → 浪費 API quota）
+    today = datetime.today().strftime("%Y-%m-%d")
+    targets = [d for d in targets if d < today]
     logger.info(f"逐季拉財報（{len(targets)} 個季度代表日）...")
     dfs = []
     for d in targets:
