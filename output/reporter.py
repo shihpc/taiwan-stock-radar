@@ -126,8 +126,6 @@ def save_app_csv(results: list, scan_date: str, dataset_dates: dict = None):
         if r.get("error"):
             continue
 
-        # 投信雷達（投信雷達 tab）
-        tr = r.get("trust_radar", {}) or {}
         # 突破雷達（主力分點 tab）
         bo = r.get("breakout", {}) or {}
 
@@ -144,15 +142,10 @@ def save_app_csv(results: list, scan_date: str, dataset_dates: dict = None):
             "foreign_days": r.get("foreign_days", 0),
             "trust_days":   r.get("trust_days",   0),
             "margin_ratio": r.get("margin_ratio_pct", 0),
-            # 投信雷達 tab 用（單日彙總 + 箱型）
-            "trust_amount_m": tr.get("trust_amount_m", 0),
-            "trust_net_lots": tr.get("trust_net_lots", 0),
-            "trust_vwap":     tr.get("trust_vwap",     0),
-            "box_breakout":   int(tr.get("box_breakout", False)),
-            "box_high":       tr.get("box_high",      0),
-            "box_low":        tr.get("box_low",       0),
-            "box_amplitude":  tr.get("box_amplitude", 0),
-            "is_box":         int(tr.get("is_box",    False)),
+            # 5 日箱型（前端主力分點 membership filter 用）
+            "box_high":       bo.get("box_high",      0),
+            "box_low":        bo.get("box_low",       0),
+            "box_amplitude":  bo.get("box_amplitude", 0),
             # 多視窗法人 radar（外資 / 投信 tab 用）
             "foreign_radar":  json.dumps(r.get("foreign_radar", {}), ensure_ascii=False),
             "trust_io":       json.dumps(r.get("trust_io",      {}), ensure_ascii=False),

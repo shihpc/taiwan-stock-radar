@@ -9,7 +9,6 @@
 #    - margin/short ：融資 / 融券多視窗餘額金額
 #    - breakout     ：箱型整理 + 突破 + 爆量旗標
 #    - mainforce    ：當日分點彙總（突破股）
-#    - trust_radar  ：投信當日金額 + 連買 + 箱型
 #    - opens_history：過去 21 日開盤價（回測用）
 #
 #  排行榜各 tab 直接依 radar 資料排序篩選，沒有「總分」概念。
@@ -54,9 +53,9 @@ from data.fetcher import (
     fetch_trading_dates,
     get_last_trading_date,
 )
-from engine.trust_radar import compute_trust_radar
 from engine.foreign_radar import (
-    compute_foreign_radar, compute_trust_io, compute_foreign_consec_days,
+    compute_foreign_radar, compute_trust_io,
+    compute_foreign_consec_days, compute_trust_consec_days,
 )
 from engine.broker_analysis import compute_top3_brokers, compute_mainforce_consec
 from engine.breakout_radar import detect_breakout, compute_mainforce_today
@@ -112,7 +111,6 @@ def analyze_single_stock(stock_id: str,
     return {
         "stock_id":      stock_id,
         "stock_name":    stock_name,
-        "trust_radar":   compute_trust_radar(institutional_df, price_df),
         "foreign_radar": compute_foreign_radar(institutional_df, price_df),
         "trust_io":      compute_trust_io(institutional_df, price_df),
         "breakout":      detect_breakout(price_df),
@@ -131,7 +129,6 @@ def print_single_stock_detail(result: dict):
     bo    = result.get("breakout", {}) or {}
     mr    = result.get("margin_radar", {}) or {}
     sr    = result.get("short_radar", {}) or {}
-    tr    = result.get("trust_radar", {}) or {}
 
     def _amt(m):
         return f"{m:+,.1f}M" if abs(m) < 100 else f"{m/100:+,.2f}億"
@@ -154,12 +151,6 @@ def print_single_stock_detail(result: dict):
     if bo.get("qualified_up") or bo.get("qualified_down"):
         d = "↗ 向上突破" if bo.get("qualified_up") else "↘ 向下突破"
         print(f"\n  🎯 主力分點：{d}（量比 {bo.get('vol_ratio',0):.1f}x）")
-
-    # 投信雷達
-    if tr.get("trust_amount_m"):
-        bbox = "🚀 突破" if tr.get("box_breakout") else "📦 整理" if tr.get("is_box") else ""
-        print(f"\n  💧 投信雷達：當日 {tr.get('trust_net_lots',0):+,} 張 / "
-              f"{_amt(tr.get('trust_amount_m',0))}　{bbox}")
 
     # 融資券
     print(f"\n  ⚡ 融資餘額：{_amt(mr.get('latest_amt_m',0))}　"
@@ -261,18 +252,15 @@ def run_scan(scan_date: str = None, quick: bool = False,
             inst_hist   = cache.institutional_history_for(stock_id)
             margin_hist = cache.margin_history_for(stock_id)
 
-            tr_radar = compute_trust_radar(inst_hist, price_df)
             result = {
                 "stock_id":      stock_id,
                 "stock_name":    stock_name,
                 "market":        market,
                 "industry":      industry,
-                # 連買天數（卡片 badge 用）— trust_days 取自 trust_radar，
-                # foreign_days 額外用 helper 算
-                "trust_days":    tr_radar.get("trust_consec_days", 0),
+                # 連買天數（卡片 badge 用）
+                "trust_days":    compute_trust_consec_days(inst_hist),
                 "foreign_days":  compute_foreign_consec_days(inst_hist),
                 "margin_ratio_pct": round(margin_ratio * 100, 1) if margin_ratio > 0 else 0,
-                "trust_radar":   tr_radar,
                 "foreign_radar": compute_foreign_radar(inst_hist, price_df),
                 "trust_io":      compute_trust_io(inst_hist, price_df),
                 "breakout":      detect_breakout(price_df),

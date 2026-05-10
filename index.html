@@ -1697,15 +1697,10 @@ async function loadScanCSV() {
         foreign_days: parseInt(obj.foreign_days) || 0,
         trust_days:   parseInt(obj.trust_days)   || 0,
         margin_ratio: parseFloat(obj.margin_ratio) || 0,
-        // 投信雷達 tab（單日金額 + 箱型旗標）
-        trust_amount_m: parseFloat(obj.trust_amount_m) || 0,
-        trust_net_lots: parseInt(obj.trust_net_lots) || 0,
-        trust_vwap:     parseFloat(obj.trust_vwap)    || 0,
-        box_breakout:   parseInt(obj.box_breakout)    || 0,
+        // 5 日箱型（主力分點 tab membership filter 用）
         box_high:       parseFloat(obj.box_high)      || 0,
         box_low:        parseFloat(obj.box_low)       || 0,
         box_amplitude:  parseFloat(obj.box_amplitude) || 0,
-        is_box:         parseInt(obj.is_box)          || 0,
         // 主力分點 tab 突破旗標
         breakout_up:       parseInt(obj.breakout_up)   || 0,
         breakout_down:     parseInt(obj.breakout_down) || 0,
@@ -3420,12 +3415,6 @@ function _buildCurrentDataSection(s) {
   const mr  = s.margin_radar || {};
   const sr  = s.short_radar || {};
 
-  const trAmt    = s.trust_amount_m || 0;
-  const trLots   = s.trust_net_lots || 0;
-  const isBox    = s.is_box === 1;
-  const boxBrk   = s.box_breakout === 1;
-  const boxLabel = boxBrk ? '🚀 突破' : (isBox ? '📦 整理' : '');
-
   return `<div class="section-hdr">📊 當前數據</div>
     <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:10px;">
       <table style="width:100%;border-collapse:collapse;font-size:.66rem;">
@@ -3460,14 +3449,6 @@ function _buildCurrentDataSection(s) {
             <td style="padding:8px 10px;color:var(--c2);">⚡ 融券餘額</td>
             <td colspan="2" style="padding:8px 10px;text-align:right;font-family:'Space Mono',monospace;color:var(--c2);font-weight:700;">${_fmtAmtAbs(sr.latest_amt_m)}</td>
           </tr>
-          ${trAmt ? `<tr style="border-top:1px solid var(--border);background:rgba(255,212,38,.04);">
-            <td style="padding:8px 10px;color:var(--c4);">💧 投信雷達</td>
-            <td colspan="2" style="padding:8px 10px;text-align:right;font-family:'Space Mono',monospace;">
-              <span class="${_amtCls(trAmt)}" style="font-weight:700;">${_fmtAmt(trAmt)}</span>
-              <span style="color:var(--t3);font-size:.6rem;margin-left:6px;">(${trLots > 0 ? '+' : ''}${trLots.toLocaleString()} 張)</span>
-              ${boxLabel ? `<span style="margin-left:6px;font-size:.58rem;">${boxLabel}</span>` : ''}
-            </td>
-          </tr>` : ''}
         </tbody>
       </table>
     </div>`;
@@ -3508,13 +3489,9 @@ function renderDetail(s) {
         </button>
       </div>
 
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:6px;">
-        <a href="https://goodinfo.tw/tw/StockInfo/StockDetail.asp?STOCK_ID=${s.code}" target="_blank" rel="noopener"
-          style="display:flex;align-items:center;justify-content:center;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px 2px;color:var(--t2);font-size:.6rem;text-decoration:none;white-space:nowrap;">📑 Goodinfo</a>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:4px;margin-bottom:6px;">
         <a href="https://www.cnyes.com/twstock/${s.code}" target="_blank" rel="noopener"
           style="display:flex;align-items:center;justify-content:center;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px 2px;color:var(--t2);font-size:.6rem;text-decoration:none;white-space:nowrap;">📰 鉅亨網</a>
-        <a href="https://histock.tw/stock/${s.code}" target="_blank" rel="noopener"
-          style="display:flex;align-items:center;justify-content:center;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px 2px;color:var(--t2);font-size:.6rem;text-decoration:none;white-space:nowrap;">📈 嗨投資</a>
         <a href="https://tw.stock.yahoo.com/quote/${s.code}" target="_blank" rel="noopener"
           style="display:flex;align-items:center;justify-content:center;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px 2px;color:var(--t2);font-size:.6rem;text-decoration:none;white-space:nowrap;">🌐 Yahoo</a>
       </div>

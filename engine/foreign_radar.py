@@ -129,3 +129,24 @@ def compute_foreign_consec_days(institutional_df: pd.DataFrame) -> int:
         else:
             break
     return consec
+
+
+def compute_trust_consec_days(institutional_df: pd.DataFrame) -> int:
+    """投信連續買超天數（從最新日往回算 diff > 0 的天數）"""
+    if institutional_df.empty or "name" not in institutional_df.columns:
+        return 0
+    df = institutional_df.copy()
+    df["diff"] = pd.to_numeric(df.get("diff", 0), errors="coerce").fillna(0)
+    trust = df[df["name"].str.contains("投信|Trust|trust",
+                                            na=False, regex=True)]
+    if trust.empty:
+        return 0
+    trust["date"] = pd.to_datetime(trust["date"])
+    trust = trust.sort_values("date")
+    consec = 0
+    for v in trust["diff"].iloc[::-1]:
+        if float(v) > 0:
+            consec += 1
+        else:
+            break
+    return consec
