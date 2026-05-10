@@ -308,10 +308,10 @@ def run_scan(scan_date: str = None, quick: bool = False,
 
     if use_broker:
         trading_dates = fetch_trading_dates(days_back=40)
-        # 拉 20 日 broker（給 5 視窗 top3 用：1/3/5/10/20 日）
-        recent_dates  = sorted(trading_dates)[-20:] if trading_dates else []
+        # 拉 5 日 broker（給 3 視窗 top3 用：1/3/5 日；mainforce_consec 也只用 5 日）
+        recent_dates  = sorted(trading_dates)[-5:] if trading_dates else []
 
-    BROKER_TOP3_WINDOWS = [1, 3, 5, 10, 20]
+    BROKER_TOP3_WINDOWS = [1, 3, 5]
 
     def _compute_windowed_top3(broker_df: pd.DataFrame,
                                 price_df_r: pd.DataFrame) -> dict:
@@ -372,10 +372,13 @@ def run_scan(scan_date: str = None, quick: bool = False,
         logger.info(f"Step 3.5：對 {len(broker_targets)} 支股票抓 broker"
                     f"（量比>{VOL_RATIO_THRESHOLD}x {n_vol}"
                     f" + 箱型≤{int(BOX_AMP_MAX*100)}% 突破≥{int(BREAK_PCT_MIN*100)}% 新增 {n_break}）...")
-        empty_mfc = {"buy":  {"trader_name": "", "consec_days": 0, "net_lots": 0,
-                                  "net_amount_m": 0.0, "is_qualified": False},
-                     "sell": {"trader_name": "", "consec_days": 0, "net_lots": 0,
-                                  "net_amount_m": 0.0, "is_qualified": False}}
+        # 每股算 5 個視窗（1/2/3/4/5 日）的 mainforce_consec，
+        # 對應前端「連續天數」拉桿（讓 X 日連買的判斷視窗跟著拉桿走）
+        MFC_WINDOWS = [1, 2, 3, 4, 5]
+        empty_inner = {"trader_id": "", "trader_name": "", "consec_days": 0,
+                       "net_lots": 0, "net_amount_m": 0.0, "is_qualified": False}
+        empty_mfc = {str(d): {"buy": dict(empty_inner), "sell": dict(empty_inner)}
+                     for d in MFC_WINDOWS}
         for r in results:
             sid = r["stock_id"]
             if sid not in broker_targets:
@@ -387,8 +390,11 @@ def run_scan(scan_date: str = None, quick: bool = False,
             broker_df = _fetch_broker_multi(sid)
             price_df_r = cache.price_history_for(sid)
             r["broker_top3"] = _compute_windowed_top3(broker_df, price_df_r)
-            # 主力分點 tab：每股算 5 日連續性指標
-            r["mainforce_consec"] = compute_mainforce_consec(broker_df, price_df_r, days=5)
+            # 主力分點 tab：對 1/2/3/4/5 日各算一次（前端拉桿即時切換）
+            r["mainforce_consec"] = {
+                str(d): compute_mainforce_consec(broker_df, price_df_r, days=d)
+                for d in MFC_WINDOWS
+            }
             # 突破股額外算當日彙總（保留：個股詳情頁可能用、加分提示用）
             bo = r.get("breakout") or {}
             if bo.get("qualified_up") or bo.get("qualified_down"):

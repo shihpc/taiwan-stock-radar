@@ -2418,11 +2418,11 @@ function buildTrustIORankCard(s, rank) {
 // 法人排除多一格：第 51 格 = 不排除
 const BK_AMT_UNIT_M = 10;   // 1 千萬 = 10 百萬
 
-// 外資券商代號（TWSE 4 碼）— 11 組
+// 外資券商代號（TWSE 4 碼）— 12 組
 const BK_FOREIGN_IDS = new Set([
   '8890', '8900', '8960', '8440',
   '1360', '1440', '1470', '1480',
-  '1560', '1590', '1650',
+  '1560', '1590', '1650', '9A81',
 ]);
 // 國內大型券商總公司代號 — 21 組
 const BK_DOMESTIC_IDS = new Set([
@@ -2491,7 +2491,7 @@ function _updateBreakoutHdr() {
   if (!hdr) return;
   const action = breakoutDir === 'up' ? '買超' : '賣超';
   const consAct = breakoutDir === 'up' ? '連買' : '連賣';
-  hdr.textContent = `主力${action}分點榜（${consAct} ≥ ${breakoutMinConsec} 天 + ${_fmtAmtThreshold(breakoutMinAmount)}）`;
+  hdr.textContent = `主力${action}分點榜（${breakoutMinConsec} 日內 ${consAct} ≥ ${breakoutMinConsec} 天 + ${_fmtAmtThreshold(breakoutMinAmount)}）`;
 }
 
 function setBreakoutFilter(type, val) {
@@ -2539,8 +2539,13 @@ function renderBreakoutRank() {
   //   2. 累計金額 |net_amount_m| ≥ breakoutMinAmount
   //   3. 方向確認（買超 / 賣超）
   //   4. 排除法人：|外資 5 日 net| ≥ breakoutExcludeM OR |投信 5 日 net| ≥ breakoutExcludeM
+  // 用使用者拉桿的「連續天數 N」對應視窗，使「N 日內最大連買」搭著拉桿走
+  const N = String(breakoutMinConsec);
   let qualified = allStockData.filter(s => {
-    const mc = (s.mainforce_consec || {})[dirKey] || {};
+    const mfcAll = s.mainforce_consec || {};
+    // 新格式 = {"1":..., "2":..., ..., "5":...}；舊格式 = {buy, sell}
+    const mfcWin = mfcAll[N] || mfcAll;   // 舊格式 fallback
+    const mc = mfcWin[dirKey] || {};
     if ((mc.consec_days || 0) < breakoutMinConsec) return false;
     const amt = mc.net_amount_m || 0;
     if (Math.abs(amt) < breakoutMinAmount) return false;
@@ -2615,10 +2620,13 @@ function buildBreakoutRankCard(s, rank) {
   const mktBadge = s.type==='ETF' ? `<span style="font-size:.48rem;background:rgba(0,207,255,.1);border:1px solid rgba(0,207,255,.2);color:var(--c1);border-radius:3px;padding:0 3px;margin-left:3px">ETF</span>` : '';
 
   const dirKey = isLong ? 'buy' : 'sell';
-  const mc     = (s.mainforce_consec || {})[dirKey] || {};
+  // 用使用者拉桿的視窗（1/2/3/4/5 日）；舊格式 fallback
+  const _mfcAll = s.mainforce_consec || {};
+  const _mfcWin = _mfcAll[String(breakoutMinConsec)] || _mfcAll;
+  const mc     = _mfcWin[dirKey] || {};
   const sortNet = mc.net_amount_m || 0;
 
-  // 法人 5 日金額（透明顯示為何通過排除）
+  // 法人 5 日金額
   const fr5Net = ((s.foreign_radar || {})['5'] || {}).net_amount_m || 0;
   const ti5Net = ((s.trust_io      || {})['5'] || {}).net_amount_m || 0;
 
@@ -2633,6 +2641,26 @@ function buildBreakoutRankCard(s, rank) {
   const dirColor = isLong ? 'var(--up)' : 'var(--dn)';
   const consecBadge = `<span style="font-size:.55rem;background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.4);color:var(--c5);border-radius:4px;padding:1px 6px;white-space:nowrap;font-weight:700;">
     🔥 連${isLong ? '買' : '賣'} ${mc.consec_days || 0} 天</span>`;
+
+  // 5 日 top3 broker（broker_top3.5.buy / sell）
+  const top3 = ((s.broker_top3 || {})['5'] || {})[dirKey] || [];
+  const medals = ['🥇', '🥈', '🥉'];
+  const top3Rows = [0, 1, 2].map(i => {
+    const b = top3[i];
+    if (!b) return `<div style="display:flex;justify-content:space-between;gap:8px;color:var(--t3);font-size:.58rem;">
+      <span>${medals[i]} —</span><span></span>
+    </div>`;
+    const lots = b.lots || 0;
+    const amt  = b.amount_m || 0;
+    const lotsTxt = (lots > 0 ? '+' : '') + lots.toLocaleString();
+    return `<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:.58rem;padding:1px 0;">
+      <span style="color:var(--t1);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${medals[i]} ${truncateBrokerName(b.name || '—')}</span>
+      <span style="display:flex;gap:8px;flex-shrink:0;">
+        <span style="color:${dirColor};font-family:'Space Mono',monospace;font-weight:700;min-width:60px;text-align:right;">${lotsTxt} 張</span>
+        <span style="color:var(--t2);font-family:'Space Mono',monospace;min-width:60px;text-align:right;">${fmtAmount(amt)}</span>
+      </span>
+    </div>`;
+  }).join('');
 
   return `<div class="dim-rank-card dim-C" onclick="openDetail('${s.code}')"
               style="cursor:pointer;">
@@ -2650,19 +2678,11 @@ function buildBreakoutRankCard(s, rank) {
         </div>
         <div style="margin-top:6px;padding:5px 8px;background:rgba(167,139,250,.04);
                     border:1px solid rgba(167,139,250,.15);border-radius:5px;
-                    display:flex;flex-direction:column;gap:2px;font-size:.62rem;">
-          <div style="display:flex;align-items:center;gap:6px;color:var(--t1);">
-            <span>${isLong ? '🥇' : '🥇'}</span>
-            <span>${truncateBrokerName(mc.trader_name || '—')}</span>
+                    display:flex;flex-direction:column;gap:2px;">
+          <div style="font-size:.55rem;color:var(--t3);margin-bottom:2px;letter-spacing:.5px;">
+            5 日 ${isLong ? '買超' : '賣超'} TOP 3 分點
           </div>
-          <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;font-size:.58rem;">
-            <span style="color:${dirColor};font-family:'Space Mono',monospace;font-weight:700;">
-              ${(mc.net_lots > 0 ? '+' : '')}${(mc.net_lots || 0).toLocaleString()} 張
-            </span>
-            <span style="color:var(--t2);font-family:'Space Mono',monospace;min-width:70px;text-align:right;">
-              ${fmtAmount(mc.net_amount_m)}
-            </span>
-          </div>
+          ${top3Rows}
         </div>
         <div style="margin-top:5px;display:flex;gap:8px;font-size:.55rem;color:var(--t3);
                     padding:3px 8px;background:rgba(0,200,255,.02);border-radius:4px;">
