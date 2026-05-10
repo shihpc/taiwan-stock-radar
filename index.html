@@ -2218,7 +2218,8 @@ function buildStockCard(s, rank) {
         <div class="drc-name-row">
           <span class="drc-code">${s.code}</span>
           <span class="drc-name">${s.name}</span>${mktBadge}
-          <span class="price-change ${isUp?'up':'dn'}" style="font-size:.65rem;margin-left:auto;font-family:'Space Mono',monospace">${isUp?'▲':'▼'}${Math.abs(s.chg_pct).toFixed(2)}%</span>
+          <span style="font-family:'Space Mono',monospace;font-size:.72rem;font-weight:700;color:${isUp?'var(--up)':'var(--dn)'};margin-left:auto;">${(s.price||0).toLocaleString()}</span>
+          <span class="price-change ${isUp?'up':'dn'}" style="font-size:.65rem;font-family:'Space Mono',monospace;">${isUp?'▲':'▼'}${Math.abs(s.chg_pct).toFixed(2)}%</span>
         </div>
         ${buildAmountTopRow(total, '三方共同' + (isLong?'買超':'賣超') + '總額')}
         ${detailRow}
@@ -2382,7 +2383,8 @@ function buildTrustIORankCard(s, rank) {
         <div class="drc-name-row">
           <span class="drc-code" style="color:var(--up)">${s.code}</span>
           <span class="drc-name">${s.name}</span>${mktBadge}
-          <span class="price-change ${isUp?'up':'dn'}" style="font-size:.65rem;margin-left:auto;font-family:'Space Mono',monospace">${isUp?'▲':'▼'}${Math.abs(s.chg_pct).toFixed(2)}%</span>
+          <span style="font-family:'Space Mono',monospace;font-size:.72rem;font-weight:700;color:${isUp?'var(--up)':'var(--dn)'};margin-left:auto;">${(s.price||0).toLocaleString()}</span>
+          <span class="price-change ${isUp?'up':'dn'}" style="font-size:.65rem;font-family:'Space Mono',monospace;">${isUp?'▲':'▼'}${Math.abs(s.chg_pct).toFixed(2)}%</span>
         </div>
         ${buildAmountTopRow(sortNet, `${sortW} 日 |金額|`)}
         ${(cdBadge || fdBadge) ? `<div class="drc-sub" style="display:flex;gap:5px;flex-wrap:wrap;margin-top:4px;">${cdBadge}${fdBadge}</div>` : ''}
@@ -2693,7 +2695,8 @@ function buildBreakoutRankCard(s, rank) {
         <div class="drc-name-row">
           <span class="drc-code" style="color:var(--c5)">${s.code}</span>
           <span class="drc-name">${s.name}</span>${mktBadge}
-          <span class="price-change ${isUp?'up':'dn'}" style="font-size:.65rem;margin-left:auto;font-family:'Space Mono',monospace">${isUp?'▲':'▼'}${Math.abs(s.chg_pct).toFixed(2)}%</span>
+          <span style="font-family:'Space Mono',monospace;font-size:.72rem;font-weight:700;color:${isUp?'var(--up)':'var(--dn)'};margin-left:auto;">${(s.price||0).toLocaleString()}</span>
+          <span class="price-change ${isUp?'up':'dn'}" style="font-size:.65rem;font-family:'Space Mono',monospace;">${isUp?'▲':'▼'}${Math.abs(s.chg_pct).toFixed(2)}%</span>
         </div>
         ${buildAmountTopRow(sortNet, `主力分點 ${breakoutMinConsec} 日累計`)}
         ${consecBrokerRow}
@@ -2821,7 +2824,8 @@ function buildMarginRankCard(s, rank) {
         <div class="drc-name-row">
           <span class="drc-code" style="color:var(--c2)">${s.code}</span>
           <span class="drc-name">${s.name}</span>${mktBadge}
-          <span class="price-change ${isUp?'up':'dn'}" style="font-size:.65rem;margin-left:auto;font-family:'Space Mono',monospace">${isUp?'▲':'▼'}${Math.abs(s.chg_pct).toFixed(2)}%</span>
+          <span style="font-family:'Space Mono',monospace;font-size:.72rem;font-weight:700;color:${isUp?'var(--up)':'var(--dn)'};margin-left:auto;">${(s.price||0).toLocaleString()}</span>
+          <span class="price-change ${isUp?'up':'dn'}" style="font-size:.65rem;font-family:'Space Mono',monospace;">${isUp?'▲':'▼'}${Math.abs(s.chg_pct).toFixed(2)}%</span>
         </div>
         ${amountTopRow}
         <div class="drc-sub" style="display:flex;gap:8px;flex-wrap:wrap;font-size:.62rem;margin-top:4px;">
@@ -3073,7 +3077,8 @@ function buildBacktestCard(x, rank) {
         <div class="drc-name-row">
           <span class="drc-code">${s.code}</span>
           <span class="drc-name">${s.name}</span>${mktBadge}
-          <span class="price-change ${isUp?'up':'dn'}" style="font-size:.65rem;margin-left:auto;font-family:'Space Mono',monospace">${isUp?'▲':'▼'}${Math.abs(s.chg_pct).toFixed(2)}%</span>
+          <span style="font-family:'Space Mono',monospace;font-size:.72rem;font-weight:700;color:${isUp?'var(--up)':'var(--dn)'};margin-left:auto;">${(s.price||0).toLocaleString()}</span>
+          <span class="price-change ${isUp?'up':'dn'}" style="font-size:.65rem;font-family:'Space Mono',monospace;">${isUp?'▲':'▼'}${Math.abs(s.chg_pct).toFixed(2)}%</span>
         </div>
         <div style="display:flex;align-items:center;gap:8px;
                     margin-top:4px;padding:5px 8px;
@@ -3249,7 +3254,8 @@ function buildForeignRankCard(s, rank) {
         <div class="drc-name-row">
           <span class="drc-code" style="color:var(--c1)">${s.code}</span>
           <span class="drc-name">${s.name}</span>${mktBadge}
-          <span class="price-change ${isUp?'up':'dn'}" style="font-size:.65rem;margin-left:auto;font-family:'Space Mono',monospace">${isUp?'▲':'▼'}${Math.abs(s.chg_pct).toFixed(2)}%</span>
+          <span style="font-family:'Space Mono',monospace;font-size:.72rem;font-weight:700;color:${isUp?'var(--up)':'var(--dn)'};margin-left:auto;">${(s.price||0).toLocaleString()}</span>
+          <span class="price-change ${isUp?'up':'dn'}" style="font-size:.65rem;font-family:'Space Mono',monospace;">${isUp?'▲':'▼'}${Math.abs(s.chg_pct).toFixed(2)}%</span>
         </div>
         ${buildAmountTopRow(sortNet, `${sortW} 日 |金額|`)}
         ${trustBadge ? `<div class="drc-sub" style="margin-top:4px;">${trustBadge}</div>` : ''}
