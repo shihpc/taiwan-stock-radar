@@ -813,6 +813,17 @@ body::before{
 .bk-check{display:inline-flex;align-items:center;gap:6px;font-size:.65rem;color:var(--t2);cursor:pointer;user-select:none;}
 .bk-check input[type=checkbox]{accent-color:var(--c5);width:14px;height:14px;cursor:pointer;flex-shrink:0;}
 .bk-check input:checked + span{color:var(--c5);}
+/* 主力分點 tab：3 段選 chip */
+.bk-chip-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(0,200,255,.05);}
+.bk-chip-group{display:flex;gap:4px;flex:1;flex-wrap:wrap;}
+.bk-chip{
+  background:var(--bg3);border:1px solid var(--border);border-radius:6px;
+  padding:5px 10px;color:var(--t2);font-size:.62rem;cursor:pointer;
+  font-family:'Space Mono',monospace;letter-spacing:.5px;
+  transition:all .12s ease;flex:1;min-width:auto;white-space:nowrap;
+}
+.bk-chip:hover{background:rgba(196,118,255,.06);border-color:var(--c5);}
+.bk-chip.active{background:rgba(196,118,255,.15);border-color:var(--c5);color:var(--c5);font-weight:700;}
 /* 版本資訊 row */
 .ver-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(0,207,255,.04);}
 .ver-row:last-of-type{border-bottom:none;}
@@ -1164,7 +1175,7 @@ body::before{
             <span id="bk-exclude-val" class="bk-slider-val">不排除</span>
           </div>
           <div class="bk-slider-row">
-            <span class="bk-slider-label">量比門檻</span>
+            <span class="bk-slider-label">五日均量</span>
             <input type="range" id="bk-volratio" class="bk-slider" min="0" max="2" step="1" value="0"
                    oninput="setBreakoutFilter('volratio', this.value)"/>
             <span id="bk-volratio-val" class="bk-slider-val">&gt; 2x</span>
