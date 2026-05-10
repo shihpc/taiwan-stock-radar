@@ -2416,11 +2416,12 @@ function buildTrustIORankCard(s, rank) {
 // 法人排除多一格：第 51 格 = 不排除
 const BK_AMT_UNIT_M = 10;   // 1 千萬 = 10 百萬
 
-// 外資券商代號（TWSE 4 碼）— 12 組
+// 外資券商代號（TWSE 4 碼）— 13 組
 const BK_FOREIGN_IDS = new Set([
   '8890', '8900', '8960', '8440',
   '1360', '1440', '1470', '1480',
   '1560', '1590', '1650', '9A81',
+  '9268',   // 凱基台北
 ]);
 // 國內大型券商總公司代號 — 21 組
 const BK_DOMESTIC_IDS = new Set([
