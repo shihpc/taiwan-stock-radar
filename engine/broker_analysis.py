@@ -466,6 +466,7 @@ def compute_top3_brokers(broker_df: pd.DataFrame,
         if direction == "buy"  and diff <= 0: break
         if direction == "sell" and diff >= 0: break
         out.append({
+            "id":       str(row["securities_trader_id"]),
             "name":     str(row["securities_trader"]),
             "lots":     diff,
             "amount_m": round(float(row["amount_m"]), 2),
@@ -496,6 +497,7 @@ def compute_mainforce_consec(broker_df: pd.DataFrame,
     若沒有任何分點符合「至少連買 / 連賣 1 天」，對應方向回傳空 entry。
     """
     empty_entry = {
+        "trader_id":    "",
         "trader_name":  "",
         "consec_days":  0,
         "net_lots":     0,
@@ -540,6 +542,7 @@ def compute_mainforce_consec(broker_df: pd.DataFrame,
         g = group.sort_values("date", ascending=False)   # 從最新往回
         diffs = g["diff_lots"].tolist()
         name  = str(g["securities_trader"].iloc[0])
+        tid_s = str(tid)
         total_net = int(g["diff_lots"].sum())
 
         # 從最新日起連續同方向天數
@@ -558,22 +561,23 @@ def compute_mainforce_consec(broker_df: pd.DataFrame,
 
         # 買方候選（連買 ≥ 1 + 該分點期間總淨 > 0）
         if consec_buy >= 1 and total_net > 0:
-            cand = (consec_buy, total_net, name)
+            cand = (consec_buy, total_net, tid_s, name)
             # 排序鍵：先連買天數，再淨張數
             if best_buy is None or cand > best_buy:
                 best_buy = cand
         # 賣方候選（連賣 ≥ 1 + 該分點期間總淨 < 0）
         if consec_sell >= 1 and total_net < 0:
-            cand = (consec_sell, -total_net, name)   # 用 -total_net 排絕對值
+            cand = (consec_sell, -total_net, tid_s, name)   # 用 -total_net 排絕對值
             if best_sell is None or cand > best_sell:
                 best_sell = cand
 
     out = {"buy": dict(empty_entry), "sell": dict(empty_entry)}
 
     if best_buy is not None:
-        consec, lots, name = best_buy
+        consec, lots, tid_s, name = best_buy
         amt_m = round(lots * 1000 * avg_vwap / 1_000_000, 2)
         out["buy"] = {
+            "trader_id":    tid_s,
             "trader_name":  name,
             "consec_days":  consec,
             "net_lots":     lots,
@@ -581,9 +585,10 @@ def compute_mainforce_consec(broker_df: pd.DataFrame,
             "is_qualified": (consec >= 3 and amt_m >= 50),
         }
     if best_sell is not None:
-        consec, abs_lots, name = best_sell
+        consec, abs_lots, tid_s, name = best_sell
         amt_m = round(-abs_lots * 1000 * avg_vwap / 1_000_000, 2)   # 負值
         out["sell"] = {
+            "trader_id":    tid_s,
             "trader_name":  name,
             "consec_days":  consec,
             "net_lots":     -abs_lots,

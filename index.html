@@ -2285,29 +2285,42 @@ function buildTrustIORankCard(s, rank) {
 // 法人排除多一格：第 51 格 = 不排除
 const BK_AMT_UNIT_M = 10;   // 1 千萬 = 10 百萬
 
-// 外資券商（11 組，含同集團變體；以 startsWith 比對）
-const BK_FOREIGN_BROKERS = [
+// 外資券商代號（TWSE 4 碼）— 11 組
+const BK_FOREIGN_IDS = new Set([
+  '8890', '8900', '8960', '8440',
+  '1360', '1440', '1470', '1480',
+  '1560', '1590', '1650',
+]);
+// 國內大型券商總公司代號 — 21 組
+const BK_DOMESTIC_IDS = new Set([
+  '1020', '1030', '1040', '1110', '1230',
+  '5380', '5850', '6160', '7000', '7790',
+  '8450', '8560', '8840', '8880',
+  '9100', '9200', '9300', '9600', '9800',
+  '9A00', '9B00',
+]);
+
+// 後備：name-based 比對（CSV 沒帶 trader_id 的舊版資料用）
+const BK_FOREIGN_NAMES = [
   '美林', '美商高盛', '瑞銀', '星洲瑞銀', '摩根士丹利', '摩根大通', '台灣摩根',
   '港商野村', '港商麥格理', '港麥格理', '花旗環球', '上海匯豐',
   '法銀巴黎', '大和國泰',
 ];
-// 國內大型券商總公司（純品牌名，不含分公司後綴）
-// 注意：以 startsWith 為主，同時排除「品牌+分公司」誤判 — 在比對函式中處理
-const BK_DOMESTIC_HQ = [
+const BK_DOMESTIC_NAMES = [
   '元大', '凱基', '富邦', '永豐金', '群益',
   '台新', '台新證券', '統一', '國泰',
   '華南', '華南永昌證券',
 ];
 
-// 判斷 trader_name 是否屬於外資券商
-function _isForeignBroker(name) {
+function _isForeignBroker(id, name) {
+  if (id) return BK_FOREIGN_IDS.has(id);          // 有 id 以 id 為準
   if (!name) return false;
-  return BK_FOREIGN_BROKERS.some(b => name.startsWith(b));
+  return BK_FOREIGN_NAMES.some(b => name.startsWith(b));
 }
-// 判斷 trader_name 是否為國內大型券商「總公司」純名（精確匹配，不含分公司）
-function _isDomesticHQ(name) {
+function _isDomesticHQ(id, name) {
+  if (id) return BK_DOMESTIC_IDS.has(id);
   if (!name) return false;
-  return BK_DOMESTIC_HQ.includes(name);
+  return BK_DOMESTIC_NAMES.includes(name);
 }
 
 let breakoutDir            = 'up';   // 'up' = 看好（買超分點）/ 'down' = 看空（賣超分點）
@@ -2384,9 +2397,10 @@ function renderBreakoutRank() {
     if (isLong  && amt <= 0) return false;
     if (!isLong && amt >= 0) return false;
     // 券商分點過濾
-    const trader = mc.trader_name || '';
-    if (breakoutExcludeForeign && _isForeignBroker(trader)) return false;
-    if (breakoutExcludeDomHQ   && _isDomesticHQ(trader))    return false;
+    const tid    = mc.trader_id   || '';
+    const tname  = mc.trader_name || '';
+    if (breakoutExcludeForeign && _isForeignBroker(tid, tname)) return false;
+    if (breakoutExcludeDomHQ   && _isDomesticHQ(tid, tname))    return false;
     // 法人排除（breakoutExcludeM >= 99999 表示不排除）
     if (breakoutExcludeM < 99999) {
       const fr5 = (s.foreign_radar || {})['5'] || {};
