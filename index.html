@@ -991,7 +991,7 @@ body::before{
       <p>5 個視窗（1/3/5/10/20 日）累計外資買賣超金額。資料源：<code>TaiwanStockInstitutionalInvestorsBuySell</code>（過濾「外資及陸資」、排除自營商）。金額用每日 VWAP（Trading_money / Trading_Volume）逐日累加。</p>
 
       <h4><span class="help-tag tag-B">B</span>投信進出</h4>
-      <p>同上邏輯但過濾投信。除排行榜外，還有「投信雷達」呈現當日彙總金額 + 5 日箱型突破。</p>
+      <p>同上邏輯但過濾投信，5 個視窗（1/3/5/10/20 日）累計買賣超金額排行。</p>
 
       <h4><span class="help-tag tag-C">C</span>主力分點</h4>
       <p>從 <code>TaiwanStockTradingDailyReport</code>（Sponsor 限定）抓券商分點明細。納入 broker 抓取的個股有 3 種：</p>
@@ -1147,21 +1147,39 @@ body::before{
         <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-bottom:6px;">
           <div class="bk-slider-row">
             <span class="bk-slider-label">連續天數</span>
-            <input type="range" id="bk-consec" class="bk-slider" min="1" max="10" step="1" value="3"
+            <input type="range" id="bk-consec" class="bk-slider" min="1" max="5" step="1" value="1"
                    oninput="setBreakoutFilter('consec', this.value)"/>
-            <span id="bk-consec-val" class="bk-slider-val">≥ 3 天</span>
+            <span id="bk-consec-val" class="bk-slider-val">≥ 1 天</span>
           </div>
           <div class="bk-slider-row">
             <span class="bk-slider-label">累計金額</span>
-            <input type="range" id="bk-amount" class="bk-slider" min="0" max="50" step="1" value="5"
+            <input type="range" id="bk-amount" class="bk-slider" min="0" max="20" step="1" value="3"
                    oninput="setBreakoutFilter('amount', this.value)"/>
-            <span id="bk-amount-val" class="bk-slider-val">≥ 5 千萬</span>
+            <span id="bk-amount-val" class="bk-slider-val">≥ 3 千萬</span>
           </div>
           <div class="bk-slider-row">
             <span class="bk-slider-label">法人排除</span>
-            <input type="range" id="bk-exclude" class="bk-slider" min="0" max="51" step="1" value="3"
+            <input type="range" id="bk-exclude" class="bk-slider" min="0" max="21" step="1" value="0"
                    oninput="setBreakoutFilter('exclude', this.value)"/>
-            <span id="bk-exclude-val" class="bk-slider-val">≥ 3 千萬</span>
+            <span id="bk-exclude-val" class="bk-slider-val">不排除</span>
+          </div>
+          <div class="bk-slider-row">
+            <span class="bk-slider-label">量比門檻</span>
+            <input type="range" id="bk-volratio" class="bk-slider" min="0" max="2" step="1" value="0"
+                   oninput="setBreakoutFilter('volratio', this.value)"/>
+            <span id="bk-volratio-val" class="bk-slider-val">&gt; 2x</span>
+          </div>
+          <div class="bk-slider-row">
+            <span class="bk-slider-label">箱型振幅</span>
+            <input type="range" id="bk-boxamp" class="bk-slider" min="0" max="3" step="1" value="0"
+                   oninput="setBreakoutFilter('boxamp', this.value)"/>
+            <span id="bk-boxamp-val" class="bk-slider-val">≤ 9%</span>
+          </div>
+          <div class="bk-slider-row">
+            <span class="bk-slider-label">突破幅度</span>
+            <input type="range" id="bk-breakpct" class="bk-slider" min="0" max="2" step="1" value="0"
+                   oninput="setBreakoutFilter('breakpct', this.value)"/>
+            <span id="bk-breakpct-val" class="bk-slider-val">≥ 3%</span>
           </div>
           <div class="bk-check-row">
             <label class="bk-check"><input type="checkbox" id="bk-exForeign" checked onchange="setBreakoutFilter('exForeign', this.checked)"/><span>排除外資券商</span></label>
@@ -2431,12 +2449,20 @@ function _isDomesticHQ(id, name) {
   return BK_DOMESTIC_NAMES.includes(name);
 }
 
+// 量比 / 箱型 / 突破 拉桿離散刻度
+const BK_VOLRATIO_STEPS = [2.0, 3.0, 5.0];          // 量比門檻
+const BK_BOXAMP_STEPS   = [0.09, 0.07, 0.05, 0.03]; // 箱型振幅上限
+const BK_BREAKPCT_STEPS = [0.03, 0.05, 0.09];        // 突破幅度下限
+
 let breakoutDir            = 'up';   // 'up' = 看好（買超分點）/ 'down' = 看空（賣超分點）
-let breakoutMinConsec      = 3;       // 連續天數門檻
-let breakoutMinAmount      = 50;      // 累計金額門檻（百萬）— 預設 5 千萬
-let breakoutExcludeM       = 30;      // 法人排除門檻（百萬）— 預設 3 千萬
+let breakoutMinConsec      = 1;       // 連續天數門檻
+let breakoutMinAmount      = 30;      // 累計金額門檻（百萬）— 預設 3 千萬
+let breakoutExcludeM       = 99999;   // 法人排除門檻（百萬）— 預設不排除
 let breakoutExcludeForeign = true;    // 排除外資券商（預設勾）
 let breakoutExcludeDomHQ   = true;    // 排除國內大型券商總公司（預設勾）
+let breakoutVolRatio       = 2.0;    // 量比門檻（預設 > 2x）
+let breakoutBoxAmp         = 0.09;   // 箱型振幅上限（預設 ≤ 9%）
+let breakoutBreakPct       = 0.03;   // 突破幅度下限（預設 ≥ 3%）
 
 function _fmtAmtThreshold(m) {
   if (m === 0)  return '0';
@@ -2472,16 +2498,25 @@ function setBreakoutFilter(type, val) {
       breakoutMinConsec = val;
       document.getElementById('bk-consec-val').textContent = `≥ ${val} 天`;
     } else if (type === 'amount') {
-      breakoutMinAmount = val * BK_AMT_UNIT_M;   // 0..50 → 0..500 百萬
+      breakoutMinAmount = val * BK_AMT_UNIT_M;
       document.getElementById('bk-amount-val').textContent = `≥ ${_fmtAmtThreshold(breakoutMinAmount)}`;
     } else if (type === 'exclude') {
-      if (val >= 51) {                            // 第 51 格 = 不排除
+      if (val === 0) {
         breakoutExcludeM = 99999;
         document.getElementById('bk-exclude-val').textContent = '不排除';
       } else {
-        breakoutExcludeM = val * BK_AMT_UNIT_M;   // 0..50 → 0..500 百萬
+        breakoutExcludeM = (val - 1) * BK_AMT_UNIT_M;
         document.getElementById('bk-exclude-val').textContent = `≥ ${_fmtAmtThreshold(breakoutExcludeM)}`;
       }
+    } else if (type === 'volratio') {
+      breakoutVolRatio = BK_VOLRATIO_STEPS[val];
+      document.getElementById('bk-volratio-val').textContent = `> ${breakoutVolRatio}x`;
+    } else if (type === 'boxamp') {
+      breakoutBoxAmp = BK_BOXAMP_STEPS[val];
+      document.getElementById('bk-boxamp-val').textContent = `≤ ${Math.round(breakoutBoxAmp*100)}%`;
+    } else if (type === 'breakpct') {
+      breakoutBreakPct = BK_BREAKPCT_STEPS[val];
+      document.getElementById('bk-breakpct-val').textContent = `≥ ${Math.round(breakoutBreakPct*100)}%`;
     }
   }
   _updateBreakoutHdr();
@@ -2504,6 +2539,18 @@ function renderBreakoutRank() {
     if (Math.abs(amt) < breakoutMinAmount) return false;
     if (isLong  && amt <= 0) return false;
     if (!isLong && amt >= 0) return false;
+    // 個股 membership 篩選（量比 OR 箱型+突破）— 同 backend broker_targets 邏輯
+    const vr   = s.vol_ratio_5d || 0;
+    const bAmp = s.box_amplitude || 0;
+    const bH   = s.box_high      || 0;
+    const bL   = s.box_low       || 0;
+    const px   = s.price         || 0;
+    const upPct = (bH > 0) ? (px - bH) / bH : 0;
+    const dnPct = (bL > 0) ? (bL - px) / bL : 0;
+    const condA = vr > breakoutVolRatio;
+    const condB = bAmp > 0 && bAmp <= breakoutBoxAmp
+                  && (upPct >= breakoutBreakPct || dnPct >= breakoutBreakPct);
+    if (!condA && !condB) return false;
     // 券商分點過濾
     const tid    = mc.trader_id   || '';
     const tname  = mc.trader_name || '';

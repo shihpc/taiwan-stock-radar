@@ -670,11 +670,51 @@ def fetch_balance_sheet(stock_id: str) -> pd.DataFrame:
 
 # ── 分點資料（Sprint 3，Sponsor 限定）────────────────────────
 
+def _broker_cache_path(stock_id: str, date: str) -> Path:
+    return _CACHE_ROOT / f"broker_{stock_id}_{date.replace('-', '')}.pkl"
+
+
+def _load_broker_cache(stock_id: str, date: str) -> Optional[pd.DataFrame]:
+    """當日資料不從 cache 讀（避免拿到盤中尚未完整的資料）"""
+    today = datetime.today().strftime("%Y-%m-%d")
+    if date >= today:
+        return None
+    path = _broker_cache_path(stock_id, date)
+    if not path.exists():
+        return None
+    try:
+        with open(path, "rb") as f:
+            return pickle.load(f)
+    except Exception:
+        path.unlink(missing_ok=True)
+        return None
+
+
+def _save_broker_cache(stock_id: str, date: str, df: pd.DataFrame) -> None:
+    today = datetime.today().strftime("%Y-%m-%d")
+    if date >= today:
+        return
+    if df is None:
+        return
+    _CACHE_ROOT.mkdir(parents=True, exist_ok=True)
+    path = _broker_cache_path(stock_id, date)
+    try:
+        with open(path, "wb") as f:
+            pickle.dump(df, f)
+    except Exception:
+        pass
+
+
 def fetch_broker_data(stock_id: str, date: str) -> pd.DataFrame:
     """
     取得個股單日分點進出（Sponsor 限定，逐筆版）。
-    ⚠️ 速度慢，建議改用 fetch_all_broker_agg() 批次版。
+    過去日期會永久 disk cache（broker 資料公布後不再變動）。
     """
+    cached = _load_broker_cache(stock_id, date)
+    if cached is not None:
+        logger.debug(f"[broker cache hit] {stock_id} {date}")
+        return cached
+
     payload = {
         "data_id": stock_id,
         "date": date,
@@ -688,6 +728,7 @@ def fetch_broker_data(stock_id: str, date: str) -> pd.DataFrame:
             return pd.DataFrame()
         df = pd.DataFrame(data.get("data", []))
         time.sleep(API_SLEEP_SECONDS)
+        _save_broker_cache(stock_id, date, df)
         return df
     except Exception as e:
         logger.error(f"分點資料取得失敗 {stock_id} {date}：{e}")

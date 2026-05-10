@@ -347,41 +347,43 @@ def run_scan(scan_date: str = None, quick: bool = False,
             }
         return out
 
-    # ── Step 3.5：對「外資 / 投信 5 視窗前 30 聯集 + 量比 > 3.5x 股票」
-    #           抓 broker，算 windowed top3 + mainforce_consec
-    #           （前端外資 / 投信 / 主力分點 tab 共用）
+    # ── Step 3.5：抓 broker 的目標股 — 兩條件聯集（主力分點 tab 為主）
+    #   1) 量比 > 2x 的爆量股（前端可拉桿收緊至 3x / 5x）
+    #   2) 5 日箱型 ≤ 9% AND 突破幅度 ≥ 3%（前端可拉桿收緊）
+    #   抓完算 windowed top3 + mainforce_consec
+    #   注意：外資 / 投信 tab 的 broker_top3 對未涵蓋的大型股會空，由前端容錯
     broker_targets: set[str] = set()
     if use_broker:
-        # 法人前 30（外資 / 投信 5 視窗聯集）— 給外資 / 投信 tab 用
-        for w in ['1', '3', '5', '10', '20']:
-            sorted_f = sorted(
-                results,
-                key=lambda r: abs(((r.get('foreign_radar') or {}).get(w) or {})
-                                       .get('net_amount_m', 0)),
-                reverse=True,
-            )[:30]
-            broker_targets.update(r['stock_id'] for r in sorted_f)
-            sorted_t = sorted(
-                results,
-                key=lambda r: abs(((r.get('trust_io') or {}).get(w) or {})
-                                       .get('net_amount_m', 0)),
-                reverse=True,
-            )[:30]
-            broker_targets.update(r['stock_id'] for r in sorted_t)
-
-        # 量比 > 3.5x 的成交量爆增股 — 給主力分點 tab 用
-        # （涵蓋「法人沒進場、本土分點吃貨」的潛在主力股）
-        VOL_RATIO_THRESHOLD = 3.5
-        n_legal = len(broker_targets)
+        # (1) 量比 > 2x
+        VOL_RATIO_THRESHOLD = 2.0
         for r in results:
             bo = r.get('breakout') or {}
             if (bo.get('vol_ratio') or 0) > VOL_RATIO_THRESHOLD:
                 broker_targets.add(r['stock_id'])
-        n_vol = len(broker_targets) - n_legal
+        n_vol = len(broker_targets)
+
+        # (2) 5 日箱型 ≤ 9% AND 突破幅度 ≥ 3%（雙向）
+        BOX_AMP_MAX     = 0.09
+        BREAK_PCT_MIN   = 0.03
+        for r in results:
+            bo = r.get('breakout') or {}
+            box_amp  = bo.get('box_amplitude') or 0
+            box_high = bo.get('box_high')      or 0
+            box_low  = bo.get('box_low')       or 0
+            today_c  = bo.get('today_close')   or 0
+            if box_amp <= 0 or box_high <= 0 or box_low <= 0 or today_c <= 0:
+                continue
+            if box_amp > BOX_AMP_MAX:
+                continue
+            up_pct   = (today_c - box_high) / box_high
+            down_pct = (box_low - today_c) / box_low
+            if up_pct >= BREAK_PCT_MIN or down_pct >= BREAK_PCT_MIN:
+                broker_targets.add(r['stock_id'])
+        n_break = len(broker_targets) - n_vol
 
         logger.info(f"Step 3.5：對 {len(broker_targets)} 支股票抓 broker"
-                    f"（法人前 30 聯集 {n_legal} + 量比 > {VOL_RATIO_THRESHOLD}x"
-                    f" 新增 {n_vol}）...")
+                    f"（量比>{VOL_RATIO_THRESHOLD}x {n_vol}"
+                    f" + 箱型≤{int(BOX_AMP_MAX*100)}% 突破≥{int(BREAK_PCT_MIN*100)}% 新增 {n_break}）...")
         empty_mfc = {"buy":  {"trader_name": "", "consec_days": 0, "net_lots": 0,
                                   "net_amount_m": 0.0, "is_qualified": False},
                      "sell": {"trader_name": "", "consec_days": 0, "net_lots": 0,
