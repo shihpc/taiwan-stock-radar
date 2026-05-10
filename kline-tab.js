@@ -35,7 +35,7 @@ const KLINE = (() => {
   let dragRef   = {};
   let touchRef  = {};
   let rafPending = false;
-  let mainCtx, volCtx, kdCtx;
+  let mainCtx, volCtx, kdCtx, macdCtx;
   let currentCode = '';
   let timeframe   = localStorage.getItem('klTimeframe') || 'D';   // 'D'|'W'|'M'
   let adjusted    = localStorage.getItem('klAdjusted') === '1';
@@ -77,10 +77,35 @@ const KLINE = (() => {
     return { K, D };
   }
 
+  // MACD：DIF = EMA(close,12) - EMA(close,26)，DEA = EMA(DIF,9)，HIST = 2×(DIF-DEA)
+  function macd(arr, fast = 12, slow = 26, signal = 9) {
+    const n = arr.length;
+    const efast = new Array(n).fill(null);
+    const eslow = new Array(n).fill(null);
+    const dif   = new Array(n).fill(null);
+    const dea   = new Array(n).fill(null);
+    const hist  = new Array(n).fill(null);
+    const kf = 2 / (fast + 1), ks = 2 / (slow + 1), kg = 2 / (signal + 1);
+    let pf = arr[0], ps = arr[0], pd = 0;
+    for (let i = 0; i < n; i++) {
+      pf = i === 0 ? arr[0] : (arr[i] - pf) * kf + pf;
+      ps = i === 0 ? arr[0] : (arr[i] - ps) * ks + ps;
+      efast[i] = pf;
+      eslow[i] = ps;
+      const d = pf - ps;
+      dif[i]  = d;
+      pd = i === 0 ? d : (d - pd) * kg + pd;
+      dea[i]  = pd;
+      hist[i] = 2 * (d - pd);
+    }
+    return { dif, dea, hist };
+  }
+
   function compute(data) {
     const cl = data.map(x => x.close);
     const b  = bb(cl);
     const kv = kd(data);
+    const mc = macd(cl);
     return {
       ma5:   ma(cl, 5),
       ma20:  ma(cl, 20),
@@ -92,6 +117,9 @@ const KLINE = (() => {
       bbL:   b.map(x => x.l),
       K: kv.K,
       D: kv.D,
+      DIF:  mc.dif,
+      DEA:  mc.dea,
+      HIST: mc.hist,
     };
   }
 
@@ -237,13 +265,15 @@ const KLINE = (() => {
     const wrap = document.getElementById('klChartWrap');
     if (!wrap) return;
     const W = wrap.clientWidth;
-    const avail = Math.max(300, Math.min(window.innerHeight - 210, 580));
+    const avail = Math.max(360, Math.min(window.innerHeight - 210, 640));
 
-    const mH = Math.round(avail * 0.57);
-    const vH = Math.round(avail * 0.22);
-    const kH = Math.round(avail * 0.21);
+    const mH  = Math.round(avail * 0.50);
+    const vH  = Math.round(avail * 0.18);
+    const kH  = Math.round(avail * 0.16);
+    const maH = Math.round(avail * 0.16);
 
-    [['klMainCanvas', mH], ['klVolCanvas', vH], ['klKdCanvas', kH]].forEach(([id, h]) => {
+    [['klMainCanvas', mH], ['klVolCanvas', vH],
+     ['klKdCanvas',   kH], ['klMacdCanvas', maH]].forEach(([id, h]) => {
       const c = document.getElementById(id);
       if (!c) return;
       c.width = W; c.height = h;
@@ -253,6 +283,7 @@ const KLINE = (() => {
     mainCtx = document.getElementById('klMainCanvas')?.getContext('2d');
     volCtx  = document.getElementById('klVolCanvas')?.getContext('2d');
     kdCtx   = document.getElementById('klKdCanvas')?.getContext('2d');
+    macdCtx = document.getElementById('klMacdCanvas')?.getContext('2d');
   }
 
   // ── 畫布輔助 ──────────────────────────────
@@ -487,7 +518,7 @@ const KLINE = (() => {
 
   function drawKD() {
     if (!kdCtx) return;
-    const ctx = kdCtx; const padB = 18; const a = ca(ctx, padB);
+    const ctx = kdCtx; const a = ca(ctx);
     const { width: W, height: H } = ctx.canvas;
     ctx.fillStyle = BG; ctx.fillRect(0, 0, W, H);
 
@@ -540,6 +571,85 @@ const KLINE = (() => {
       ctx.fillStyle = '#ff3d6a'; ctx.fillText(`D:${dv != null ? dv.toFixed(1) : '—'}`, a.x1 + 54, a.y1 + 9);
     } else {
       ctx.fillStyle = '#2d5a7a'; ctx.fillText('KD(9,3)', a.x1 + 4, a.y1 + 9);
+    }
+
+    ctx.strokeStyle = 'rgba(0,200,255,0.12)'; ctx.lineWidth = 1;
+    ctx.strokeRect(a.x1, a.y1, a.x2 - a.x1, a.y2 - a.y1);
+  }
+
+  // ── 繪圖：MACD ───────────────────────────
+
+  function drawMACD() {
+    if (!macdCtx) return;
+    const ctx = macdCtx; const padB = 18; const a = ca(ctx, padB);
+    const { width: W, height: H } = ctx.canvas;
+    ctx.fillStyle = BG; ctx.fillRect(0, 0, W, H);
+
+    // 算可見範圍 max abs
+    let mx = 0;
+    for (let i = view.s; i <= view.e; i++) {
+      const d = ind.DIF[i], e = ind.DEA[i], h = ind.HIST[i];
+      if (d != null) mx = Math.max(mx, Math.abs(d));
+      if (e != null) mx = Math.max(mx, Math.abs(e));
+      if (h != null) mx = Math.max(mx, Math.abs(h));
+    }
+    if (!mx) mx = 1;
+    const toY = v => a.y1 + (1 - (v + mx) / (2 * mx)) * a.H;
+    const zeroY = toY(0);
+
+    // 中線（0）
+    ctx.strokeStyle = 'rgba(0,200,255,0.2)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(a.x1, zeroY); ctx.lineTo(a.x2, zeroY); ctx.stroke();
+
+    ctx.save(); ctx.beginPath(); ctx.rect(a.x1, a.y1, a.x2 - a.x1, a.y2 - a.y1); ctx.clip();
+
+    // HIST 柱狀
+    const bw = barW(a); const ew = Math.max(1, bw * 0.6);
+    for (let i = view.s; i <= view.e; i++) {
+      const h = ind.HIST[i]; if (h == null) continue;
+      const x = ix(i, a), y = toY(h);
+      ctx.fillStyle = h >= 0 ? 'rgba(255,61,106,0.65)' : 'rgba(0,255,157,0.65)';
+      ctx.fillRect(x - ew / 2, Math.min(y, zeroY), ew, Math.abs(y - zeroY));
+    }
+
+    // DIF / DEA 線
+    [
+      { arr: ind.DIF, c: '#00cfff', w: 1.4 },
+      { arr: ind.DEA, c: '#ff8c42', w: 1.4 },
+    ].forEach(({ arr, c, w }) => {
+      if (!arr) return;
+      ctx.beginPath(); ctx.strokeStyle = c; ctx.lineWidth = w;
+      let ok = false;
+      for (let i = view.s; i <= view.e; i++) {
+        if (arr[i] == null) { ok = false; continue; }
+        const x = ix(i, a), y = toY(arr[i]);
+        ok ? ctx.lineTo(x, y) : ctx.moveTo(x, y); ok = true;
+      }
+      ctx.stroke();
+    });
+
+    // 十字線
+    if (hIdx >= view.s && hIdx <= view.e) {
+      const x = ix(hIdx, a);
+      ctx.strokeStyle = 'rgba(0,200,255,0.3)'; ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.moveTo(x, a.y1); ctx.lineTo(x, a.y2); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.restore();
+
+    // MACD 數值（左上）
+    const di = hIdx >= 0 && hIdx < raw.length ? hIdx : view.e;
+    const dif = ind.DIF[di], dea = ind.DEA[di], hist = ind.HIST[di];
+    ctx.font = '9px Space Mono, monospace'; ctx.textAlign = 'left';
+    if (dif != null) {
+      const f = v => v == null ? '—' : v.toFixed(2);
+      ctx.fillStyle = '#00cfff'; ctx.fillText(`DIF:${f(dif)}`, a.x1 + 4,  a.y1 + 9);
+      ctx.fillStyle = '#ff8c42'; ctx.fillText(`DEA:${f(dea)}`, a.x1 + 70, a.y1 + 9);
+      ctx.fillStyle = (hist || 0) >= 0 ? UP : DN;
+      ctx.fillText(`HIST:${f(hist)}`, a.x1 + 138, a.y1 + 9);
+    } else {
+      ctx.fillStyle = '#2d5a7a'; ctx.fillText('MACD(12,26,9)', a.x1 + 4, a.y1 + 9);
     }
 
     // X 軸日期
@@ -614,6 +724,7 @@ const KLINE = (() => {
         <span style="color:#a78bfa">MA240:${f(ind.ma240[i])}</span>
         ${ind.bbU[i] != null ? `<br><span style="color:#8aa">BB:${fmtP(ind.bbL[i])}~${fmtP(ind.bbU[i])}</span>` : ''}
         ${kv != null ? `<br><span style="color:#00cfff">K:${kv.toFixed(1)}</span> <span style="color:#ff3d6a">D:${dv != null ? dv.toFixed(1) : '—'}</span>` : ''}
+        ${ind.DIF[i] != null ? `<br><span style="color:#00cfff">DIF:${ind.DIF[i].toFixed(2)}</span> <span style="color:#ff8c42">DEA:${ind.DEA[i].toFixed(2)}</span>` : ''}
       </div>`;
     tip.style.display = 'block';
 
@@ -631,7 +742,7 @@ const KLINE = (() => {
     if (rafPending) return;
     rafPending = true;
     requestAnimationFrame(() => {
-      drawMain(); drawVol(); drawKD(); updateStat();
+      drawMain(); drawVol(); drawKD(); drawMACD(); updateStat();
       rafPending = false;
     });
   }
