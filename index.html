@@ -905,8 +905,8 @@ body::before{
    K線圖 Tab
 ═══════════════════════════════════════════ */
 .kl-stat-bar{
-  display:grid;grid-template-columns:repeat(5,1fr);
-  gap:3px;padding:2px 0;
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:6px;padding:2px 0;
 }
 .kl-stat-cell{
   background:var(--bg2);border:1px solid var(--border);
@@ -1005,20 +1005,23 @@ body::before{
       <p>同上邏輯但過濾投信，5 個視窗（1/3/5/10/20 日）累計買賣超金額排行。</p>
 
       <h4><span class="help-tag tag-C">C</span>主力分點</h4>
-      <p>從 <code>TaiwanStockTradingDailyReport</code>（Sponsor 限定）抓券商分點明細。納入 broker 抓取的個股有 3 種：</p>
+      <p>從 <code>TaiwanStockTradingDailyReport</code>（Sponsor 限定）抓 broker。納入 broker 抓取的條件（聯集）：</p>
       <ul>
-        <li>外資 / 投信前 30 大金額股</li>
-        <li>當日成交量爆增（vol_ratio &gt; 3.5x）</li>
-        <li>近 5 日向上 / 向下突破個股</li>
+        <li>當日成交量 &gt; 5 日均量 × 2x</li>
+        <li>5 日箱型 ≤ 9% AND 突破幅度 ≥ 3%</li>
       </ul>
-      <p>主力分點榜為「<strong>同分點連續買 / 賣超</strong>」，可用 4 個門檻篩：</p>
+      <p>對 broker_targets 算 1–5 日內最大連續買 / 賣分點，前端可即時調整 6 個門檻：</p>
       <ul>
-        <li><strong>連續天數</strong>：1–10 天，預設 ≥ 3 天</li>
-        <li><strong>累計金額</strong>：0–5 億，每格 1 千萬，預設 ≥ 5 千萬</li>
-        <li><strong>法人排除</strong>：當該股 5 日外資 OR 投信 |net| 超過設定值就排除（避免被法人主導），最右為「不排除」</li>
-        <li><strong>排除外資券商</strong>（11 組 TWSE 代號，預設勾）</li>
-        <li><strong>排除國內大型券商總公司</strong>（21 組代號，預設勾，僅排除總公司不含分公司）</li>
+        <li><strong>連續天數</strong>：1–5 天，預設 ≥ 1 天（決定「X 日內連買」的計算視窗）</li>
+        <li><strong>累計金額</strong>：0–2 億，每格 1 千萬，預設 ≥ 3 千萬</li>
+        <li><strong>法人排除</strong>：該股 5 日外資 OR 投信 |net| 超過設定值就排除，最左為「不排除」（預設）</li>
+        <li><strong>五日均量</strong>：&gt; 2x / 3x / 5x（前端可收緊 backend 條件）</li>
+        <li><strong>箱型振幅</strong>：≤ 9% / 7% / 5% / 3%</li>
+        <li><strong>突破幅度</strong>：≥ 3% / 5% / 9%</li>
+        <li>☑ <strong>排除外資券商</strong>（12 組 TWSE 代號，預設勾）</li>
+        <li>☑ <strong>排除國內大型券商總公司</strong>（21 組代號，僅排除總公司不含分公司，預設勾）</li>
       </ul>
+      <p>卡片顯示「最大連買分點 + ID」，點「明細」展開 5 日 TOP 3 broker。</p>
 
       <h4><span class="help-tag tag-M">M</span>融資 / 融券</h4>
       <p>5 視窗融資 / 融券餘額張數變化，金額 = 餘額張數 × 收盤價（含稅）。觀察散戶資金（融資）與空頭壓力（融券）。</p>
@@ -1147,7 +1150,7 @@ body::before{
     <div class="sub-page" id="sp2" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;">
       <div class="pg">
         <div style="background:rgba(167,139,250,.06);border:1px solid rgba(167,139,250,.2);border-radius:8px;padding:8px 12px;font-size:.65rem;color:var(--t2);line-height:1.6;">
-          🎯 <strong style="color:var(--c5)">主力分點</strong>：篩出「同一分點近 5 日連買 / 連賣 ≥ 3 天，累計金額 ≥ 5 千萬」的個股；同時排除「外資 5 日 \|net\| ≥ 3 千萬 OR 投信 5 日 \|net\| ≥ 3 千萬」的股票，凸顯主力色彩。突破 + 爆量股額外標 🚀。
+          🎯 <strong style="color:var(--c5)">主力分點</strong>：對符合「五日均量 &gt; 2x ∪（5 日箱型 ≤ 9% AND 突破 ≥ 3%）」的個股逐支抓 broker，計算 1–5 日內最大連續買 / 賣分點。可即時調整 6 個門檻（連續天數 / 累計金額 / 法人排除 / 五日均量 / 箱型振幅 / 突破幅度）+ 2 個勾選（排除外資券商 / 國內大型券商總公司）。突破爆量股額外標 🚀。
         </div>
         <!-- 方向切換 -->
         <div id="breakoutDirChips" style="display:flex;gap:6px;padding:4px 0 6px;">
@@ -1403,14 +1406,6 @@ body::before{
         <button class="kl-adj-btn" id="klAdjBtn" onclick="KLINE.toggleAdjusted()">
           <span id="klAdjIco">○</span> 還原權息
         </button>
-      </div>
-
-      <!-- 日期區間 -->
-      <div style="display:flex;gap:4px;">
-        <button class="kl-range-btn" id="klRange3M" onclick="KLINE.setDateRange(3)">3M</button>
-        <button class="kl-range-btn" id="klRange6M" onclick="KLINE.setDateRange(6)">6M</button>
-        <button class="kl-range-btn active" id="klRange1Y" onclick="KLINE.setDateRange(12)">1Y</button>
-        <button class="kl-range-btn" id="klRange2Y" onclick="KLINE.setDateRange(24)">2Y</button>
       </div>
 
       <!-- 候選股切換（掃描後才顯示） -->
@@ -2589,10 +2584,16 @@ function renderBreakoutRank() {
   const dirText  = isLong ? '看好（買超分點）' : '看空（賣超分點）';
   const dirColor = isLong ? 'var(--up)' : 'var(--dn)';
 
+  // 動態描述（依當前拉桿值）
+  const consAct = isLong ? '連買' : '連賣';
+  const amtTxt  = _fmtAmtThreshold(breakoutMinAmount);
+  const exclTxt = breakoutExcludeM >= 99999 ? '不排除法人' : `排除法人 ≥ ${_fmtAmtThreshold(breakoutExcludeM)}`;
+  const cond    = `${breakoutMinConsec} 日內 ${consAct} ≥ ${breakoutMinConsec} 天，累計 ≥ ${amtTxt}，${exclTxt}`;
+
   const headerBar = `<div style="background:var(--bg3);border:1px solid var(--border);
     border-radius:7px;padding:7px 12px;display:flex;justify-content:space-between;
     align-items:center;font-size:.63rem;flex-wrap:wrap;gap:6px;">
-    <span style="color:var(--t2)">主力分點榜（5 日連買 / 連賣 ≥ 3 天，累計 ≥ 5 千萬，排除法人 ≥ 3 千萬）</span>
+    <span style="color:var(--t2)">主力分點榜（${cond}）</span>
     <span style="color:${dirColor};font-family:'Space Mono',monospace;font-weight:700;">
       ${isLong ? '↗' : '↘'} ${dirText}：${qualified.length} 支
     </span>
@@ -2602,13 +2603,14 @@ function renderBreakoutRank() {
     (qualified.length === 0
       ? `<div class="empty"><div class="empty-icon">🎯</div>
           <div class="empty-title">本日無符合條件個股</div>
-          <div class="empty-sub">需同時滿足：同一分點近 5 日${isLong ? '連買' : '連賣'} ≥ 3 天<br>
-            累計${isLong ? '淨買超' : '淨賣超'}金額 ≥ 5 千萬<br>
-            且外資 / 投信 5 日 |net| 都 &lt; 3 千萬（避免被法人光環蓋過）</div>
+          <div class="empty-sub">需該股有分點 ${breakoutMinConsec} 日內${consAct} ≥ ${breakoutMinConsec} 天<br>
+            累計${isLong ? '淨買超' : '淨賣超'}金額 ≥ ${amtTxt}<br>
+            ${breakoutExcludeM >= 99999 ? '' : `且外資 / 投信 5 日 |net| 都 &lt; ${_fmtAmtThreshold(breakoutExcludeM)}<br>`}
+            可拉動上方拉桿放寬條件</div>
         </div>`
       : qualified.map((s, i) => buildBreakoutRankCard(s, i + 1)).join('')) +
     `<div style="text-align:center;padding:8px;font-size:.6rem;color:var(--t3)">
-      條件：分點 5 日連${isLong ? '買' : '賣'} ≥ 3 天 + 累計 ≥ 5 千萬 + 排除法人 ≥ 3 千萬，共 ${qualified.length} 支
+      ${cond}，共 ${qualified.length} 支
     </div>`;
 }
 
@@ -2642,19 +2644,40 @@ function buildBreakoutRankCard(s, rank) {
   const consecBadge = `<span style="font-size:.55rem;background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.4);color:var(--c5);border-radius:4px;padding:1px 6px;white-space:nowrap;font-weight:700;">
     🔥 連${isLong ? '買' : '賣'} ${mc.consec_days || 0} 天</span>`;
 
-  // 5 日 top3 broker（broker_top3.5.buy / sell）
+  // 連續分點（mainforce_consec[N]）— 顯示在金額下方
+  const tid     = mc.trader_id   || '';
+  const tname   = mc.trader_name || '—';
+  const mcLots  = mc.net_lots    || 0;
+  const mcLotsTxt = (mcLots > 0 ? '+' : '') + mcLots.toLocaleString();
+  const consecBrokerRow = `<div style="margin-top:5px;padding:4px 8px;
+       background:rgba(167,139,250,.06);border:1px solid rgba(167,139,250,.18);
+       border-radius:5px;display:flex;justify-content:space-between;align-items:center;
+       gap:8px;font-size:.62rem;">
+    <span style="color:var(--t1);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+      <span style="color:var(--c5);font-family:'Space Mono',monospace;font-size:.58rem;">[${tid || '—'}]</span>
+      <span style="margin-left:4px;">${truncateBrokerName(tname)}</span>
+    </span>
+    <span style="color:${dirColor};font-family:'Space Mono',monospace;font-weight:700;flex-shrink:0;">
+      ${mcLotsTxt} 張
+    </span>
+  </div>`;
+
+  // 5 日 top3 broker（broker_top3.5.buy / sell）— 放進「明細」收合區
   const top3 = ((s.broker_top3 || {})['5'] || {})[dirKey] || [];
   const medals = ['🥇', '🥈', '🥉'];
   const top3Rows = [0, 1, 2].map(i => {
     const b = top3[i];
-    if (!b) return `<div style="display:flex;justify-content:space-between;gap:8px;color:var(--t3);font-size:.58rem;">
+    if (!b) return `<div style="display:flex;justify-content:space-between;gap:8px;color:var(--t3);font-size:.58rem;padding:2px 0;">
       <span>${medals[i]} —</span><span></span>
     </div>`;
     const lots = b.lots || 0;
     const amt  = b.amount_m || 0;
     const lotsTxt = (lots > 0 ? '+' : '') + lots.toLocaleString();
-    return `<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:.58rem;padding:1px 0;">
-      <span style="color:var(--t1);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${medals[i]} ${truncateBrokerName(b.name || '—')}</span>
+    const bid = b.id || '';
+    return `<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:.58rem;padding:2px 0;border-top:${i===0 ? 'none' : '1px dashed rgba(167,139,250,.1)'};">
+      <span style="color:var(--t1);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+        ${medals[i]} <span style="color:var(--c5);font-family:'Space Mono',monospace;font-size:.55rem;">[${bid || '—'}]</span> ${truncateBrokerName(b.name || '—')}
+      </span>
       <span style="display:flex;gap:8px;flex-shrink:0;">
         <span style="color:${dirColor};font-family:'Space Mono',monospace;font-weight:700;min-width:60px;text-align:right;">${lotsTxt} 張</span>
         <span style="color:var(--t2);font-family:'Space Mono',monospace;min-width:60px;text-align:right;">${fmtAmount(amt)}</span>
@@ -2672,17 +2695,20 @@ function buildBreakoutRankCard(s, rank) {
           <span class="drc-name">${s.name}</span>${mktBadge}
           <span class="price-change ${isUp?'up':'dn'}" style="font-size:.65rem;margin-left:auto;font-family:'Space Mono',monospace">${isUp?'▲':'▼'}${Math.abs(s.chg_pct).toFixed(2)}%</span>
         </div>
-        ${buildAmountTopRow(sortNet, '主力分點 5 日累計')}
+        ${buildAmountTopRow(sortNet, `主力分點 ${breakoutMinConsec} 日累計`)}
+        ${consecBrokerRow}
         <div class="drc-sub" style="display:flex;gap:5px;flex-wrap:wrap;margin-top:4px;">
           ${consecBadge}${breakoutBadge}
         </div>
-        <div style="margin-top:6px;padding:5px 8px;background:rgba(167,139,250,.04);
-                    border:1px solid rgba(167,139,250,.15);border-radius:5px;
-                    display:flex;flex-direction:column;gap:2px;">
-          <div style="font-size:.55rem;color:var(--t3);margin-bottom:2px;letter-spacing:.5px;">
-            5 日 ${isLong ? '買超' : '賣超'} TOP 3 分點
+        <div class="fr-table-wrap" style="display:none;">
+          <div style="margin-top:6px;padding:6px 8px;background:rgba(167,139,250,.04);
+                      border:1px solid rgba(167,139,250,.15);border-radius:5px;
+                      display:flex;flex-direction:column;gap:2px;">
+            <div style="font-size:.55rem;color:var(--t3);margin-bottom:3px;letter-spacing:.5px;">
+              📊 5 日 ${isLong ? '買超' : '賣超'} TOP 3 分點
+            </div>
+            ${top3Rows}
           </div>
-          ${top3Rows}
         </div>
         <div style="margin-top:5px;display:flex;gap:8px;font-size:.55rem;color:var(--t3);
                     padding:3px 8px;background:rgba(0,200,255,.02);border-radius:4px;">
@@ -3402,14 +3428,44 @@ function _buildListingsSection(code) {
     html += `</div>`;
   }
 
-  if (mfUp || mfDown) {
+  // 主力分點區塊：突破標記 + 5 日 TOP 3 broker（買 / 賣兩側）
+  const mfBuy3  = ((s.broker_top3 || {})['5'] || {}).buy  || [];
+  const mfSell3 = ((s.broker_top3 || {})['5'] || {}).sell || [];
+  if (mfUp || mfDown || mfBuy3.length || mfSell3.length) {
     any = true;
-    const t = mfUp ? '↗ 向上突破 + 5 倍爆量' : '↘ 向下突破 + 5 倍爆量';
-    const c = mfUp ? 'var(--up)' : 'var(--dn)';
     html += `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;">
-      <div style="font-size:.62rem;color:var(--c5);font-weight:700;margin-bottom:5px;letter-spacing:1px;">🎯 主力分點</div>
-      <div style="font-size:.66rem;color:${c};">${t}（量比 ${(s.vol_ratio_5d || 0).toFixed(1)}x）</div>
-    </div>`;
+      <div style="font-size:.62rem;color:var(--c5);font-weight:700;margin-bottom:5px;letter-spacing:1px;">🎯 主力分點</div>`;
+    if (mfUp || mfDown) {
+      const t = mfUp ? '↗ 向上突破 + 5 倍爆量' : '↘ 向下突破 + 5 倍爆量';
+      const c = mfUp ? 'var(--up)' : 'var(--dn)';
+      html += `<div style="font-size:.66rem;color:${c};margin-bottom:6px;">${t}（量比 ${(s.vol_ratio_5d || 0).toFixed(1)}x）</div>`;
+    }
+    const renderBrokerList = (list, dirColor) => {
+      if (!list || !list.length) return '';
+      const medals = ['🥇', '🥈', '🥉'];
+      return list.slice(0, 3).map((b, i) => {
+        const lots = b.lots || 0;
+        const amt  = b.amount_m || 0;
+        const lotsTxt = (lots > 0 ? '+' : '') + lots.toLocaleString();
+        const bid = b.id || '';
+        return `<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:.6rem;padding:3px 0;border-top:${i===0 ? '1px solid var(--border)' : '1px dashed rgba(167,139,250,.12)'};">
+          <span style="color:var(--t1);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+            ${medals[i]} <span style="color:var(--c5);font-family:'Space Mono',monospace;font-size:.55rem;">[${bid || '—'}]</span> ${b.name || '—'}
+          </span>
+          <span style="display:flex;gap:8px;flex-shrink:0;">
+            <span style="color:${dirColor};font-family:'Space Mono',monospace;font-weight:700;min-width:60px;text-align:right;">${lotsTxt} 張</span>
+            <span style="color:var(--t2);font-family:'Space Mono',monospace;min-width:60px;text-align:right;">${_fmtAmt(amt)}</span>
+          </span>
+        </div>`;
+      }).join('');
+    };
+    if (mfBuy3.length) {
+      html += `<div style="font-size:.58rem;color:var(--t3);margin:6px 0 0;">📈 5 日買超 TOP 3</div>${renderBrokerList(mfBuy3, 'var(--up)')}`;
+    }
+    if (mfSell3.length) {
+      html += `<div style="font-size:.58rem;color:var(--t3);margin:6px 0 0;">📉 5 日賣超 TOP 3</div>${renderBrokerList(mfSell3, 'var(--dn)')}`;
+    }
+    html += `</div>`;
   }
 
   if (fBuy.length || fSell.length) {

@@ -676,22 +676,10 @@ const KLINE = (() => {
     const chg = r.close - pre;
     const pct = (chg / pre * 100).toFixed(2);
     const isUp = chg >= 0;
-    const f = v => v == null ? '—' : fmtP(v);
-    const bU = ind.bbU[i], bL = ind.bbL[i], bM = ind.bbM[i];
-    const bbW = (bU != null && bL != null && bM) ? ((bU - bL) / bM * 100).toFixed(1) + '%' : '—';
-    const kv = ind.K[i], dv = ind.D[i];
-
     const cells = [
-      { l: '收盤', v: r.close.toLocaleString(), c: isUp ? UP : DN },
-      { l: '漲跌%', v: `${isUp ? '▲' : '▼'}${Math.abs(pct)}%`, c: isUp ? UP : DN },
-      { l: 'MA5',  v: f(ind.ma5[i]),  c: '#00ff9d' },
-      { l: 'MA20', v: f(ind.ma20[i]), c: '#ff8c42' },
-      { l: 'MA60', v: f(ind.ma60[i]), c: '#00cfff' },
-      { l: 'MA120',v: f(ind.ma120[i]),c: '#ff3d6a' },
-      { l: 'MA240',v: f(ind.ma240[i]),c: '#a78bfa' },
-      { l: 'BB寬', v: bbW, c: '#7ab3cc' },
-      { l: 'K值',  v: kv != null ? kv.toFixed(1) : '—', c: '#00cfff' },
-      { l: 'D值',  v: dv != null ? dv.toFixed(1) : '—', c: '#ff3d6a' },
+      { l: '收盤',   v: r.close.toLocaleString(),                        c: isUp ? UP : DN },
+      { l: '漲跌%',  v: `${isUp ? '▲' : '▼'}${Math.abs(pct)}%`,          c: isUp ? UP : DN },
+      { l: '成交量', v: fmtVol(r.volume),                                 c: '#7ab3cc' },
     ];
     el.innerHTML = cells.map(({ l, v, c }) =>
       `<div class="kl-stat-cell">
@@ -811,14 +799,17 @@ const KLINE = (() => {
     });
 
     // 觸控
+    let tapStart = null;   // 紀錄 tap 起點 + 是否有移動
     mc.addEventListener('touchstart', e => {
       e.preventDefault();
       if (e.touches.length === 1) {
         touchRef = { type: 'pan', x: e.touches[0].clientX, s: view.s, e: view.e };
+        tapStart = { x: e.touches[0].clientX, y: e.touches[0].clientY, moved: false };
       } else {
         const dx = e.touches[0].clientX - e.touches[1].clientX;
         const dy = e.touches[0].clientY - e.touches[1].clientY;
         touchRef = { type: 'pinch', dist: Math.hypot(dx, dy), s: view.s, e: view.e };
+        tapStart = null;
       }
     }, { passive: false });
 
@@ -826,6 +817,11 @@ const KLINE = (() => {
       e.preventDefault();
       const a = ca(mainCtx);
       if (touchRef.type === 'pan' && e.touches.length === 1) {
+        if (tapStart) {
+          const dx = Math.abs(e.touches[0].clientX - tapStart.x);
+          const dy = Math.abs(e.touches[0].clientY - tapStart.y);
+          if (dx > 6 || dy > 6) tapStart.moved = true;
+        }
         const bw = a.W / (touchRef.e - touchRef.s + 1);
         const sh = Math.round((touchRef.x - e.touches[0].clientX) / bw);
         const n = touchRef.e - touchRef.s + 1;
@@ -848,7 +844,49 @@ const KLINE = (() => {
       }
     }, { passive: false });
 
-    mc.addEventListener('touchend', () => { touchRef = {}; });
+    mc.addEventListener('touchend', e => {
+      // tap（沒移動）→ 切換 tooltip 顯示
+      if (tapStart && !tapStart.moved) {
+        const tip = document.getElementById('klTooltip');
+        if (tip && tip.style.display === 'block') {
+          tip.style.display = 'none';
+          hIdx = -1;
+          redraw();
+        } else {
+          const rect = mc.getBoundingClientRect();
+          const a = ca(mainCtx);
+          const rel = tapStart.x - rect.left - a.x1;
+          const bw = a.W / (view.e - view.s + 1);
+          const ni = Math.min(view.e, Math.max(view.s, Math.round(rel / bw - 0.5) + view.s));
+          if (ni >= 0 && ni < raw.length) {
+            hIdx = ni;
+            showTip({ clientX: tapStart.x }, hIdx);
+            redraw();
+          }
+        }
+      }
+      touchRef = {};
+      tapStart = null;
+    });
+
+    // 桌機 click（無拖曳）→ 切換 tooltip
+    let clickStart = null;
+    mc.addEventListener('mousedown', e => {
+      clickStart = { x: e.clientX, y: e.clientY };
+    });
+    mc.addEventListener('click', e => {
+      if (!clickStart) return;
+      const dx = Math.abs(e.clientX - clickStart.x);
+      const dy = Math.abs(e.clientY - clickStart.y);
+      clickStart = null;
+      if (dx > 4 || dy > 4) return;   // 拖曳，不算 click
+      const tip = document.getElementById('klTooltip');
+      if (tip && tip.style.display === 'block') {
+        tip.style.display = 'none';
+        hIdx = -1;
+        redraw();
+      }
+    });
   }
 
   // ── 日期區間 ──────────────────────────────
@@ -1007,10 +1045,6 @@ const KLINE = (() => {
       document.getElementById('klChartWrap').style.display = 'block';
       document.getElementById('klStatBar').style.display   = 'grid';
       updateSubLine();
-
-      // 預設 active 1Y
-      document.querySelectorAll('.kl-range-btn').forEach(b => b.classList.remove('active'));
-      document.getElementById('klRange1Y')?.classList.add('active');
 
       setupCanvases();
       setupInteraction();
